@@ -10,6 +10,10 @@ The first three batches are known reference sets. Images within a batch show the
 
 The frontend presents this reference-to-incoming workflow. It does not claim to classify images until microscopy files and image-level analysis are connected.
 
+## Batch image dataset
+
+Download the batch microscopy images from the [Google Drive folder](https://drive.google.com/drive/folders/12UnB4HYDElXzoR4I0mG7NZ0buSr4QXF6). The folder owner must enable link access for repository users to open or download its files.
+
 ## Run locally
 
 Start the API from the repository root in one terminal:
