@@ -190,6 +190,7 @@ def list_batch_images(batch_id: str):
                             "filename": view["filename"],
                             "detector": view.get("detector"),
                             "display_name": view.get("display_name"),
+                            "label_matches_image": view.get("label_matches_image"),
                             "detector_confidence": view.get("detector_confidence"),
                         }
                         for view in sorted(

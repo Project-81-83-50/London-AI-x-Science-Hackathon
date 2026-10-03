@@ -17,17 +17,19 @@ So fields are recovered from the pixels instead:
 4. Each view's real detector is identified from its pixels (the filename suffix is ignored):
    - BSE: the only grainy view. Backscatter signal is weak, so its pixel noise relative to
      contrast is about 0.06-0.09, against at most 0.045 for the secondary-electron views.
-   - InLens vs ETD: both are secondary-electron views. With the field's views pixel-aligned,
-     the BSE phase map shows where the pores are. The through-lens InLens detector only sees
-     the polished surface, so pores stay black (contrast below about -4 graphite IQRs). The
-     chamber ETD also collects electrons from pore walls, so pores fill in (about -3 to 0)
-     and particle rims glow. Without a BSE view, each SE view's own phase map is used.
-   Files labelled "SE" are treated as the same chamber secondary-electron class as ETD.
+   - ETD vs InLens: both are secondary-electron views. With the field's views pixel-aligned,
+     the BSE phase map shows where the pores are. In the ETD view pores stay black (contrast
+     below about -4 graphite IQRs); in the InLens view pores fill in (about -3 to 0) and
+     particle rims glow. This orientation is calibrated on the corrected reference filenames,
+     where it agrees with every ETD / InLens label. Without a BSE view, each SE view's own
+     phase map is used. Files labelled "SE" are counted with the ETD class.
 5. Each field gets one location name, so every view in a group shares it: the filename codes
    are assigned one-to-one to fields (optimal assignment). A code must have as many files as
    the field has views, codes already carried by the field's files are preferred, and ties go
-   to the code of the field's BSE file. Because the codes are shuffled, several codes often
-   fit a field equally well; such names are marked as assigned rather than recovered.
+   to the code of the field's BSE file. When the filenames are correct, every field's files
+   share one code and the name is simply recovered; otherwise it is marked as assigned.
+   Each view's label is its filename (img_ and extension dropped) when that agrees with the
+   field's location and the identified detector, and location_detector otherwise.
 
 Output: data/processed/fields/batch_N.json, used by batch_kpis.py and the image API.
 Run directly to (re)build the manifests: python field_matching.py [--batches 1 2 3]
@@ -55,7 +57,7 @@ BIN = 8               # ~200 nm/px from 25 nm/px raw pixels
 CROP = (200, 860)     # common crop (rows, cols) so every image has the same FFT size
 STRONG, MODERATE = 0.15, 0.06
 BSE_NOISE = 0.055     # relative pixel noise; BSE views 0.06-0.09, SE views <= 0.045
-PORE_SPLIT = -4.0     # pore contrast (graphite IQRs): InLens <= -4.7, ETD >= -2.9 in the reference batches
+PORE_SPLIT = -4.0     # pore contrast (graphite IQRs): ETD <= -4.7, InLens >= -2.9 in the reference batches
 
 
 def edge_map(path):
@@ -130,12 +132,12 @@ def identify_detectors(paths):
         gap = contrast[b]["pore"] - contrast[a]["pore"]
         sided = contrast[a]["pore"] <= PORE_SPLIT < contrast[b]["pore"]
         conf = "high" if sided and gap >= 2 else "moderate" if gap >= 1 else "low"
-        result[a] = {"detector": "InLens", "confidence": conf}
-        result[b] = {"detector": "ETD", "confidence": conf}
+        result[a] = {"detector": "ETD", "confidence": conf}     # darker pores
+        result[b] = {"detector": "InLens", "confidence": conf}
     for i in others:
         if result[i] is None:  # a lone SE view: judge it against the fixed split
             margin = abs(contrast[i]["pore"] - PORE_SPLIT)
-            result[i] = {"detector": "InLens" if contrast[i]["pore"] <= PORE_SPLIT else "ETD",
+            result[i] = {"detector": "ETD" if contrast[i]["pore"] <= PORE_SPLIT else "InLens",
                          "confidence": "moderate" if margin >= 1.5 else "low"}
     for i in range(len(paths)):
         result[i]["evidence"] = {"relative_noise": round(noise[i], 4),
@@ -179,7 +181,10 @@ def assign_locations(fields):
         f["location_recovered"] = not alternatives
         f["location_alternatives"] = alternatives
         for v in f["views"]:
-            v["display_name"] = f"{codes[j]}_{v['detector']}"
+            label = {"SE": "ETD", "INLENS": "INLENS"}.get(v["filename_detector"], v["filename_detector"])
+            v["label_matches_image"] = v["filename_code"] == codes[j] and label == v["detector"].upper()
+            v["display_name"] = (re.sub(r"^img_|\.tiff?$", "", v["filename"], flags=re.I)
+                                 if v["label_matches_image"] else f"{codes[j]}_{v['detector']}")
 
 
 def phase_correlation(fa, fb):
@@ -255,8 +260,8 @@ def match_batch(batch):
                   f"score ≥ {MATCH_SCORE}, at most {MAX_VIEWS} views per field.",
         "note": "Filename codes and detector suffixes do not identify fields or detectors; both are "
                 "recovered from the images.",
-        "detector_method": f"BSE: relative pixel noise ≥ {BSE_NOISE}. InLens vs ETD: pore contrast against "
-                           f"the field's BSE phase map, InLens ≤ {PORE_SPLIT} < ETD.",
+        "detector_method": f"BSE: relative pixel noise ≥ {BSE_NOISE}. ETD vs InLens: pore contrast against "
+                           f"the field's BSE phase map, ETD ≤ {PORE_SPLIT} < InLens.",
         "unrelated_pair_scores": {"median": float(np.median(unrelated)), "max": float(unrelated.max())},
         "fields": fields,
     }

@@ -414,15 +414,20 @@ def findings(groups, locations, profiles):
                      + ", ".join(usable) + ".")
     mixed = sum(len(l["filename_codes"]) > 1 for l in locations)
     assigned = sum(not l["location_recovered"] for l in locations)
-    notes.append(f"Files were regrouped by image matching into {len(locations)} locations; {mixed} of them combine "
-                 "files with different filename codes. Each location is named with one filename code; for "
-                 f"{assigned} of them several codes fit equally well, so the name is assigned, not recovered.")
+    if mixed or assigned:
+        notes.append(f"Files were regrouped by image matching into {len(locations)} locations; {mixed} of them "
+                     "combine files with different filename codes. Each location is named with one filename code; "
+                     f"for {assigned} of them several codes fit equally well, so the name is assigned, not recovered.")
     views = [v for l in locations for v in l["views"]]
     # A filename "SE" counts as the chamber secondary-electron detector, i.e. ETD.
     wrong = sum(v["detector"].upper() != {"SE": "ETD"}.get(v["filename_detector"], v["filename_detector"])
                 for v in views)
-    notes.append(f"Detectors were identified from the images: {wrong} of {len(views)} files carry a different "
-                 "detector label in their filename.")
+    if wrong:
+        notes.append(f"Detectors were identified from the images: {wrong} of {len(views)} files carry a different "
+                     "detector label in their filename.")
+    if not (mixed or assigned or wrong):
+        notes.append(f"All {len(views)} filenames agree with the images: each location's files show the same field, "
+                     "and every filter label matches the detector identified from the image.")
     return notes
 
 
@@ -532,8 +537,8 @@ def analyse_batch(batch, rebuild_fields=False):
         "method": {
             "analysis_pixel_um": TARGET_NM / 1000,
             "view_selection": "Filename detector labels are wrong, so each view's detector is identified "
-                              "from its pixels (BSE: grainy backscatter noise; InLens: pores black; ETD: pores "
-                              "filled in by pore-wall signal) and the field's BSE view is analysed. Fields "
+                              "from its pixels (BSE: grainy backscatter noise; ETD: pores black; InLens: pores "
+                              "filled in and rims lit) and the field's BSE view is analysed. Fields "
                               "without one are excluded. BSE views whose bright class has rough rims "
                               f"(perimeter/area > {RIM_CLEAN} µm⁻¹) or a share above {MAX_BRIGHT_SHARE:.0%} "
                               "are kept but flagged lower-confidence.",

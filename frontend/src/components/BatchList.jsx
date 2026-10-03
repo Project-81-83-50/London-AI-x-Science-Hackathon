@@ -51,7 +51,7 @@ function BatchList({
       {imageState === "connected" && specimens.length > 0 && (
         <div className={`notice ${matched ? "" : "notice-error"}`}>
           {matched
-            ? "Images are grouped by the location they show and relabelled location_filter. The filter (BSE, InLens or ETD) is identified from the image, and each group is named with one filename code."
+            ? "Images are grouped by the location they show and labelled location_filter. Each label is checked against the image itself; a label that disagrees with the image is replaced and marked."
             : "Views are grouped by filename code, which does not reliably identify the imaged field. Run field_matching.py to group views by matched field."}
         </div>
       )}
@@ -100,9 +100,13 @@ function BatchList({
                                 {image.display_name ??
                                   `${specimen.specimen_id}_${image.detector}`}
                               </strong>
-                              {image.detector_confidence !== "high"
-                                ? ` (${image.detector_confidence})`
-                                : ""}
+                              {image.label_matches_image === false && (
+                                <small className="label-corrected">
+                                  {" "}
+                                  · relabelled from{" "}
+                                  {image.filename.replace(/^img_|\.tiff?$/gi, "")}
+                                </small>
+                              )}
                             </>
                           ) : (
                             image.filter
