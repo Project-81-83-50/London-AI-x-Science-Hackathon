@@ -20,11 +20,11 @@ In File Explorer, download and extract each reference batch so that the TIFF fil
 data/
 └── raw/
     ├── batch_1/
-    │   └── img_<specimen>_<filter> (6).tif
+    │   └── img_<specimen>_<filter> (<number>).tif
     ├── batch_2/
-    │   └── img_<specimen>_<filter> (6).tif
+    │   └── img_<specimen>_<filter> (<number>).tif
     └── batch_3/
-        └── img_<specimen>_<filter> (1).tif
+        └── img_<specimen>_<filter> (<number>).tif
 ```
 
 Create the `batch_1`, `batch_2`, and `batch_3` folders if they are missing. Move the image files themselves into the matching folder; avoid leaving them one level deeper inside an extra `Batch_1`, `Batch_2`, or `Batch_3` folder. Keep the supplied filenames unchanged. The image API recognizes `.tif` files named `img_<specimen>_<filter> (N).tif`, where `<filter>` is `BSE`, `ETD`, `Inlens`, or `SE` and `N` is the number already in the supplied filename. It scans the batch folder itself, not nested subfolders.
