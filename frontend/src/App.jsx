@@ -5,6 +5,7 @@ import Get4Results from "./components/Get4Results";
 import KpiReport from "./components/KpiReport";
 import LucasReport from "./components/LucasReport";
 import TopBar from "./components/TopBar";
+import UnknownBatch from "./components/UnknownBatch";
 
 // Vite reads VITE_ variables at build/start time; change this in frontend/.env.
 const API_URL = (
@@ -12,7 +13,6 @@ const API_URL = (
 ).replace(/\/$/, "");
 
 const referenceBatches = ["1", "2", "3"];
-const incomingBatches = ["4", "5"];
 const supportedDetectors = ["BSE", "ETD", "INLENS", "SE", "TLD", "CBS"];
 
 function App() {
@@ -167,8 +167,8 @@ function App() {
             <p className="eyebrow">ELECTRON MICROSCOPY / BATCH ORGANISATION</p>
             <h1>Trace each image to its source</h1>
             <p className="page-subtitle">
-              Learn the three known battery batches, then sort the images in
-              mixed batches 4 and 5 with evidence.
+              Learn the three known battery batches, then assign each location
+              in the unknown batch to its closest reference, with evidence.
             </p>
           </div>
         </section>
@@ -184,8 +184,8 @@ function App() {
           <article className="workflow-step">
             <span className="workflow-number">02</span>
             <div>
-              <h2>Sort the mixed images</h2>
-              <p>Match each view in batches 4 and 5 to batches 1–3.</p>
+              <h2>Classify the unknown batch</h2>
+              <p>Assign each unknown location to batch 1, 2 or 3.</p>
             </div>
           </article>
           <article className="workflow-step">
@@ -264,36 +264,7 @@ function App() {
           )}
         </section>
 
-        <section className="section-block" aria-labelledby="incoming-title">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">UNSEEN MATERIAL / MIXED IMAGE SETS</p>
-              <h2 id="incoming-title">Incoming batches to organise</h2>
-            </div>
-            <span className="section-count">SOURCE: BATCHES 1–3</span>
-          </div>
-          <div className="batch-grid batch-grid-two">
-            {incomingBatches.map((batch) => (
-              <article className="batch-card incoming-card" key={batch}>
-                <div className="batch-card-top">
-                  <span className="batch-index">INCOMING / BATCH {batch}</span>
-                  <span className="data-state data-state-pending">
-                    NOT RECEIVED
-                  </span>
-                </div>
-                <h3>Batch {batch}</h3>
-                <p>
-                  Images will be grouped by the reference batch they most
-                  resemble. Each assignment should include a reason and a
-                  confidence level.
-                </p>
-                <div className="match-placeholder">
-                  <span>Image groups and match evidence will appear here.</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+        <UnknownBatch apiUrl={API_URL} />
 
         <section
           className={`data-notice ${apiState === "error" ? "data-notice-error" : ""}`}
@@ -358,7 +329,7 @@ function App() {
 
       <footer className="footer">
         <span>EM QC / IMAGE PROVENANCE WORKSPACE</span>
-        <span>REFERENCE SETS 1–3 · MIXED SETS 4–5</span>
+        <span>REFERENCE SETS 1–3 · UNKNOWN SET</span>
       </footer>
     </main>
   );

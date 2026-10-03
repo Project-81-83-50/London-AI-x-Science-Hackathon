@@ -36,7 +36,7 @@ from PIL import Image
 from scipy import ndimage, spatial, stats
 from skimage import filters, measure
 
-from field_matching import load_or_match
+from field_matching import batch_dir, load_or_match
 
 ROOT = Path(__file__).resolve().parent
 RAW = ROOT / "data" / "raw"
@@ -106,8 +106,7 @@ def view_confidence(rim, share):
 def inventory(batch, rebuild_fields=False):
     """Views grouped by the field they show (matched from pixels, not from filenames)."""
     manifest = load_or_match(batch, rebuild_fields)
-    batch_dir = RAW / f"batch_{batch}"
-    return {f["field_id"]: {"field": f, "views": [{"filename": v["filename"], "path": batch_dir / v["filename"],
+    return {f["field_id"]: {"field": f, "views": [{"filename": v["filename"], "path": batch_dir(batch) / v["filename"],
                                                    "detector": v["detector"],
                                                    "detector_confidence": v["detector_confidence"],
                                                    "filename_detector": v["filename_detector"]}

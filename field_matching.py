@@ -60,6 +60,11 @@ BSE_NOISE = 0.055     # relative pixel noise; BSE views 0.06-0.09, SE views <= 0
 PORE_SPLIT = -4.0     # pore contrast (graphite IQRs): ETD <= -4.7, InLens >= -2.9 in the reference batches
 
 
+def batch_dir(batch):
+    """Raw folder of a batch: data/raw/batch_N for reference batches, data/raw/unknown for the unknown set."""
+    return RAW / ("unknown" if str(batch) == "unknown" else f"batch_{batch}")
+
+
 def edge_map(path):
     """Windowed, standardised gradient magnitude of a downsampled grey image."""
     arr = tifffile.imread(path)
@@ -215,7 +220,7 @@ def group_fields(scores):
 
 
 def match_batch(batch):
-    files = sorted(p for p in (RAW / f"batch_{batch}").iterdir() if NAME.match(p.name))
+    files = sorted(p for p in batch_dir(batch).iterdir() if NAME.match(p.name))
     spectra = [fft.fft2(edge_map(p)) for p in files]
     n = len(files)
     scores, shifts = np.zeros((n, n)), {}
@@ -273,7 +278,7 @@ def match_batch(batch):
 def load_or_match(batch, rebuild=False):
     """Cached manifest unless it is missing, older than the newest raw image, or rebuild is set."""
     path = OUT / f"batch_{batch}.json"
-    raw = [p for p in (RAW / f"batch_{batch}").iterdir() if NAME.match(p.name)]
+    raw = [p for p in batch_dir(batch).iterdir() if NAME.match(p.name)]
     if not rebuild and path.is_file() and path.stat().st_mtime >= max(p.stat().st_mtime for p in raw):
         manifest = json.loads(path.read_text(encoding="utf-8"))
         if ({v["filename"] for f in manifest["fields"] for v in f["views"]} == {p.name for p in raw}

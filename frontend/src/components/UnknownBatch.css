@@ -1,0 +1,138 @@
+/* Unknown batch section: per-location verdict, views, probability bars and evidence. */
+.unknown-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.unknown-reliability {
+  margin: 0;
+  font-size: 12px;
+}
+
+.unknown-location-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.unknown-location-head h3 {
+  margin: 0;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.unknown-location-head .eyebrow {
+  margin-bottom: 4px;
+}
+
+.unknown-verdict {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+
+.unknown-verdict-label {
+  color: #66776d;
+  font-size: 11px;
+}
+
+.unknown-verdict strong {
+  color: #192c26;
+  font: 600 26px/1.1 "Manrope", sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.unknown-images {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.unknown-images figure {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #e1e8e2;
+  border-radius: 10px;
+  background: #fbfcfb;
+}
+
+.unknown-images img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  object-fit: cover;
+  background: #0f1512;
+}
+
+.unknown-images figcaption {
+  padding: 6px 8px;
+  color: #34483b;
+  font: 10px/1.4 "IBM Plex Mono", monospace;
+}
+
+.unknown-evidence {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr);
+  gap: 20px;
+}
+
+.unknown-evidence h4 {
+  margin: 0 0 8px;
+  color: #20372b;
+  font: 600 13px "Manrope", sans-serif;
+}
+
+.unknown-drivers tbody th {
+  min-width: 0;
+}
+
+.unknown-track {
+  fill: #edf1ee;
+}
+
+.unknown-bar-predicted {
+  fill: #2f7350;
+}
+
+.unknown-bar-other {
+  fill: #b9c4bd;
+}
+
+.unknown-notes {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #edf1ee;
+  color: #34483b;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.unknown-notes p {
+  margin: 0;
+}
+
+.unknown-caution {
+  padding: 8px 10px;
+  border-left: 3px solid #c05c46;
+  border-radius: 6px;
+  color: #8b4233;
+  background: #fdf1ed;
+}
+
+@media (max-width: 900px) {
+  .unknown-images {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .unknown-evidence {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .unknown-summary {
+    grid-template-columns: 1fr;
+  }
+}

@@ -395,29 +395,6 @@
   outline-offset: 3px;
 }
 
-.incoming-card {
-  position: relative;
-  overflow: hidden;
-  border-top: 2px solid #d98b6d;
-}
-
-.incoming-card h3 {
-  margin-top: 18px;
-}
-
-.match-placeholder {
-  min-height: 58px;
-  display: grid;
-  place-items: center;
-  padding: 12px;
-  border: 1px dashed #d6dfd7;
-  border-radius: 10px;
-  color: #849087;
-  background: #f8faf8;
-  font-size: 10px;
-  text-align: center;
-}
-
 .specimen-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

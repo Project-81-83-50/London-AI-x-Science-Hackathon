@@ -6,9 +6,9 @@ An attempt at Track 4
 
 Can you identify which known battery batch each microscopy image came from?
 
-The first three batches are known reference sets. Images within a batch show the same battery from different angles and with different imaging filters, so those views need to be compared as a group rather than treated as different materials. Later batches 4 and 5 contain a mixture of images from the first three. The task is to organise those images by source batch and explain each match using visible evidence, while being clear about uncertainty.
+The first three batches are known reference sets. Images within a batch show the same battery from different angles and with different imaging filters, so those views need to be compared as a group rather than treated as different materials. An unknown batch of images then has to be assigned to batch 1, 2 or 3, with each match explained using visible evidence and with its uncertainty stated.
 
-The frontend presents this reference-to-incoming workflow. It does not claim to classify images until microscopy files and image-level analysis are connected.
+The frontend presents this workflow: the reference batches with their analysis reports, then the unknown batch with a classification for each location (see [Unknown batch classification](#unknown-batch-classification)).
 
 ## Batch image dataset
 
@@ -139,6 +139,24 @@ $env:SEM_WORKERS = 3     # fewer parallel processes for machines with < 16 GB RA
 
 The run uses the committed AI labels, so it makes no API calls, and it takes roughly an hour on an 8-core laptop. It writes `outputs/segmentation/` and `outputs/metrics/teacher_cpu_fractions.csv`. The committed U-Net results (`phase_fractions.csv`, `batch_stats.csv`, `siox_summary.csv`, `batchid/*.json`) are left unchanged, and the frontend shows those numbers. Each overlay card also lists the teacher's fractions, so you can see how closely the overlay model agrees. The API routes are `GET /batches/{batch_id}/lucas-report` and `GET /batches/{batch_id}/lucas-report/overlays/{sample_id}`.
 
+## Unknown batch classification
+
+Put the unknown images in `data/raw/unknown/`, named `img_<location>_<filter>.tif` like the reference files, then run from the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe classify_unknown.py --rebuild
+```
+
+This takes about a minute for three locations, and writes `data/processed/classification/unknown.json`, which the frontend's Unknown batch section reads through `GET /unknown/classification`. The steps:
+
+1. **Measure:** the unknown images are grouped into locations, and their detectors are checked from the pixels, by `field_matching.py`. Each location's BSE image is then measured by the same `batch_kpis.py` code as the references.
+2. **Check for duplicates:** every unknown image is compared with every reference image, by file hash and by image content.
+3. **Classify:** each location gets a probability for batch 1, 2 and 3 from one pre-declared model, a diagonal LDA on eight standardised BSE KPIs. The output lists the features driving each call and the most similar reference locations.
+4. **Test the model on the references:** each reference location is held out in turn and predicted. The balanced accuracy, per-batch recall and a 500-permutation test are reported alongside the predictions, so every call can be read against how often the model is right.
+5. **Show a session hint:** the reference batches imaged at the same image height are listed separately, because image height marks the imaging session. The hint is not used by the model.
+
+Images in the unknown set are also available through the image routes as batch `unknown`, for example `GET /batches/unknown/images` and `GET /batches/unknown/kpi-report`.
+
 ## Project map
 
 Source and supported configuration files include concise comments. JSON cannot contain comments, lockfiles are generated, and binary assets cannot hold useful source comments, so those purposes are listed here.
@@ -153,6 +171,8 @@ Source and supported configuration files include concise comments. JSON cannot c
 | `batch_kpis.py`                                               | Standalone per-batch KPI analysis: view selection, segmentation, KPI statistics and overlays.     |
 | `batch_kpis_requirements.txt`                                 | Python packages required by batch_kpis.py and field_matching.py.                                   |
 | `field_matching.py`                                           | Groups each batch's images into the fields of view they show, by image registration.              |
+| `classify_unknown.py`                                         | Classifies each location in `data/raw/unknown` as batch 1, 2 or 3, with reference validation.     |
+| `frontend/src/components/UnknownBatch.jsx` and `.css`         | Unknown batch section: per-location prediction, probabilities, evidence and cautions.             |
 | `lucas-sem-analysis/`                                         | Four-phase segmentation and batch identification (see its README); reads `data/raw/batch_N`.      |
 | `frontend/src/components/LucasReport.jsx` and `.css`          | lucas-sem-analysis results per batch: phase tiles, composition, batch ID and overlays.            |
 | `frontend/src/components/chartHooks.jsx`                      | Shared JSON-fetch and tooltip hooks for the report views.                                          |
