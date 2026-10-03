@@ -1,0 +1,38 @@
+{
+  "batch_id": "B-01",
+  "verdict": "investigate",
+  "confidence": 0.62,
+  "summary": "Particle size distribution has shifted; porosity is within range.",
+  "kpis": [
+    {
+      "name": "Particle size",
+      "unit": "µm",
+      "baseline_mean": 5.1,
+      "batch_mean": 6.0,
+      "ci_low": 0.5,
+      "ci_high": 1.3,
+      "flag": "shifted",
+      "note": "Larger particles overall"
+    },
+    {
+      "name": "Porosity",
+      "unit": "%",
+      "baseline_mean": 32.0,
+      "batch_mean": 32.4,
+      "ci_low": -1.2,
+      "ci_high": 2.0,
+      "flag": "ok",
+      "note": "Within expected variation"
+    }
+  ],
+  "drivers": [
+    {
+      "kpi": "Particle size",
+      "contribution": 0.7,
+      "explanation": "Main source of the change"
+    },
+    { "kpi": "Porosity", "contribution": 0.1, "explanation": "Minor" }
+  ],
+  "overlay_urls": [],
+  "atypical_patch_urls": []
+}
