@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
-import BatchList from "./components/BatchList";
-import LoadBatchBtn from "./components/LoadBatchBtn";
+import Batch from "./components/Batch";
 
 // Vite reads VITE_ variables at build/start time; change this in frontend/.env.
 const API_URL = (
@@ -148,56 +147,17 @@ function App() {
             </div>
             <span className="section-count">3 EXPECTED SETS</span>
           </div>
-          <div className="batch-grid batch-grid-three">
-            {referenceBatches.map((batch) => (
-              <article
-                className={`batch-card reference-card ${selectedReferenceBatch === batch ? "reference-card-selected" : ""}`}
-                key={batch}
-              >
-                <div className="batch-card-top">
-                  <span className="batch-index">REFERENCE {batch}</span>
-                  <span className="data-state">
-                    {selectedReferenceBatch === batch
-                      ? referenceImageState === "loading"
-                        ? "LOADING"
-                        : referenceImageState === "error"
-                          ? "IMAGE ERROR"
-                          : "SELECTED"
-                      : "NOT LOADED"}
-                  </span>
-                </div>
-                <h3>Batch {batch}</h3>
-                <p>
-                  Local microscopy views grouped by specimen and imaging filter.
-                  Select this batch to load its images.
-                </p>
-                <div className="batch-card-foot">
-                  <span>Image set</span>
-                  <strong>
-                    {selectedReferenceBatch === batch &&
-                    referenceImageState === "connected"
-                      ? `${referenceSpecimens.length} specimens · ${referenceImageCount} TIFFs`
-                      : "Select to load"}
-                  </strong>
-                </div>
-                <LoadBatchBtn
-                  batch={batch}
-                  selected={selectedReferenceBatch === batch}
-                  onToggle={selectReferenceBatch}
-                />
-              </article>
-            ))}
-          </div>
+          <Batch
+            apiUrl={API_URL}
+            batches={referenceBatches}
+            selectedBatch={selectedReferenceBatch}
+            imageState={referenceImageState}
+            imageError={referenceImageError}
+            specimens={referenceSpecimens}
+            imageCount={referenceImageCount}
+            onSelect={selectReferenceBatch}
+          />
         </section>
-
-        <BatchList
-          apiUrl={API_URL}
-          selectedBatch={selectedReferenceBatch}
-          imageState={referenceImageState}
-          imageError={referenceImageError}
-          specimens={referenceSpecimens}
-          imageCount={referenceImageCount}
-        />
 
         <section className="section-block" aria-labelledby="incoming-title">
           <div className="section-heading">
