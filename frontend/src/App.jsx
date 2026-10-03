@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import Batch from "./components/Batch";
+import TopBar from "./components/TopBar";
 
 // Vite reads VITE_ variables at build/start time; change this in frontend/.env.
 const API_URL = (
@@ -87,21 +88,7 @@ function App() {
 
   return (
     <main className="app-shell">
-      <header className="topbar">
-        <a className="brand" href="#overview" aria-label="EM QC overview">
-          <span className="brand-mark" aria-hidden="true">
-            EM
-          </span>
-          <span>
-            MICRO<span className="brand-light">SCOPE</span>
-          </span>
-        </a>
-        <div className="topbar-meta">
-          <span className="service-indicator" />
-          MICROSCOPY / IMAGE PROVENANCE
-        </div>
-        <span className="workspace-label">LONDON AI × SCIENCE</span>
-      </header>
+      <TopBar />
 
       <div className="content-wrap" id="overview">
         <section className="page-heading">
