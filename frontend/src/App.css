@@ -1,3 +1,5 @@
+/* Styles for the batch workspace and its editable starter sections. */
+/* Original Vite starter styles; remove these when they are no longer useful. */
 .counter {
   font-size: 16px;
   padding: 5px 10px;
@@ -183,6 +185,7 @@
   }
 }
 
+/* Project workspace shell and shared header/layout styles. */
 .app-shell {
   min-height: 100vh;
   color: #23312c;
@@ -337,6 +340,7 @@
   color: #84382c;
   background: #f7e8e4;
 }
+/* Example analysis-view styles retained for future components. */
 .verdict-panel {
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr) 190px;

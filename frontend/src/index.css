@@ -1,4 +1,6 @@
+/* Global reset and shared theme defaults; App.css styles the workspace itself. */
 :root {
+  /* Original Vite theme tokens; the project theme is set further down. */
   --text: #6b6375;
   --text-h: #08060d;
   --bg: #fff;
@@ -110,6 +112,7 @@ code {
   background: var(--code-bg);
 }
 
+/* Project-wide defaults that replace the starter theme above. */
 :root {
   color-scheme: light;
   color: #23312c;
@@ -124,6 +127,7 @@ code {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Let the app use the full viewport instead of the starter max-width. */
 body {
   min-width: 320px;
   min-height: 100vh;

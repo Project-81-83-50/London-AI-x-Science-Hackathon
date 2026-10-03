@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
+// Vite reads VITE_ variables at build/start time; change this in frontend/.env.
 const API_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:8000"
 ).replace(/\/$/, "");
 
 function App() {
+  // These values hold API data and the current user selection for this page.
   const [batches, setBatches] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [error, setError] = useState("");
   const [loadingBatches, setLoadingBatches] = useState(true);
 
+  // Load the batch list once. Abort the request if this component is removed.
   useEffect(() => {
     const controller = new AbortController();
     fetch(`${API_URL}/batches`, { signal: controller.signal })
@@ -37,6 +40,7 @@ function App() {
     return () => controller.abort();
   }, []);
 
+  // Whenever the selected batch changes, request its full analysis record.
   useEffect(() => {
     if (!selectedBatch) return undefined;
     const controller = new AbortController();
@@ -127,6 +131,7 @@ function App() {
             </div>
           )}
 
+        {/* Replace these starter sections with the analysis views you design. */}
         {analysis && analysis.batch_id === selectedBatch && (
           <>
             <section className="section-block template-section">

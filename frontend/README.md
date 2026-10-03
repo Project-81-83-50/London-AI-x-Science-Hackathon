@@ -1,5 +1,13 @@
 # React + Vite
 
+## This project
+
+The page for this project is in `src/App.jsx`; it fetches batch data from the FastAPI backend using `VITE_API_URL` from `.env`. `src/main.jsx` mounts the page, `src/App.css` styles its sections, and `src/index.css` sets global styles. See the repository-root README for the backend and full project map.
+
+The commands for this project's frontend are `npm run dev`, `npm run build`, and `npm run lint`.
+
+## Vite starter reference
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:

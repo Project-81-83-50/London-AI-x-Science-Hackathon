@@ -1,8 +1,13 @@
-node_modules/
-dist/
+# Local Python environment and generated Python bytecode.
 .venv/
 __pycache__/
+
+# Local secrets and generated frontend build/dependency files.
+node_modules/
+dist/
 .env
+
+# Machine-specific files and source data kept outside Git.
 .DS_Store
 data/raw/
 data/processed/
