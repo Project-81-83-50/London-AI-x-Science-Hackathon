@@ -1,11 +1,14 @@
 import { useJson, useTooltip } from "./chartHooks";
 import "./KpiReport.css";
 
-// Phase colours come from the report so the charts and the overlay images always agree.
-const FALLBACK_PHASE_COLORS = {
-  pore: "#2a78d6",
-  graphite: "#1baf7a",
-  bright: "#eb6834",
+// The three classes are intensity classes (pore darkest, bright phase lightest), so the charts use an
+// ordinal orange ramp, dark to light, validated against the dark surface for monotone lightness,
+// visible steps and a darkest step that still stands out (3.3:1). The overlay images keep their own
+// high-visibility tints, which their captions state.
+const PHASE_COLORS = {
+  pore: "#c0361a",
+  graphite: "#f4511e",
+  bright: "#ffc4b0",
 };
 const PHASES = [
   { id: "porosity", key: "pore", label: "Pore" },
@@ -523,7 +526,7 @@ function KpiReport({ apiUrl, batch }) {
     );
 
   const data = report.data;
-  const colors = { ...FALLBACK_PHASE_COLORS, ...data.method?.phase_colors };
+  const colors = PHASE_COLORS;
   const inv = data.inventory;
   return (
     <section className="section-block kpi-report" aria-labelledby="kpi-report-title">

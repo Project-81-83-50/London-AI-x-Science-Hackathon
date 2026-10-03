@@ -1,0 +1,75 @@
+/* Design tokens: the single place to change the app's colours, shadows, radii and focus style.
+   Scheme: dark mode, black and red-orange - near-black surfaces, off-white text, a red-orange accent.
+   Every text pairing meets WCAG AA (4.5:1). Chart data colours are not here: the phase charts use
+   ordinal orange ramps validated against the dark surface, defined with the charts
+   (KpiReport.jsx, LucasReport.jsx). */
+:root {
+  color-scheme: dark;
+
+  /* surfaces */
+  --canvas: #0a0a0a;
+  --surface: #141414;
+  --surface-rgb: 20, 20, 20;
+  --surface-2: #1a1a1a;
+  --surface-3: #232323;
+  --image-bg: #000000;
+
+  /* text */
+  --ink: #f5f5f4;
+  --ink-2: #e7e5e4;
+  --muted: #a8a29e;
+  --faint: #8f8a85;
+
+  /* lines */
+  --line: #2a2a2a;
+  --line-strong: #3a3a3a;
+
+  /* accent */
+  --accent: #f4511e;
+  --accent-strong: #ffab91;
+  --accent-muted: #8f2a14;
+  --accent-soft: #2a120b;
+  --accent-rgb: 244, 81, 30;
+  --on-accent: #0a0a0a;
+  --tint-rgb: 125, 35, 12;
+
+  /* emphasised single-series chart marks (dot strips, CI bands, predicted-batch bar) */
+  --mark: var(--accent);
+  --mark-band-rgb: var(--accent-rgb);
+
+  /* status (fixed meanings; always paired with text) */
+  --good: #0ca30c;
+  --good-rgb: 12, 163, 12;
+  --amber: #f5b84a;
+  --amber-ink: #fcd58a;
+  --amber-line: #5c4313;
+  --amber-soft: #241a08;
+  --danger: #fb7185;
+  --danger-ink: #fda4af;
+  --danger-line: #5c1d2a;
+  --danger-soft: #2a1118;
+  --danger-rgb: 251, 113, 133;
+
+  /* top bar: black bar, orange rule, mark and label */
+  --topbar: #0f0f0f;
+  --topbar-ink: var(--ink);
+  --rule-1: #b8331b;
+  --rule-2: var(--accent);
+  --rule-3: #ffab91;
+
+  /* depth and shape */
+  --shadow-rgb: 0, 0, 0;
+  --shadow-1: 0 1px 2px rgba(var(--shadow-rgb), 0.5), 0 4px 14px rgba(var(--shadow-rgb), 0.35);
+  --shadow-2: 0 2px 6px rgba(var(--shadow-rgb), 0.55), 0 12px 28px rgba(var(--shadow-rgb), 0.45);
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-sm: 6px;
+  --focus-ring: 0 0 0 3px rgba(var(--accent-rgb), 0.45);
+}
+
+/* One focus style everywhere keyboard focus lands. */
+:where(a, button, select, summary, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}

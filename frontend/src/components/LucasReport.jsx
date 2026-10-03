@@ -2,13 +2,14 @@ import { useJson, useTooltip } from "./chartHooks";
 import "./KpiReport.css";
 import "./LucasReport.css";
 
-// Chart colours: validated categorical palette, kept in the same hue family as the
-// lucas-sem-analysis overlays (blue pore, purple graphite, orange SiOx, green CBD).
+// Chart colours: an ordinal orange ramp in order of BSE brightness (pore darkest, SiOx lightest),
+// validated against the dark surface (darkest step 2.9:1). Bars, tiles and the legend follow this order.
+// The lucas-sem-analysis overlay images keep their own colours, stated in their caption.
 const PHASES = [
-  { key: "pore", label: "Pore", color: "#2a78d6" },
-  { key: "graphite", label: "Graphite", color: "#4a3aa7" },
-  { key: "SiOx", label: "SiOx", color: "#eb6834" },
-  { key: "CBD", label: "Carbon-binder (CBD)", color: "#1baf7a" },
+  { key: "pore", label: "Pore", color: "#b0341b" },
+  { key: "CBD", label: "Carbon-binder (CBD)", color: "#e04a20" },
+  { key: "graphite", label: "Graphite", color: "#fb7350" },
+  { key: "SiOx", label: "SiOx", color: "#ffbca6" },
 ];
 const pct = (v, digits = 1) => (Number.isFinite(v) ? `${v.toFixed(digits)}%` : "—");
 
