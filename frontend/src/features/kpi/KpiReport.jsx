@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useJson, useTooltip } from "./chartHooks";
-import Tabs from "./Tabs";
-import { tabPanelProps } from "./tabPanel";
+import { useJson } from "../../hooks/useJson";
+import { useTooltip } from "../../hooks/useTooltip";
+import Tabs from "../../components/Tabs";
+import { tabPanelProps } from "../../lib/tabPanel";
 import "./KpiReport.css";
 
 // The three classes are intensity classes (pore darkest, bright phase lightest), so the charts use an

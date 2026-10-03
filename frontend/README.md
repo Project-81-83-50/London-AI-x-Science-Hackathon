@@ -2,7 +2,15 @@
 
 ## This project
 
-The page in `src/App.jsx` describes the microscopy workflow: batches 1–3 are known reference sets, and incoming batches 4–5 need to be organised by source image batch with supporting evidence. Selecting a reference batch loads its inventory from `GET /batches/{batch_id}/images`; selecting it again hides the gallery. Batch summaries load from `GET /batches`, using `VITE_API_URL` from `.env`. TIFF previews and downloads are served by the API from the selected `data/raw/batch_{id}` folder; raw datasets are not tracked in Git. Image-to-reference matches are not yet implemented. `src/main.jsx` mounts the page, `src/App.css` styles its sections, and `src/index.css` sets global styles. See the repository-root README for backend setup and the project map.
+The page in `src/App.jsx` presents the microscopy workflow. Pick a reference batch (1–3) to browse its views in tabs: Images, KPI report, Segmentation and Uncertainty (GET4). Below that, the Unknown batch section shows each unknown location's batch 1, 2 or 3 classification with its evidence. Data comes from the API at `VITE_API_URL` (set in `.env`); TIFF previews and downloads are served from `data/raw/`, which is not tracked in Git. Code layout:
+
+- `src/main.jsx` mounts the app.
+- `src/styles/` holds `theme.css` (every colour token), `index.css` (global defaults) and `App.css` (page layout).
+- `src/components/` holds shared UI (`TopBar`, `Tabs`, `PointNetwork`).
+- `src/hooks/` holds `useJson` and `useTooltip`, and `src/lib/` holds small helpers.
+- `src/features/` has one folder per page section: `reference/` (BatchPicker, ImageGallery), `kpi/`, `segmentation/`, `uncertainty/` and `unknown/`.
+
+See the repository-root README for backend setup and the full project map.
 
 The commands for this project's frontend are `npm run dev`, `npm run build`, and `npm run lint`.
 

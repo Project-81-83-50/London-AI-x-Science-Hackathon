@@ -1,26 +1,5 @@
-// Shared hooks for the report views: JSON fetching and a per-chart tooltip.
+// Per-chart tooltip hook shared by the report views.
 import { useEffect, useRef, useState } from "react";
-
-export function useJson(url) {
-  const [state, setState] = useState({ status: "loading", data: null, error: "" });
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(url, { signal: controller.signal })
-      .then(async (response) => {
-        const body = await response.json().catch(() => null);
-        if (!response.ok)
-          throw new Error(body?.detail || `API returned ${response.status}`);
-        return body;
-      })
-      .then((data) => setState({ status: "ready", data, error: "" }))
-      .catch((cause) => {
-        if (cause.name !== "AbortError")
-          setState({ status: "error", data: null, error: cause.message });
-      });
-    return () => controller.abort();
-  }, [url]);
-  return state;
-}
 
 // One tooltip per chart. Content is rendered as React text, never as HTML. The frame's
 // measured width lets charts draw at 1:1 scale so their text stays at the CSS size.

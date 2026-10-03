@@ -1,5 +1,5 @@
 // Compact reference-batch picker: one button per batch; pressing the selected batch again clears it.
-function Batch({ batches, selectedBatch, imageState, specimens, imageCount, onSelect }) {
+function BatchPicker({ batches, selectedBatch, imageState, specimens, imageCount, onSelect }) {
   return (
     <div className="batch-picker" role="group" aria-label="Reference batch">
       {batches.map((batch) => {
@@ -28,4 +28,4 @@ function Batch({ batches, selectedBatch, imageState, specimens, imageCount, onSe
   );
 }
 
-export default Batch;
+export default BatchPicker;

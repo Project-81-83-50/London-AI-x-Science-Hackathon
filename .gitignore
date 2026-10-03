@@ -11,3 +11,5 @@ dist/
 .DS_Store
 data/raw/
 data/processed/
+# Logs from local pipeline runs.
+*.log

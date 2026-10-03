@@ -3,13 +3,13 @@ Detailed KPI report for each reference battery batch (data/raw/batch_N).
 
 Each batch is one battery type, imaged at several fields of view; every field has two to
 three detector views. Filenames do not say which files show the same field (see
-field_matching.py), so fields are matched from the images first and each field is one
+analysis.fields), so fields are matched from the images first and each field is one
 replicate. The electrode cross-sections show three intensity classes on a
 compositional-contrast view: black pores, dark-grey graphite flakes and a bright,
 higher-Z phase (likely the silicon-containing additive). This script:
 
 1. Analyses the BSE view of each field. Filename detector labels are wrong, so the detector
-   of every view is identified from its pixels by field_matching.py (BSE / InLens / ETD).
+   of every view is identified from its pixels by analysis.fields (BSE / InLens / ETD).
    Fields without a BSE view are reported but left out of the batch statistics. A BSE view
    whose bright class has rough rims or a high loading is kept but flagged lower-confidence,
    since binder and particle edges can leak into the bright class.
@@ -36,9 +36,9 @@ from PIL import Image
 from scipy import ndimage, spatial, stats
 from skimage import filters, measure
 
-from field_matching import batch_dir, load_or_match
+from .fields import batch_dir, load_or_match
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "data" / "processed" / "batch_kpis"
 

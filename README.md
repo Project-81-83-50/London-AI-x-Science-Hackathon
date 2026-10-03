@@ -29,7 +29,7 @@ data/
 
 Create the `batch_1`, `batch_2`, and `batch_3` folders if they are missing. Move the image files themselves into the matching folder; avoid leaving them one level deeper inside an extra `Batch_1`, `Batch_2`, or `Batch_3` folder. Keep the supplied filenames unchanged. The image API recognizes `.tif` files named `img_<specimen>_<filter> (N).tif`, where `<filter>` is `BSE`, `ETD`, `Inlens`, or `SE` and `N` is the number already in the supplied filename. It scans the batch folder itself, not nested subfolders.
 
-An earlier copy of the dataset had shuffled filenames: views of one location carried different `<specimen>` codes, and the `<filter>` suffixes were wrong. `field_matching.py` therefore checks every name against the pixels. It recovers which images show the same location by registering them against each other, so a mismatch is caught rather than shown silently. With the corrected filenames, every group's files share one code and every label agrees with its image. It also identifies each view's real detector from the image: BSE is the grainy backscatter view, ETD keeps pores black, and InLens fills pores in and lights up particle rims. This ETD/InLens orientation was calibrated on the corrected filenames. Each group is named with one location code, and every image is labelled with its filename when the filename agrees with the image. If a file's code or filter disagrees with its image, the gallery shows the corrected `<location>_<detector>` label and marks it. If the codes are shuffled, so that several codes fit a group equally well, the group is marked "name assigned". The gallery uses these groups and labels once the manifests exist. Without them, it falls back to filename-code groups and shows a warning.
+An earlier copy of the dataset had shuffled filenames: views of one location carried different `<specimen>` codes, and the `<filter>` suffixes were wrong. `analysis/fields.py` therefore checks every name against the pixels. It recovers which images show the same location by registering them against each other, so a mismatch is caught rather than shown silently. With the corrected filenames, every group's files share one code and every label agrees with its image. It also identifies each view's real detector from the image: BSE is the grainy backscatter view, ETD keeps pores black, and InLens fills pores in and lights up particle rims. This ETD/InLens orientation was calibrated on the corrected filenames. Each group is named with one location code, and every image is labelled with its filename when the filename agrees with the image. If a file's code or filter disagrees with its image, the gallery shows the corrected `<location>_<detector>` label and marks it. If the codes are shuffled, so that several codes fit a group equally well, the group is marked "name assigned". The gallery uses these groups and labels once the manifests exist. Without them, it falls back to filename-code groups and shows a warning.
 
 You can confirm the files are in the right place from PowerShell opened at the repository root:
 
@@ -72,20 +72,20 @@ Before opening the gallery, check that the API sees each local folder by opening
 GET4 can run a separate uncertainty analysis for every `data/raw/batch_N` folder. Install its Python packages from the repository root, then optionally check which images it will use:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r GET4Depenencies.txt
-.\.venv\Scripts\python.exe GET4.py --project --list-only
+.\.venv\Scripts\python.exe -m pip install -r analysis\requirements.txt
+.\.venv\Scripts\python.exe -m analysis.get4 --project --list-only
 ```
 
 For the full-resolution analysis and per-image diagnostic plots, run:
 
 ```powershell
-.\.venv\Scripts\python.exe GET4.py --project --out data\processed\get4
+.\.venv\Scripts\python.exe -m analysis.get4 --project --out data\processed\get4
 ```
 
 To create reports faster, use:
 
 ```powershell
-.\.venv\Scripts\python.exe GET4.py --project --fast --out data\processed\get4
+.\.venv\Scripts\python.exe -m analysis.get4 --project --fast --out data\processed\get4
 ```
 
 Fast mode uses 2x coarser sampling by default when image calibration is available and no `--bin`, `--target-px`, or baseline is supplied; without calibration it keeps GET4's existing 2x binning fallback. It skips per-image diagnostic plots but still runs segmentation and uncertainty calculations, writes website-ready `analysis_report.json` and uncertainty JSON, and retains batch plots. The report records fast mode and its sampling scale, and the website labels it so reduced-resolution results are not mistaken for a full-resolution run. Run without `--fast` for full-resolution analysis and per-image plots. Use `--project --list-only` to check which files and location codes will be included.
@@ -98,14 +98,14 @@ Each batch is a separate battery, so reports do not compare one batch against an
 
 ## Batch KPI reports
 
-`batch_kpis.py` analyses each reference batch independently, without using GET4, and writes the report shown in the frontend when a reference batch is selected. Install its packages once, then run it from the repository root:
+`analysis/kpis.py` analyses each reference batch independently, without using GET4, and writes the report shown in the frontend when a reference batch is selected. Install its packages once, then run it from the repository root:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r batch_kpis_requirements.txt
-.\.venv\Scripts\python.exe batch_kpis.py
+.\.venv\Scripts\python.exe -m pip install -r analysis\requirements.txt
+.\.venv\Scripts\python.exe -m analysis.kpis
 ```
 
-`batch_kpis.py` first groups each batch's images into fields with `field_matching.py`. It reuses the cached manifest in `data/processed/fields/batch_N.json` unless the raw files have changed; pass `--rebuild-fields` to force re-matching. To rebuild only the field manifests, which takes about 30 seconds, run `.\.venv\Scripts\python.exe field_matching.py`.
+`analysis/kpis.py` first groups each batch's images into fields with `analysis/fields.py`. It reuses the cached manifest in `data/processed/fields/batch_N.json` unless the raw files have changed; pass `--rebuild-fields` to force re-matching. To rebuild only the field manifests, which takes about 30 seconds, run `.\.venv\Scripts\python.exe -m analysis.fields`.
 
 A full run of batches 1–3 takes about three minutes. Use `--batches 1` to rerun a single batch; the summary file keeps the other batches' results. The outputs are written under `data/processed/batch_kpis/`, which Git ignores:
 
@@ -144,12 +144,12 @@ The run uses the committed AI labels, so it makes no API calls, and it takes rou
 Put the unknown images in `data/raw/unknown/`, named `img_<location>_<filter>.tif` like the reference files, then run from the repository root:
 
 ```powershell
-.\.venv\Scripts\python.exe classify_unknown.py --rebuild
+.\.venv\Scripts\python.exe -m analysis.classify --rebuild
 ```
 
 This takes about a minute for three locations, and writes `data/processed/classification/unknown.json`, which the frontend's Unknown batch section reads through `GET /unknown/classification`. The steps:
 
-1. **Measure:** the unknown images are grouped into locations, and their detectors are checked from the pixels, by `field_matching.py`. Each location's BSE image is then measured by the same `batch_kpis.py` code as the references.
+1. **Measure:** the unknown images are grouped into locations, and their detectors are checked from the pixels, by `analysis/fields.py`. Each location's BSE image is then measured by the same `analysis/kpis.py` code as the references.
 2. **Check for duplicates:** every unknown image is compared with every reference image, by file hash and by image content.
 3. **Classify:** each location gets a probability for batch 1, 2 and 3 from one pre-declared model, a diagonal LDA on eight standardised BSE KPIs. The output lists the features driving each call and the most similar reference locations.
 4. **Test the model on the references:** each reference location is held out in turn and predicted. The balanced accuracy, per-batch recall and a 500-permutation test are reported alongside the predictions, so every call can be read against how often the model is right.
@@ -159,31 +159,52 @@ Images in the unknown set are also available through the image routes as batch `
 
 ## Project map
 
-Source and supported configuration files include concise comments. JSON cannot contain comments, lockfiles are generated, and binary assets cannot hold useful source comments, so those purposes are listed here.
+Run every analysis module from the repository root as `python -m analysis.<module>`. The backend and frontend read only the files those modules write under `data/processed/`. Source files carry concise comments; the table below covers files that cannot (JSON, lockfiles, binary assets) and explains how the folders are organised.
+
+```text
+.
+├── analysis/                  # in-house image analysis (one Python package)
+│   ├── fields.py              #   group views into locations, identify each view's detector
+│   ├── kpis.py                #   per-location KPIs and batch reports
+│   ├── classify.py            #   classify the unknown batch as batch 1, 2 or 3
+│   ├── get4.py                #   GET4 segmentation-uncertainty analysis
+│   └── requirements.txt
+├── backend/
+│   ├── app/
+│   │   ├── main.py            #   FastAPI app, CORS, router registration
+│   │   ├── paths.py           #   every data folder and filename pattern the API reads
+│   │   ├── batches.py         #   batch IDs, raw-image folders, reading generated JSON
+│   │   ├── routers/           #   one module per frontend feature
+│   │   │   ├── images.py      #     image groups, cached previews, TIFF downloads
+│   │   │   ├── kpi.py         #     KPI reports, overlays, summary
+│   │   │   ├── lucas.py       #     lucas-sem-analysis segmentation results
+│   │   │   ├── get4.py        #     GET4 uncertainty reports
+│   │   │   ├── unknown.py     #     unknown-batch classification
+│   │   │   └── mock.py        #     sample analysis records (data-readiness line)
+│   │   ├── schemas.py  mock/  requirements.txt
+│   └── modal_app.py           #   Modal deployment
+├── frontend/src/
+│   ├── main.jsx  App.jsx
+│   ├── styles/                #   theme.css (all colours), index.css, App.css
+│   ├── components/            #   shared UI: TopBar, Tabs, PointNetwork
+│   ├── hooks/                 #   useJson, useTooltip
+│   ├── lib/                   #   tabPanel (ARIA helper for Tabs)
+│   └── features/              #   one folder per page section
+│       ├── reference/         #     BatchPicker, ImageGallery
+│       ├── kpi/               #     KpiReport
+│       ├── segmentation/      #     LucasReport
+│       ├── uncertainty/       #     Get4Results
+│       └── unknown/           #     UnknownBatch
+├── lucas-sem-analysis/        # four-phase segmentation project (own README); reads data/raw
+└── data/                      # Git-ignored: raw/ (TIFFs) and processed/ (generated outputs)
+```
 
 | File or folder                                                | Purpose                                                                                            |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `backend/app/main.py`                                         | FastAPI app, CORS setup, mock-data loading, and local microscopy image routes.                    |
-| `backend/app/schemas.py`                                      | Pydantic models that validate summaries, KPIs, drivers, and analyses.                              |
+| `backend/app/mock/B-01.json`                                  | Example analysis returned by the API; JSON syntax does not allow comments.                         |
 | `backend/app/requirements.txt`                                | Python dependencies used by the backend and Modal image, including TIFF preview support.           |
-| `GET4.py`                                                     | Optional offline, detector-separated uncertainty analysis for local batches.                       |
-| `GET4Depenencies.txt`                                         | Python packages required by GET4.py.                                                                |
-| `batch_kpis.py`                                               | Standalone per-batch KPI analysis: view selection, segmentation, KPI statistics and overlays.     |
-| `batch_kpis_requirements.txt`                                 | Python packages required by batch_kpis.py and field_matching.py.                                   |
-| `field_matching.py`                                           | Groups each batch's images into the fields of view they show, by image registration.              |
-| `classify_unknown.py`                                         | Classifies each location in `data/raw/unknown` as batch 1, 2 or 3, with reference validation.     |
-| `frontend/src/components/UnknownBatch.jsx` and `.css`         | Unknown batch section: per-location prediction, probabilities, evidence and cautions.             |
-| `lucas-sem-analysis/`                                         | Four-phase segmentation and batch identification (see its README); reads `data/raw/batch_N`.      |
-| `frontend/src/components/LucasReport.jsx` and `.css`          | lucas-sem-analysis results per batch: phase tiles, composition, batch ID and overlays.            |
-| `frontend/src/components/chartHooks.jsx`                      | Shared JSON-fetch and tooltip hooks for the report views.                                          |
-| `frontend/src/components/KpiReport.jsx` and `KpiReport.css`  | Batch KPI report view: findings, KPI tiles and tables, charts and segmentation overlays.          |
-| `backend/app/mock/B-01.json`                                  | Example analysis returned by the API; JSON syntax does not allow comments.                              |
-| `backend/modal_app.py`                                        | Modal image and web-function configuration for hosting FastAPI.                                    |
-| `data/raw/batch_1/`–`batch_3/`                                | Locally downloaded reference microscopy TIFFs; raw data is Git-ignored.                             |
-| `frontend/src/App.jsx`                                        | Reference-batch workflow, selectable image galleries, and API data-readiness status.                |
-| `frontend/src/main.jsx`                                       | React entry point that mounts `App` into the HTML root.                                            |
-| `frontend/src/App.css`                                         | Workflow layout, responsive rules, and batch-card styling.                                        |
-| `frontend/src/index.css`                                      | Global defaults and root element styling.                                                          |
+| `analysis/requirements.txt`                                   | Python packages for the analysis package.                                                          |
+| `data/raw/batch_1/`–`batch_3/`, `data/raw/unknown/`           | Locally downloaded microscopy TIFFs; raw data is Git-ignored.                                      |
 | `frontend/index.html`                                         | Browser document, metadata, fonts, and React mount point.                                          |
 | `frontend/vite.config.js`                                     | Vite setup and React plugin.                                                                       |
 | `frontend/package.json`                                       | Frontend dependencies and npm scripts; JSON does not allow comments.                               |

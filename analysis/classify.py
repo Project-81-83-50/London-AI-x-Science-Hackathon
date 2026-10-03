@@ -1,8 +1,8 @@
 """
 Classify the locations in data/raw/unknown as reference batch 1, 2 or 3.
 
-1. Views are grouped into locations, and each view's detector is checked, by field_matching.py.
-   The BSE view of each location is segmented and measured by batch_kpis.py (the same code that
+1. Views are grouped into locations, and each view's detector is checked, by analysis.fields.
+   The BSE view of each location is segmented and measured by analysis.kpis (the same code that
    produced the reference KPIs), giving data/processed/batch_kpis/batch_unknown/.
 2. Duplicate check: every unknown image is compared with every reference image (file hash and
    phase-correlation of edge maps). A same-field match would identify the batch directly.
@@ -17,8 +17,8 @@ Classify the locations in data/raw/unknown as reference batch 1, 2 or 3.
 
 Output: data/processed/classification/unknown.json, shown in the frontend's Unknown batch section.
 
-  python classify_unknown.py              # uses cached KPIs for the unknown set if present
-  python classify_unknown.py --rebuild    # re-measure the unknown set first
+  python -m analysis.classify              # uses cached KPIs for the unknown set if present
+  python -m analysis.classify --rebuild    # re-measure the unknown set first
 """
 
 import argparse
@@ -31,10 +31,10 @@ import numpy as np
 from PIL import Image
 from scipy import fft
 
-import batch_kpis
-from field_matching import MATCH_SCORE, batch_dir, edge_map, phase_correlation
+from . import kpis as batch_kpis
+from .fields import MATCH_SCORE, batch_dir, edge_map, phase_correlation
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 KPI_DIR = ROOT / "data" / "processed" / "batch_kpis"
 OUT = ROOT / "data" / "processed" / "classification" / "unknown.json"
 BATCHES = ["1", "2", "3"]

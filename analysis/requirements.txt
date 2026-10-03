@@ -1,0 +1,8 @@
+# Python packages for the analysis package (fields, kpis, classify, get4).
+numpy
+scipy
+scikit-image
+tifffile
+imagecodecs
+pillow
+matplotlib

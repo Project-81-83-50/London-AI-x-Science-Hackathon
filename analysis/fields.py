@@ -31,8 +31,8 @@ So fields are recovered from the pixels instead:
    Each view's label is its filename (img_ and extension dropped) when that agrees with the
    field's location and the identified detector, and location_detector otherwise.
 
-Output: data/processed/fields/batch_N.json, used by batch_kpis.py and the image API.
-Run directly to (re)build the manifests: python field_matching.py [--batches 1 2 3]
+Output: data/processed/fields/batch_N.json, used by analysis.kpis and the image API.
+Run to (re)build the manifests: python -m analysis.fields [--batches 1 2 3]
 """
 
 import argparse
@@ -46,7 +46,7 @@ import tifffile
 from scipy import fft, ndimage
 from scipy.optimize import linear_sum_assignment
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "data" / "processed" / "fields"
 NAME = re.compile(r"^img_(?P<code>[^_]+)_(?P<detector>BSE|ETD|Inlens|SE)(?: \(\d+\))?\.tiff?$", re.I)

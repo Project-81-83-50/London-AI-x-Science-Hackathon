@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useJson, useTooltip } from "./chartHooks";
-import Tabs from "./Tabs";
-import { tabPanelProps } from "./tabPanel";
-import "./KpiReport.css";
+import { useJson } from "../../hooks/useJson";
+import { useTooltip } from "../../hooks/useTooltip";
+import Tabs from "../../components/Tabs";
+import { tabPanelProps } from "../../lib/tabPanel";
+import "../kpi/KpiReport.css";
 import "./UnknownBatch.css";
 
 const BATCHES = ["1", "2", "3"];
@@ -191,7 +192,7 @@ function UnknownBatch({ apiUrl }) {
     body = (
       <div className="notice notice-error" role="alert">
         No classification available ({classification.error}). Put the images in data/raw/unknown and
-        run <code>python classify_unknown.py</code>.
+        run <code>python -m analysis.classify</code>.
       </div>
     );
   } else {

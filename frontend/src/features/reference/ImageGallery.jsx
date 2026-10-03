@@ -1,4 +1,4 @@
-function BatchList({
+function ImageGallery({
   apiUrl,
   selectedBatch,
   imageState,
@@ -52,7 +52,7 @@ function BatchList({
         <div className={`notice ${matched ? "" : "notice-error"}`}>
           {matched
             ? "Images are grouped by the location they show and labelled location_filter. Each label is checked against the image itself; a label that disagrees with the image is replaced and marked."
-            : "Views are grouped by filename code, which does not reliably identify the imaged field. Run field_matching.py to group views by matched field."}
+            : "Views are grouped by filename code, which does not reliably identify the imaged field. Run python -m analysis.fields to group views by matched field."}
         </div>
       )}
       {imageState === "connected" && specimens.length > 0 && (
@@ -131,4 +131,4 @@ function BatchList({
   );
 }
 
-export default BatchList;
+export default ImageGallery;

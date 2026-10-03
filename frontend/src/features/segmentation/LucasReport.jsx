@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useJson, useTooltip } from "./chartHooks";
-import "./KpiReport.css";
+import { useJson } from "../../hooks/useJson";
+import { useTooltip } from "../../hooks/useTooltip";
+import "../kpi/KpiReport.css";
 import "./LucasReport.css";
 
 // Chart colours: an ordinal orange ramp in order of BSE brightness (pore darkest, SiOx lightest),

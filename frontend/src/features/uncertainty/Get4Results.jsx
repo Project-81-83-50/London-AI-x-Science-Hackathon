@@ -154,7 +154,7 @@ function Get4Results({
             {loading
                 ? "Fetching the generated analysis_report.json from the local API."
               : error ||
-                "Run GET4.py --project from the repository root, then restart the API if needed."}
+                "Run python -m analysis.get4 --project from the repository root, then restart the API if needed."}
           </span>
         </div>
       </section>

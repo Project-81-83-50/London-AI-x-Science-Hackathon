@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import "./App.css";
-import Batch from "./components/Batch";
-import BatchList from "./components/BatchList";
+import "./styles/App.css";
+import BatchPicker from "./features/reference/BatchPicker";
+import ImageGallery from "./features/reference/ImageGallery";
 import PointNetwork from "./components/PointNetwork";
-import Get4Results from "./components/Get4Results";
-import KpiReport from "./components/KpiReport";
-import LucasReport from "./components/LucasReport";
+import Get4Results from "./features/uncertainty/Get4Results";
+import KpiReport from "./features/kpi/KpiReport";
+import LucasReport from "./features/segmentation/LucasReport";
 import Tabs from "./components/Tabs";
-import { tabPanelProps } from "./components/tabPanel";
+import { tabPanelProps } from "./lib/tabPanel";
 import TopBar from "./components/TopBar";
-import UnknownBatch from "./components/UnknownBatch";
+import UnknownBatch from "./features/unknown/UnknownBatch";
 
 // Vite reads VITE_ variables at build/start time; change this in frontend/.env.
 const API_URL = (
@@ -214,7 +214,7 @@ function App() {
             </div>
             <span className="section-count">3 EXPECTED SETS</span>
           </div>
-          <Batch
+          <BatchPicker
             batches={referenceBatches}
             selectedBatch={selectedReferenceBatch}
             imageState={referenceImageState}
@@ -240,7 +240,7 @@ function App() {
               />
               <div {...tabPanelProps("batch-view", batchView)}>
                 {batchView === "images" && (
-                  <BatchList
+                  <ImageGallery
                     apiUrl={API_URL}
                     selectedBatch={selectedReferenceBatch}
                     imageState={referenceImageState}

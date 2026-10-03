@@ -1,4 +1,4 @@
-export default function TopBar({}) {
+export default function TopBar() {
   return (
     <header className="topbar">
       <a className="brand" href="#overview" aria-label="EM QC overview">

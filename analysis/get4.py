@@ -1410,7 +1410,7 @@ def main():
             p.error("--project cannot be combined with image inputs")
         if args.baseline:
             p.error("--baseline is not supported with --project; analyse a batch separately to use one")
-        raw_root = Path(__file__).resolve().parent / "data" / "raw"
+        raw_root = Path(__file__).resolve().parents[1] / "data" / "raw"
         batches = sorted(path for path in raw_root.iterdir()
                          if path.is_dir() and re.fullmatch(r"batch_\d+", path.name.lower())) if raw_root.is_dir() else []
         if not batches:
