@@ -25,7 +25,7 @@ app.add_middleware(
 MOCK_DIR = Path(__file__).parent / "mock"
 RAW_DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "raw"
 IMAGE_NAME_PATTERN = re.compile(
-    r"^img_(?P<specimen>.+?)_(?P<filter>BSE|ETD|Inlens)(?:\s+\(\d+\))?\.tif$",
+    r"^img_(?P<specimen>.+?)_(?P<filter>BSE|ETD|Inlens|SE)(?:\s+\(\d+\))?\.tif$",
     re.IGNORECASE,
 )
 
@@ -69,7 +69,7 @@ def get_analysis(batch_id: str):
 
 @app.get("/batches/{batch_id}/images")
 def list_batch_images(batch_id: str):
-    """List local TIFF views grouped by their shared specimen identifier."""
+    """List local TIFF views and imaging filters grouped by specimen identifier."""
     directory = get_batch_image_directory(batch_id)
     groups: dict[str, list[dict[str, str]]] = {}
     for path in sorted(directory.iterdir()):
