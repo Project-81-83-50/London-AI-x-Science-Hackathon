@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
-import LoadBatchBtn from "./LoadBatchBtn";
+import BatchList from "./components/BatchList";
+import LoadBatchBtn from "./components/LoadBatchBtn";
 
 // Vite reads VITE_ variables at build/start time; change this in frontend/.env.
 const API_URL = (
@@ -189,106 +190,14 @@ function App() {
           </div>
         </section>
 
-        {selectedReferenceBatch && (
-          <section
-            className="section-block"
-            id="reference-images"
-            aria-labelledby="reference-images-title"
-          >
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">
-                  LOCAL DATA / RAW BATCH {selectedReferenceBatch}
-                </p>
-                <h2 id="reference-images-title">
-                  Batch {selectedReferenceBatch} microscopy images
-                </h2>
-              </div>
-              <span className="section-count">
-                {referenceImageState === "connected"
-                  ? `${referenceSpecimens.length} SPECIMENS · ${referenceImageCount} TIFFS`
-                  : referenceImageState === "loading"
-                    ? "LOADING IMAGE INVENTORY"
-                    : referenceImageState === "error"
-                      ? "IMAGE INVENTORY UNAVAILABLE"
-                      : ""}
-              </span>
-            </div>
-            {referenceImageState === "loading" && (
-              <div className="notice" role="status">
-                Loading Batch {selectedReferenceBatch} image inventory…
-              </div>
-            )}
-            {referenceImageState === "error" && (
-              <div className="notice notice-error" role="alert">
-                Could not load Batch {selectedReferenceBatch} images (
-                {referenceImageError}). Check the API and confirm the files are
-                in data/raw/batch_{selectedReferenceBatch}.
-              </div>
-            )}
-            {referenceImageState === "connected" &&
-              referenceSpecimens.length === 0 && (
-                <div className="notice">
-                  No supported TIFF images were found in data/raw/batch_
-                  {selectedReferenceBatch}.
-                </div>
-              )}
-            {referenceImageState === "connected" &&
-              referenceSpecimens.length > 0 && (
-                <div className="specimen-grid">
-                  {referenceSpecimens.map((specimen) => (
-                    <article
-                      className="specimen-panel"
-                      key={specimen.specimen_id}
-                    >
-                      <div className="specimen-heading">
-                        <h3>Specimen {specimen.specimen_id}</h3>
-                        <span>
-                          {specimen.images.length}{" "}
-                          {specimen.images.length === 1 ? "view" : "views"}
-                        </span>
-                      </div>
-                      <div className="microscopy-grid">
-                        {specimen.images.map((image) => {
-                          const imageUrl = `${API_URL}/batches/${selectedReferenceBatch}/images/${encodeURIComponent(image.filename)}`;
-                          return (
-                            <figure
-                              className="microscopy-image"
-                              key={image.filename}
-                            >
-                              <a
-                                className="microscopy-preview-link"
-                                href={imageUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                aria-label={`Open enlarged ${image.filter} preview for batch ${selectedReferenceBatch} specimen ${specimen.specimen_id}`}
-                              >
-                                <img
-                                  src={imageUrl}
-                                  alt={`Batch ${selectedReferenceBatch} specimen ${specimen.specimen_id}, ${image.filter} filter`}
-                                  loading="lazy"
-                                  decoding="async"
-                                />
-                              </a>
-                              <figcaption>
-                                <span>{image.filter}</span>
-                                <a
-                                  href={`${imageUrl}?download=true`}
-                                  download={image.filename}
-                                >
-                                  Download TIFF
-                                </a>
-                              </figcaption>
-                            </figure>
-                          );
-                        })}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-          </section>
-        )}
+        <BatchList
+          apiUrl={API_URL}
+          selectedBatch={selectedReferenceBatch}
+          imageState={referenceImageState}
+          imageError={referenceImageError}
+          specimens={referenceSpecimens}
+          imageCount={referenceImageCount}
+        />
 
         <section className="section-block" aria-labelledby="incoming-title">
           <div className="section-heading">
