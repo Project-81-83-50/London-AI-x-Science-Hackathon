@@ -32,7 +32,7 @@ npm run dev
 
 Open the Vite URL printed in the frontend terminal, normally <http://localhost:5173>. The browser page is served by Vite; `http://localhost:8000` is the API, with interactive docs at <http://localhost:8000/docs>.
 
-The frontend reads batch summaries from `GET /batches` and the Batch 1 image inventory from `GET /batches/1/images`. The API serves browser-sized JPEG previews and downloadable original TIFFs from the local raw-data folder. `GET /batches/{batch_id}/analysis` remains available for analysis records; image-to-reference matches are not implemented. Set `VITE_API_URL` in `frontend/.env` if the API is running somewhere other than `http://localhost:8000`.
+The frontend reads batch summaries from `GET /batches`. Select a reference batch to load its image inventory from `GET /batches/{batch_id}/images`; select it again to hide the gallery. Image previews and original TIFF downloads are fetched only for the selected batch from the local raw-data folder. `GET /batches/{batch_id}/analysis` remains available for analysis records; image-to-reference matches are not implemented. Set `VITE_API_URL` in `frontend/.env` if the API is running somewhere other than `http://localhost:8000`.
 
 ## Project map
 

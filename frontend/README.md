@@ -2,7 +2,7 @@
 
 ## This project
 
-The page in `src/App.jsx` describes the microscopy workflow: batches 1–3 are known reference sets, and incoming batches 4–5 need to be organised by source image batch with supporting evidence. It loads the local Batch 1 image gallery from `GET /batches/1/images` and batch summaries from `GET /batches`, using `VITE_API_URL` from `.env`. TIFF previews and downloads are served by the API from `data/raw/batch_1`; the raw dataset is not tracked in Git. Image-to-reference matches are not yet implemented. `src/main.jsx` mounts the page, `src/App.css` styles its sections, and `src/index.css` sets global styles. See the repository-root README for backend setup and the project map.
+The page in `src/App.jsx` describes the microscopy workflow: batches 1–3 are known reference sets, and incoming batches 4–5 need to be organised by source image batch with supporting evidence. Selecting a reference batch loads its inventory from `GET /batches/{batch_id}/images`; selecting it again hides the gallery. Batch summaries load from `GET /batches`, using `VITE_API_URL` from `.env`. TIFF previews and downloads are served by the API from the selected `data/raw/batch_{id}` folder; raw datasets are not tracked in Git. Image-to-reference matches are not yet implemented. `src/main.jsx` mounts the page, `src/App.css` styles its sections, and `src/index.css` sets global styles. See the repository-root README for backend setup and the project map.
 
 The commands for this project's frontend are `npm run dev`, `npm run build`, and `npm run lint`.
 

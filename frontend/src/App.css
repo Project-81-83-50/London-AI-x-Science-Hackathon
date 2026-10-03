@@ -732,6 +732,10 @@
   border: 1px solid #d9dfd9;
   background: rgba(255, 255, 255, 0.82);
 }
+.reference-card-selected {
+  border-color: #739785;
+  box-shadow: inset 0 0 0 1px #739785;
+}
 .batch-card-top {
   display: flex;
   align-items: center;
@@ -782,17 +786,28 @@
   color: #68766d;
   font-weight: 600;
 }
-.batch-gallery-link {
+.reference-select {
   display: inline-flex;
+  align-items: center;
   gap: 7px;
   margin-top: 13px;
+  padding: 7px 9px;
+  border: 1px solid #cbd8ce;
+  border-radius: 2px;
   color: #376648;
+  background: #f4f7f3;
   font-size: 11px;
   font-weight: 700;
-  text-decoration: none;
+  cursor: pointer;
 }
-.batch-gallery-link:hover {
+.reference-select:hover:not(:disabled) {
   color: #c85642;
+  border-color: #c85642;
+}
+.reference-select:disabled {
+  color: #5e7565;
+  background: #eaf0e9;
+  cursor: default;
 }
 .specimen-grid {
   display: grid;
@@ -847,7 +862,7 @@
     #e7ebe7;
 }
 .microscopy-preview-link:focus-visible,
-.batch-gallery-link:focus-visible,
+.reference-select:focus-visible,
 .microscopy-image figcaption a:focus-visible {
   outline: 2px solid #d45d45;
   outline-offset: 2px;

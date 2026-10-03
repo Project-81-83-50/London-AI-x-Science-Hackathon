@@ -13,9 +13,10 @@ function App() {
   const [apiRecords, setApiRecords] = useState([]);
   const [apiState, setApiState] = useState("loading");
   const [apiError, setApiError] = useState("");
-  const [batch1Specimens, setBatch1Specimens] = useState([]);
-  const [batch1ImageState, setBatch1ImageState] = useState("loading");
-  const [batch1ImageError, setBatch1ImageError] = useState("");
+  const [selectedReferenceBatch, setSelectedReferenceBatch] = useState("");
+  const [referenceSpecimens, setReferenceSpecimens] = useState([]);
+  const [referenceImageState, setReferenceImageState] = useState("idle");
+  const [referenceImageError, setReferenceImageError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -40,8 +41,11 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!selectedReferenceBatch) return undefined;
     const controller = new AbortController();
-    fetch(`${API_URL}/batches/1/images`, { signal: controller.signal })
+    fetch(`${API_URL}/batches/${selectedReferenceBatch}/images`, {
+      signal: controller.signal,
+    })
       .then((response) => {
         if (!response.ok) throw new Error(`API returned ${response.status}`);
         return response.json();
@@ -49,19 +53,33 @@ function App() {
       .then((result) => {
         if (!Array.isArray(result))
           throw new Error("The API returned an unexpected image inventory.");
-        setBatch1Specimens(result);
-        setBatch1ImageState("connected");
+        setReferenceSpecimens(result);
+        setReferenceImageState("connected");
       })
       .catch((cause) => {
         if (cause.name !== "AbortError") {
-          setBatch1ImageError(cause.message);
-          setBatch1ImageState("error");
+          setReferenceImageError(cause.message);
+          setReferenceImageState("error");
         }
       });
     return () => controller.abort();
-  }, []);
+  }, [selectedReferenceBatch]);
 
-  const batch1ImageCount = batch1Specimens.reduce(
+  function selectReferenceBatch(batch) {
+    if (selectedReferenceBatch === batch) {
+      setSelectedReferenceBatch("");
+      setReferenceSpecimens([]);
+      setReferenceImageError("");
+      setReferenceImageState("idle");
+      return;
+    }
+    setReferenceSpecimens([]);
+    setReferenceImageError("");
+    setReferenceImageState("loading");
+    setSelectedReferenceBatch(batch);
+  }
+
+  const referenceImageCount = referenceSpecimens.reduce(
     (count, specimen) => count + specimen.images.length,
     0,
   );
@@ -130,132 +148,151 @@ function App() {
           </div>
           <div className="batch-grid batch-grid-three">
             {referenceBatches.map((batch) => (
-              <article className="batch-card" key={batch}>
+              <article
+                className={`batch-card reference-card ${selectedReferenceBatch === batch ? "reference-card-selected" : ""}`}
+                key={batch}
+              >
                 <div className="batch-card-top">
                   <span className="batch-index">REFERENCE {batch}</span>
                   <span className="data-state">
-                    {batch === "1" && batch1ImageState === "connected"
-                      ? "CONNECTED"
-                      : batch === "1" && batch1ImageState === "error"
-                        ? "IMAGE ERROR"
-                        : batch === "1" && batch1ImageState === "loading"
-                          ? "LOADING"
-                          : "AWAITING IMAGES"}
+                    {selectedReferenceBatch === batch
+                      ? referenceImageState === "loading"
+                        ? "LOADING"
+                        : referenceImageState === "error"
+                          ? "IMAGE ERROR"
+                          : "SELECTED"
+                      : "NOT LOADED"}
                   </span>
                 </div>
                 <h3>Batch {batch}</h3>
                 <p>
-                  {batch === "1"
-                    ? "Local microscopy views grouped by specimen and imaging filter."
-                    : "Add the views for this known battery batch. Angles and imaging filters should be compared as evidence, not treated as separate materials."}
+                  Local microscopy views grouped by specimen and imaging filter.
+                  Select this batch to load its images.
                 </p>
                 <div className="batch-card-foot">
                   <span>Image set</span>
                   <strong>
-                    {batch === "1" && batch1ImageState === "connected"
-                      ? `${batch1Specimens.length} specimens · ${batch1ImageCount} TIFFs`
-                      : batch === "1" && batch1ImageState === "error"
-                        ? "Could not load"
-                        : batch === "1"
-                          ? "Loading local files…"
-                          : "Not connected"}
+                    {selectedReferenceBatch === batch &&
+                    referenceImageState === "connected"
+                      ? `${referenceSpecimens.length} specimens · ${referenceImageCount} TIFFs`
+                      : "Select to load"}
                   </strong>
                 </div>
-                {batch === "1" && batch1ImageState === "connected" && (
-                  <a className="batch-gallery-link" href="#batch-1-images">
-                    Browse Batch 1 images <span aria-hidden="true">↓</span>
-                  </a>
-                )}
+                <button
+                  className="reference-select"
+                  type="button"
+                  aria-pressed={selectedReferenceBatch === batch}
+                  onClick={() => selectReferenceBatch(batch)}
+                >
+                  {selectedReferenceBatch === batch
+                    ? "Hide images"
+                    : `Load Batch ${batch} images`}
+                </button>
               </article>
             ))}
           </div>
         </section>
 
-        <section
-          className="section-block"
-          id="batch-1-images"
-          aria-labelledby="batch-1-images-title"
-        >
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">LOCAL DATA / RAW BATCH 1</p>
-              <h2 id="batch-1-images-title">Batch 1 microscopy images</h2>
+        {selectedReferenceBatch && (
+          <section
+            className="section-block"
+            id="reference-images"
+            aria-labelledby="reference-images-title"
+          >
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">
+                  LOCAL DATA / RAW BATCH {selectedReferenceBatch}
+                </p>
+                <h2 id="reference-images-title">
+                  Batch {selectedReferenceBatch} microscopy images
+                </h2>
+              </div>
+              <span className="section-count">
+                {referenceImageState === "connected"
+                  ? `${referenceSpecimens.length} SPECIMENS · ${referenceImageCount} TIFFS`
+                  : referenceImageState === "loading"
+                    ? "LOADING IMAGE INVENTORY"
+                    : referenceImageState === "error"
+                      ? "IMAGE INVENTORY UNAVAILABLE"
+                      : ""}
+              </span>
             </div>
-            <span className="section-count">
-              {batch1ImageState === "connected"
-                ? `${batch1Specimens.length} SPECIMENS · ${batch1ImageCount} TIFFS`
-                : batch1ImageState === "loading"
-                  ? "LOADING IMAGE INVENTORY"
-                  : "IMAGE INVENTORY UNAVAILABLE"}
-            </span>
-          </div>
-          {batch1ImageState === "loading" && (
-            <div className="notice" role="status">
-              Loading the local Batch 1 image inventory…
-            </div>
-          )}
-          {batch1ImageState === "error" && (
-            <div className="notice notice-error" role="alert">
-              Could not load Batch 1 images ({batch1ImageError}). Check the API
-              and confirm the files are in data/raw/batch_1.
-            </div>
-          )}
-          {batch1ImageState === "connected" &&
-            batch1Specimens.length === 0 && (
-              <div className="notice">
-                The API is running, but no supported TIFF images were found in
-                data/raw/batch_1.
+            {referenceImageState === "loading" && (
+              <div className="notice" role="status">
+                Loading Batch {selectedReferenceBatch} image inventory…
               </div>
             )}
-          {batch1ImageState === "connected" &&
-            batch1Specimens.length > 0 && (
-              <div className="specimen-grid">
-                {batch1Specimens.map((specimen) => (
-                  <article className="specimen-panel" key={specimen.specimen_id}>
-                    <div className="specimen-heading">
-                      <h3>Specimen {specimen.specimen_id}</h3>
-                      <span>
-                        {specimen.images.length}{" "}
-                        {specimen.images.length === 1 ? "view" : "views"}
-                      </span>
-                    </div>
-                    <div className="microscopy-grid">
-                      {specimen.images.map((image) => {
-                        const imageUrl = `${API_URL}/batches/1/images/${encodeURIComponent(image.filename)}`;
-                        return (
-                          <figure className="microscopy-image" key={image.filename}>
-                            <a
-                              className="microscopy-preview-link"
-                              href={imageUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              aria-label={`Open enlarged ${image.filter} preview for specimen ${specimen.specimen_id}`}
+            {referenceImageState === "error" && (
+              <div className="notice notice-error" role="alert">
+                Could not load Batch {selectedReferenceBatch} images (
+                {referenceImageError}). Check the API and confirm the files are
+                in data/raw/batch_{selectedReferenceBatch}.
+              </div>
+            )}
+            {referenceImageState === "connected" &&
+              referenceSpecimens.length === 0 && (
+                <div className="notice">
+                  No supported TIFF images were found in data/raw/batch_
+                  {selectedReferenceBatch}.
+                </div>
+              )}
+            {referenceImageState === "connected" &&
+              referenceSpecimens.length > 0 && (
+                <div className="specimen-grid">
+                  {referenceSpecimens.map((specimen) => (
+                    <article
+                      className="specimen-panel"
+                      key={specimen.specimen_id}
+                    >
+                      <div className="specimen-heading">
+                        <h3>Specimen {specimen.specimen_id}</h3>
+                        <span>
+                          {specimen.images.length}{" "}
+                          {specimen.images.length === 1 ? "view" : "views"}
+                        </span>
+                      </div>
+                      <div className="microscopy-grid">
+                        {specimen.images.map((image) => {
+                          const imageUrl = `${API_URL}/batches/${selectedReferenceBatch}/images/${encodeURIComponent(image.filename)}`;
+                          return (
+                            <figure
+                              className="microscopy-image"
+                              key={image.filename}
                             >
-                              <img
-                                src={imageUrl}
-                                alt={`Batch 1 specimen ${specimen.specimen_id}, ${image.filter} filter`}
-                                loading="lazy"
-                                decoding="async"
-                              />
-                            </a>
-                            <figcaption>
-                              <span>{image.filter}</span>
                               <a
-                                href={`${imageUrl}?download=true`}
-                                download={image.filename}
+                                className="microscopy-preview-link"
+                                href={imageUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label={`Open enlarged ${image.filter} preview for batch ${selectedReferenceBatch} specimen ${specimen.specimen_id}`}
                               >
-                                Download TIFF
+                                <img
+                                  src={imageUrl}
+                                  alt={`Batch ${selectedReferenceBatch} specimen ${specimen.specimen_id}, ${image.filter} filter`}
+                                  loading="lazy"
+                                  decoding="async"
+                                />
                               </a>
-                            </figcaption>
-                          </figure>
-                        );
-                      })}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-        </section>
+                              <figcaption>
+                                <span>{image.filter}</span>
+                                <a
+                                  href={`${imageUrl}?download=true`}
+                                  download={image.filename}
+                                >
+                                  Download TIFF
+                                </a>
+                              </figcaption>
+                            </figure>
+                          );
+                        })}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+          </section>
+        )}
 
         <section className="section-block" aria-labelledby="incoming-title">
           <div className="section-heading">
@@ -267,13 +304,12 @@ function App() {
           </div>
           <div className="batch-grid batch-grid-two">
             {incomingBatches.map((batch) => (
-              <article
-                className="batch-card incoming-card"
-                key={batch}
-              >
+              <article className="batch-card incoming-card" key={batch}>
                 <div className="batch-card-top">
                   <span className="batch-index">INCOMING / BATCH {batch}</span>
-                  <span className="data-state data-state-pending">NOT RECEIVED</span>
+                  <span className="data-state data-state-pending">
+                    NOT RECEIVED
+                  </span>
                 </div>
                 <h3>Batch {batch}</h3>
                 <p>
@@ -312,15 +348,21 @@ function App() {
               <p>
                 API connected · {apiRecords.length} analysis{" "}
                 {apiRecords.length === 1 ? "record" : "records"} available.
-                Batch 1 image inventory:{" "}
-                {batch1ImageState === "connected"
-                  ? `${batch1ImageCount} TIFFs across ${batch1Specimens.length} specimens.`
-                  : batch1ImageState === "error"
-                    ? `unavailable (${batch1ImageError}).`
-                    : "loading."}
+                {selectedReferenceBatch
+                  ? ` Batch ${selectedReferenceBatch} image inventory: ${
+                      referenceImageState === "connected"
+                        ? `${referenceImageCount} TIFFs across ${referenceSpecimens.length} specimens.`
+                        : referenceImageState === "error"
+                          ? `unavailable (${referenceImageError}).`
+                          : "loading."
+                    }`
+                  : " Select a reference batch to load its images."}
               </p>
               {apiRecords.length > 0 && (
-                <ul className="api-record-list" aria-label="Available API records">
+                <ul
+                  className="api-record-list"
+                  aria-label="Available API records"
+                >
                   {apiRecords.map((record) => (
                     <li key={record.batch_id}>
                       <code>{record.batch_id}</code>
@@ -339,7 +381,7 @@ function App() {
         </section>
 
         <p className="integrity-note">
-          Batch 1 images are displayed from the local raw-data folder. No image
+          Reference images load only after selecting a batch. No image
           classifications are inferred; matching needs analysis evidence.
         </p>
       </div>
