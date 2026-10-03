@@ -1,0 +1,59 @@
+/* Tab buttons shared by the batch views, KPI groups and unknown-batch locations. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+  font: 600 14px/1.2 "Manrope", sans-serif;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease;
+}
+
+.tab:hover {
+  color: var(--ink);
+  background: var(--surface-3);
+}
+
+.tab-selected,
+.tab-selected:hover {
+  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.tab-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: inherit;
+  background: rgba(var(--shadow-rgb), 0.18);
+  font: 600 12px/1.5 "IBM Plex Mono", monospace;
+}
+
+.tab:not(.tab-selected) .tab-badge {
+  background: var(--surface-3);
+}
+
+.tabs-sm .tab {
+  padding: 5px 10px;
+  font-size: 13px;
+}

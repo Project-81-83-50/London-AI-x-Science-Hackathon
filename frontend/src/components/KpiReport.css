@@ -9,8 +9,8 @@
 }
 
 .kpi-card {
-  margin-top: 16px;
-  padding: 20px;
+  margin-top: 10px;
+  padding: 14px 16px;
   border: 1px solid var(--kpi-line);
   border-radius: 15px;
   background: var(--surface);
@@ -18,7 +18,7 @@
 }
 
 .kpi-card h3 {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: var(--ink);
   font: 600 18.5px/1.3 "Manrope", sans-serif;
   letter-spacing: -0.02em;
@@ -55,7 +55,7 @@
 
 .kpi-findings {
   display: grid;
-  gap: 6px;
+  gap: 3px;
   margin: 0;
   padding-left: 18px;
   color: var(--ink-2);
@@ -67,15 +67,15 @@
 .kpi-tiles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 16px;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .kpi-tile {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   align-content: start;
-  padding: 16px 18px 12px;
+  padding: 10px 12px 8px;
   border: 1px solid var(--kpi-line);
   border-radius: 13px;
   background: var(--surface);
@@ -88,7 +88,7 @@
 
 .kpi-tile-value {
   color: var(--kpi-ink);
-  font: 600 32px/1.15 "Manrope", sans-serif;
+  font: 600 26px/1.15 "Manrope", sans-serif;
   letter-spacing: -0.03em;
 }
 
@@ -301,7 +301,7 @@
 }
 
 .kpi-figure {
-  margin: 0 0 18px;
+  margin: 0 0 12px;
 }
 
 .kpi-figure figcaption {
@@ -312,7 +312,7 @@
 
 /* KPI tables */
 .kpi-group {
-  margin-top: 18px;
+  margin-top: 4px;
 }
 
 .kpi-group-heading {
@@ -348,7 +348,7 @@
 
 .kpi-table th,
 .kpi-table td {
-  padding: 8px 10px 8px 0;
+  padding: 5px 10px 5px 0;
   border-bottom: 1px solid var(--kpi-grid);
   text-align: left;
   vertical-align: middle;
@@ -402,7 +402,8 @@
 .kpi-locations {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 14px;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 .kpi-location {
@@ -429,7 +430,7 @@
 }
 
 .kpi-location-body {
-  padding: 12px 14px 14px;
+  padding: 9px 12px 11px;
 }
 
 .kpi-location-heading {

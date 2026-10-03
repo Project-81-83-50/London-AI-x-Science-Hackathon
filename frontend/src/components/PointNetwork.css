@@ -1,0 +1,11 @@
+/* Background point-network layer: fixed behind the page content (which sits on z-index 1);
+   never intercepts clicks, scrolling or hover. */
+.point-network {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100vw;
+  height: 100vh;
+  opacity: 0.7;
+  pointer-events: none;
+}

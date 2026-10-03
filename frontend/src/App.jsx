@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import Batch from "./components/Batch";
+import BatchList from "./components/BatchList";
+import PointNetwork from "./components/PointNetwork";
 import Get4Results from "./components/Get4Results";
 import KpiReport from "./components/KpiReport";
 import LucasReport from "./components/LucasReport";
+import Tabs from "./components/Tabs";
+import { tabPanelProps } from "./components/tabPanel";
 import TopBar from "./components/TopBar";
 import UnknownBatch from "./components/UnknownBatch";
 
@@ -14,6 +18,12 @@ const API_URL = (
 
 const referenceBatches = ["1", "2", "3"];
 const supportedDetectors = ["BSE", "ETD", "INLENS", "SE", "TLD", "CBS"];
+const batchViews = [
+  { id: "images", label: "Images" },
+  { id: "kpi", label: "KPI report" },
+  { id: "segmentation", label: "Segmentation" },
+  { id: "uncertainty", label: "Uncertainty (GET4)" },
+];
 
 function App() {
   const [apiRecords, setApiRecords] = useState([]);
@@ -27,6 +37,7 @@ function App() {
   const [uncertaintyReport, setUncertaintyReport] = useState(null);
   const [uncertaintyState, setUncertaintyState] = useState("idle");
   const [uncertaintyError, setUncertaintyError] = useState("");
+  const [batchView, setBatchView] = useState("images");
 
   const availableDetectors = [
     ...new Set(
@@ -159,6 +170,7 @@ function App() {
 
   return (
     <main className="app-shell">
+      <PointNetwork />
       <TopBar />
 
       <div className="content-wrap" id="overview">
@@ -173,29 +185,26 @@ function App() {
           </div>
         </section>
 
-        <section className="workflow" aria-label="Analysis workflow">
-          <article className="workflow-step">
+        <ol className="workflow" aria-label="Analysis workflow">
+          <li className="workflow-step">
             <span className="workflow-number">01</span>
-            <div>
-              <h2>Build the references</h2>
-              <p>Compare views within each known batch.</p>
-            </div>
-          </article>
-          <article className="workflow-step">
+            <span>
+              <strong>Build the references</strong> · compare views within each known batch
+            </span>
+          </li>
+          <li className="workflow-step">
             <span className="workflow-number">02</span>
-            <div>
-              <h2>Classify the unknown batch</h2>
-              <p>Assign each unknown location to batch 1, 2 or 3.</p>
-            </div>
-          </article>
-          <article className="workflow-step">
+            <span>
+              <strong>Classify the unknown batch</strong> · assign each location to batch 1, 2 or 3
+            </span>
+          </li>
+          <li className="workflow-step">
             <span className="workflow-number">03</span>
-            <div>
-              <h2>Explain every match</h2>
-              <p>Show the visual evidence and uncertainty behind each group.</p>
-            </div>
-          </article>
-        </section>
+            <span>
+              <strong>Explain every match</strong> · evidence and uncertainty for each call
+            </span>
+          </li>
+        </ol>
 
         <section className="section-block" aria-labelledby="reference-title">
           <div className="section-heading">
@@ -206,104 +215,130 @@ function App() {
             <span className="section-count">3 EXPECTED SETS</span>
           </div>
           <Batch
-            apiUrl={API_URL}
             batches={referenceBatches}
             selectedBatch={selectedReferenceBatch}
             imageState={referenceImageState}
-            imageError={referenceImageError}
             specimens={referenceSpecimens}
             imageCount={referenceImageCount}
             onSelect={selectReferenceBatch}
           />
+          {!selectedReferenceBatch && (
+            <p className="picker-hint">Select a batch to see its images and analysis reports.</p>
+          )}
           {selectedReferenceBatch && (
-            <>
-              <KpiReport
-                key={selectedReferenceBatch}
-                apiUrl={API_URL}
-                batch={selectedReferenceBatch}
+            <div className="batch-views">
+              <Tabs
+                tabs={batchViews.map((view) =>
+                  view.id === "images" && referenceImageState === "connected"
+                    ? { ...view, badge: referenceImageCount }
+                    : view,
+                )}
+                active={batchView}
+                onChange={setBatchView}
+                label={`Batch ${selectedReferenceBatch} views`}
+                idPrefix="batch-view"
               />
-              <LucasReport
-                key={`lucas-${selectedReferenceBatch}`}
-                apiUrl={API_URL}
-                batch={selectedReferenceBatch}
-              />
-              <div className="get4-controls">
-                <label htmlFor="get4-detector">
-                  Analysis filter
-                  <select
-                    id="get4-detector"
-                    value={analysisDetector}
-                    onChange={(event) => selectDetector(event.target.value)}
-                  >
-                    {(availableDetectors.length > 0
-                      ? availableDetectors
-                      : [selectedDetector]
-                    ).map((detector) => (
-                      <option value={detector} key={detector}>
-                        {detector}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <span>
-                  Reports are analysed per filter. Views from one location are
-                  not counted as separate locations across filters.
-                </span>
+              <div {...tabPanelProps("batch-view", batchView)}>
+                {batchView === "images" && (
+                  <BatchList
+                    apiUrl={API_URL}
+                    selectedBatch={selectedReferenceBatch}
+                    imageState={referenceImageState}
+                    imageError={referenceImageError}
+                    specimens={referenceSpecimens}
+                    imageCount={referenceImageCount}
+                  />
+                )}
+                {batchView === "kpi" && (
+                  <KpiReport
+                    key={selectedReferenceBatch}
+                    apiUrl={API_URL}
+                    batch={selectedReferenceBatch}
+                  />
+                )}
+                {batchView === "segmentation" && (
+                  <LucasReport
+                    key={`lucas-${selectedReferenceBatch}`}
+                    apiUrl={API_URL}
+                    batch={selectedReferenceBatch}
+                  />
+                )}
+                {batchView === "uncertainty" && (
+                  <>
+                    <div className="get4-controls">
+                      <label htmlFor="get4-detector">
+                        Analysis filter
+                        <select
+                          id="get4-detector"
+                          value={analysisDetector}
+                          onChange={(event) => selectDetector(event.target.value)}
+                        >
+                          {(availableDetectors.length > 0
+                            ? availableDetectors
+                            : [selectedDetector]
+                          ).map((detector) => (
+                            <option value={detector} key={detector}>
+                              {detector}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <span>
+                        Reports are analysed per filter. Views from one location are
+                        not counted as separate locations across filters.
+                      </span>
+                    </div>
+                    <Get4Results
+                      key={`${selectedReferenceBatch}-${analysisDetector}`}
+                      report={uncertaintyReport}
+                      batchLabel={`Batch ${selectedReferenceBatch}`}
+                      title="GET4 uncertainty results"
+                      loading={uncertaintyState === "loading"}
+                      error={uncertaintyState === "error" ? uncertaintyError : ""}
+                    />
+                  </>
+                )}
               </div>
-              <Get4Results
-                key={`${selectedReferenceBatch}-${analysisDetector}`}
-                report={uncertaintyReport}
-                batchLabel={`Batch ${selectedReferenceBatch}`}
-                title="GET4 uncertainty results"
-                loading={uncertaintyState === "loading"}
-                error={
-                  uncertaintyState === "error" ? uncertaintyError : ""
-                }
-              />
-            </>
+            </div>
           )}
         </section>
 
         <UnknownBatch apiUrl={API_URL} />
 
-        <section
+        <details
           className={`data-notice ${apiState === "error" ? "data-notice-error" : ""}`}
           aria-live="polite"
         >
-          <div className="data-notice-heading">
+          <summary className="data-notice-heading">
             <span className="data-notice-indicator" />
-            <h2>Data readiness</h2>
+            <strong>Data readiness</strong>
+            <span>
+              {apiState === "loading"
+                ? "checking the local API…"
+                : apiState === "error"
+                  ? `API unreachable (${apiError})`
+                  : `API connected · ${apiRecords.length} analysis ${apiRecords.length === 1 ? "record" : "records"}`}
+            </span>
             <span className="api-address">{API_URL}</span>
-          </div>
-          {apiState === "loading" && (
-            <p>Checking the local API for available batch records…</p>
-          )}
+          </summary>
           {apiState === "error" && (
-            <p>
-              Could not reach the batch API ({apiError}). Start the backend to
-              check available records.
-            </p>
+            <p>Start the backend to check available records.</p>
           )}
           {apiState === "connected" && (
             <>
               <p>
-                API connected · {apiRecords.length} analysis{" "}
-                {apiRecords.length === 1 ? "record" : "records"} available.
                 {selectedReferenceBatch
-                  ? ` Batch ${selectedReferenceBatch} image inventory: ${
+                  ? `Batch ${selectedReferenceBatch} image inventory: ${
                       referenceImageState === "connected"
                         ? `${referenceImageCount} TIFFs across ${referenceSpecimens.length} groups.`
                         : referenceImageState === "error"
                           ? `unavailable (${referenceImageError}).`
                           : "loading."
                     }`
-                  : " Select a reference batch to load its images."}
+                  : "Select a reference batch to load its images."}
               </p>
               {apiRecords.length > 0 && (
-                <ul
-                  className="api-record-list"
-                  aria-label="Available API records"
-                >
+                <ul className="api-record-list" aria-label="Available API records">
                   {apiRecords.map((record) => (
                     <li key={record.batch_id}>
                       <code>{record.batch_id}</code>
@@ -313,13 +348,11 @@ function App() {
                 </ul>
               )}
               {apiRecords.length === 0 && (
-                <p className="api-empty">
-                  The API is running, but it has no batch records yet.
-                </p>
+                <p className="api-empty">The API is running, but it has no batch records yet.</p>
               )}
             </>
           )}
-        </section>
+        </details>
 
         <p className="integrity-note">
           Reference images load only after selecting a batch. No image

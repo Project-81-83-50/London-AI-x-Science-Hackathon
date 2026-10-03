@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { useJson, useTooltip } from "./chartHooks";
+import Tabs from "./Tabs";
+import { tabPanelProps } from "./tabPanel";
 import "./KpiReport.css";
 import "./UnknownBatch.css";
 
@@ -179,6 +182,7 @@ function LocationResult({ result, images, apiUrl }) {
 function UnknownBatch({ apiUrl }) {
   const classification = useJson(`${apiUrl}/unknown/classification`);
   const images = useJson(`${apiUrl}/batches/unknown/images`);
+  const [locationId, setLocationId] = useState(null);
 
   let body;
   if (classification.status === "loading" || images.status === "loading") {
@@ -195,6 +199,7 @@ function UnknownBatch({ apiUrl }) {
     const v = data.reference_validation;
     const groups = Object.fromEntries((images.data ?? []).map((g) => [g.specimen_id, g.images]));
     const counts = BATCHES.map((b) => data.locations.filter((l) => l.predicted_batch === b).length);
+    const active = data.locations.find((l) => l.location_id === locationId) ?? data.locations[0];
     body = (
       <>
         <div className="kpi-tiles unknown-summary">
@@ -220,14 +225,25 @@ function UnknownBatch({ apiUrl }) {
             Treat each call as a lead, not a verdict.
           </p>
         </div>
-        {data.locations.map((result) => (
+        <Tabs
+          tabs={data.locations.map((l) => ({
+            id: l.location_id,
+            label: l.location_id,
+            badge: `Batch ${l.predicted_batch}`,
+          }))}
+          active={active.location_id}
+          onChange={setLocationId}
+          label="Unknown locations"
+          idPrefix="unknown-location"
+        />
+        <div {...tabPanelProps("unknown-location", active.location_id)}>
           <LocationResult
-            key={result.location_id}
-            result={result}
-            images={groups[result.location_id] ?? []}
+            key={active.location_id}
+            result={active}
+            images={groups[active.location_id] ?? []}
             apiUrl={apiUrl}
           />
-        ))}
+        </div>
       </>
     );
   }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useJson, useTooltip } from "./chartHooks";
 import "./KpiReport.css";
 import "./LucasReport.css";
@@ -158,6 +159,7 @@ function BatchIdTable({ samples, batch, reference }) {
 
 function LucasReport({ apiUrl, batch }) {
   const report = useJson(`${apiUrl}/batches/${batch}/lucas-report`);
+  const [showOverlays, setShowOverlays] = useState(false);
   if (report.status === "loading")
     return (
       <div className="notice" role="status">
@@ -258,6 +260,18 @@ function LucasReport({ apiUrl, batch }) {
       <div className="kpi-card">
         <div className="kpi-card-heading">
           <h3>Segmentation overlays</h3>
+          {overlays > 0 && (
+            <button
+              type="button"
+              className="toggle-button"
+              aria-expanded={showOverlays}
+              onClick={() => setShowOverlays((v) => !v)}
+            >
+              {showOverlays ? "Hide overlays" : `Show overlays (${overlays})`}
+            </button>
+          )}
+        </div>
+        <div className="kpi-card-heading">
           <span className="kpi-card-note">
             Overlay colours: blue pore, purple graphite, orange SiOx, green CBD, red excluded
             {data.overlay_source === "teacher_cpu"
@@ -271,6 +285,7 @@ function LucasReport({ apiUrl, batch }) {
             build them from data/raw.
           </div>
         )}
+        {showOverlays && (
         <div className="kpi-locations">
           {data.samples
             .filter((s) => s.overlay)
@@ -310,6 +325,7 @@ function LucasReport({ apiUrl, batch }) {
               );
             })}
         </div>
+        )}
       </div>
     </section>
   );

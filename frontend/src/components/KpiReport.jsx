@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { useJson, useTooltip } from "./chartHooks";
+import Tabs from "./Tabs";
+import { tabPanelProps } from "./tabPanel";
 import "./KpiReport.css";
 
 // The three classes are intensity classes (pore darkest, bright phase lightest), so the charts use an
@@ -511,6 +514,8 @@ function LocationCard({ location, overlayUrl }) {
 function KpiReport({ apiUrl, batch }) {
   const report = useJson(`${apiUrl}/batches/${batch}/kpi-report`);
   const summary = useJson(`${apiUrl}/kpi-reports/summary`);
+  const [groupId, setGroupId] = useState(null);
+  const [showOverlays, setShowOverlays] = useState(false);
 
   if (report.status === "loading")
     return (
@@ -527,6 +532,7 @@ function KpiReport({ apiUrl, batch }) {
 
   const data = report.data;
   const colors = PHASE_COLORS;
+  const activeGroup = data.kpi_groups.find((g) => g.id === groupId) ?? data.kpi_groups[0];
   const inv = data.inventory;
   return (
     <section className="section-block kpi-report" aria-labelledby="kpi-report-title">
@@ -596,9 +602,17 @@ function KpiReport({ apiUrl, batch }) {
       <div className="kpi-card">
         <h3>KPI breakdown</h3>
         <p className="kpi-card-note">{data.method.statistics} {data.method.consistency_bands}</p>
-        {data.kpi_groups.map((group) => (
-          <KpiGroup group={group} key={group.id} />
-        ))}
+        <Tabs
+          tabs={data.kpi_groups.map((g) => ({ id: g.id, label: g.title, badge: g.kpis.length }))}
+          active={activeGroup.id}
+          onChange={setGroupId}
+          label="KPI groups"
+          idPrefix="kpi-group"
+          size="sm"
+        />
+        <div {...tabPanelProps("kpi-group", activeGroup.id)}>
+          <KpiGroup group={activeGroup} />
+        </div>
       </div>
 
       <div className="kpi-figures">
@@ -621,8 +635,19 @@ function KpiReport({ apiUrl, batch }) {
       <div className="kpi-card">
         <div className="kpi-card-heading">
           <h3>Locations and segmentation overlays</h3>
-          <span className="kpi-card-note">Pores tinted blue, bright phase orange, graphite left grey.</span>
+          <button
+            type="button"
+            className="toggle-button"
+            aria-expanded={showOverlays}
+            onClick={() => setShowOverlays((v) => !v)}
+          >
+            {showOverlays ? "Hide overlays" : `Show overlays (${data.locations.length})`}
+          </button>
         </div>
+        {showOverlays && (
+          <p className="kpi-card-note">Pores tinted blue, bright phase orange, graphite left grey.</p>
+        )}
+        {showOverlays && (
         <div className="kpi-locations">
           {data.locations.map((location) => (
             <LocationCard
@@ -632,6 +657,7 @@ function KpiReport({ apiUrl, batch }) {
             />
           ))}
         </div>
+        )}
       </div>
 
       <details className="kpi-card kpi-method">
