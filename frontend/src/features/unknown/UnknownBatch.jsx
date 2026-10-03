@@ -65,6 +65,10 @@ function ProbabilityBars({ probabilities, predicted }) {
 
 function LocationResult({ result, images, apiUrl }) {
   const predicted = result.predicted_batch;
+  // Probabilities and drivers belong to the material-KPI model, whose call can differ from the final one
+  // when the location matches a reference image exactly.
+  const modelPredicted = result.model_prediction ?? predicted;
+  const matchedReference = result.prediction_source && result.prediction_source !== "material KPIs";
   const session = result.session_hint;
   return (
     <article className="kpi-card unknown-location">
@@ -79,6 +83,7 @@ function LocationResult({ result, images, apiUrl }) {
           <span className={`kpi-chip kpi-chip-${result.confidence === "low" ? "variable" : result.confidence === "medium" ? "moderate" : "consistent"}`}>
             {result.confidence} confidence
           </span>
+          {matchedReference && <span className="unknown-verdict-label">by {result.prediction_source}</span>}
         </div>
       </div>
 
@@ -109,8 +114,8 @@ function LocationResult({ result, images, apiUrl }) {
 
       <div className="unknown-evidence">
         <section>
-          <h4>Probability by reference batch</h4>
-          <ProbabilityBars probabilities={result.probabilities} predicted={predicted} />
+          <h4>{matchedReference ? "Material-model probability" : "Probability by reference batch"}</h4>
+          <ProbabilityBars probabilities={result.probabilities} predicted={modelPredicted} />
         </section>
 
         <section>
@@ -134,7 +139,7 @@ function LocationResult({ result, images, apiUrl }) {
                   </td>
                   <td>
                     {d.support >= 0
-                      ? `Batch ${predicted}`
+                      ? `Batch ${modelPredicted}`
                       : `Batch ${result.runner_up}`}
                   </td>
                 </tr>

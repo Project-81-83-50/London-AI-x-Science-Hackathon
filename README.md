@@ -141,7 +141,28 @@ The run uses the committed AI labels, so it makes no API calls, and it takes rou
 
 ## Unknown batch classification
 
-Put the unknown images in `data/raw/unknown/`, named `img_<location>_<filter>.tif` like the reference files, then run from the repository root:
+In the frontend, **Unknown** sits in the batch picker next to batches 1–3. Its tabs are **Images**, **KPI report**, **Classification** (each location's batch call with evidence) and **Upload**. In the Upload tab, drop or choose `.tif` files named `img_<location>_<BSE|ETD|Inlens|SE>.tif`. The API checks each file and refuses it with a clear message if any of these fail:
+
+- the name must follow that pattern exactly,
+- the file must start with a real TIFF header and be under 300 MB,
+- it must not be byte-identical to an image already in the unknown batch,
+- a file with the same name is only replaced if *Replace existing files* is ticked.
+
+Accepted files are saved to `data/raw/unknown/`. The analysis below then re-runs automatically in the background (about 30 s per location), and every tab refreshes when it finishes. The routes behind this are:
+
+- `PUT /batches/unknown/images/{image_name}` uploads one file as the raw request body.
+- `DELETE /batches/unknown/images/{image_name}` deletes one file and its cached preview.
+- `POST /unknown/analysis` starts the analysis, and `GET /unknown/analysis` reports its status and recent log lines.
+
+Uploads and deletions are refused while an analysis is running.
+
+The Upload tab also lists every image in the unknown batch, grouped by location, with each location's current batch call; each uploaded file shows its result once the analysis finishes. To delete images, tick them and press **Delete selected**, then confirm. The analysis re-runs automatically. If the last image is deleted, the unknown batch's location grouping, KPI report and classification are removed too, so no stale result remains.
+
+Every location is classified, including one uploaded without a BSE image. Such a location is measured from its InLens or ETD image, and its call is marked low confidence because the model was trained on BSE measurements. Any KPI that cannot be measured takes the reference average, which favours no batch.
+
+If an unknown image is an exact copy of a reference image, or shows the same field as one, that decides its batch with high confidence. The material-KPI model's own call is still shown for comparison.
+
+To run the analysis by hand instead, put the files in `data/raw/unknown/` and run:
 
 ```powershell
 .\.venv\Scripts\python.exe -m analysis.classify --rebuild
@@ -179,7 +200,7 @@ Run every analysis module from the repository root as `python -m analysis.<modul
 │   │   │   ├── kpi.py         #     KPI reports, overlays, summary
 │   │   │   ├── lucas.py       #     lucas-sem-analysis segmentation results
 │   │   │   ├── get4.py        #     GET4 uncertainty reports
-│   │   │   ├── unknown.py     #     unknown-batch classification
+│   │   │   ├── unknown.py     #     unknown-batch classification, uploads, analysis jobs
 │   │   │   └── mock.py        #     sample analysis records (data-readiness line)
 │   │   ├── schemas.py  mock/  requirements.txt
 │   └── modal_app.py           #   Modal deployment

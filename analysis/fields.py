@@ -234,7 +234,7 @@ def match_batch(batch):
     for number, idx in enumerate(groups, 1):
         links = [scores[i, j] for a, i in enumerate(idx) for j in idx[a + 1:]]
         # Weakest view-to-field link: each view's best score to another member of its field.
-        support = min((max(scores[i, j] for j in idx if j != i) for i in idx), default=0.0)
+        support = min((max((scores[i, j] for j in idx if j != i), default=0.0) for i in idx), default=0.0)
         outside = max((scores[i, j] for i in idx for j in range(n) if j not in idx), default=0.0)
         anchor = idx[0]
         detectors = identify_detectors([files[i] for i in idx])

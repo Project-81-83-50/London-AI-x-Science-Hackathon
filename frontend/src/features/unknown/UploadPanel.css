@@ -1,0 +1,256 @@
+/* Upload tab of the unknown batch: drop zone, file list with progress, actions and job status. */
+.upload-panel code {
+  font-size: 12.5px;
+}
+
+.upload-drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 18px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  background: var(--surface-2);
+  font-size: 14px;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.upload-drop p {
+  margin: 0;
+}
+
+.upload-drop-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.upload-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.upload-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(140px, auto);
+  gap: 12px;
+  align-items: center;
+  overflow: hidden;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 13px;
+}
+
+.upload-name {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: "IBM Plex Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-size {
+  color: var(--faint);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.upload-status {
+  color: var(--muted);
+  text-align: right;
+}
+
+.upload-done .upload-status {
+  color: var(--good);
+}
+
+.upload-invalid .upload-status,
+.upload-error .upload-status {
+  color: var(--danger);
+}
+
+.upload-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+.upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.upload-overwrite {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.upload-primary {
+  padding: 7px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  color: var(--on-accent);
+  background: var(--accent);
+  font: 700 14px/1.2 "Manrope", sans-serif;
+  cursor: pointer;
+}
+
+.upload-primary:hover {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+.upload-primary:disabled,
+.upload-panel .toggle-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.upload-job {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  background: var(--surface-2);
+  font-size: 13px;
+}
+
+.upload-job strong {
+  color: var(--ink);
+}
+
+.upload-job-done {
+  border-left-color: var(--good);
+}
+
+.upload-job-failed {
+  border-left-color: var(--danger);
+}
+
+.upload-log {
+  margin: 4px 0 0;
+  overflow-x: auto;
+  color: var(--danger-ink);
+  font: 12px/1.45 "IBM Plex Mono", monospace;
+  white-space: pre-wrap;
+}
+
+/* Per-file classification and the file manager (delete). */
+.upload-verdict {
+  grid-column: 1 / -1;
+  color: var(--ink-2);
+  font: 600 12.5px/1.3 "IBM Plex Mono", monospace;
+}
+
+.upload-locations .upload-verdict {
+  grid-column: auto;
+}
+
+.upload-verdict-high {
+  color: var(--good);
+}
+
+.upload-verdict-low,
+.upload-verdict-none {
+  color: var(--faint);
+}
+
+.upload-manager {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.upload-delete {
+  padding: 5px 11px;
+  border: 1px solid var(--danger);
+  border-radius: 7px;
+  color: var(--danger);
+  background: transparent;
+  font: 600 13px/1.3 "Manrope", sans-serif;
+  cursor: pointer;
+}
+
+.upload-delete:hover:not(:disabled) {
+  color: var(--on-accent);
+  background: var(--danger);
+}
+
+.upload-delete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.upload-error-line {
+  margin: 4px 0 8px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.upload-locations {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upload-locations > li {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.upload-location-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.upload-location-head strong {
+  color: var(--ink);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.upload-files {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.upload-files label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}

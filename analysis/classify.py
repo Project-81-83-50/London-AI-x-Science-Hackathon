@@ -44,13 +44,17 @@ FEATURES = ["porosity", "bright_fraction", "bright_area_d50", "pore_ecd_area_d50
 N_PERMUTATIONS = 500
 
 
-def load_locations(batch):
+def load_locations(batch, include_all=False):
+    """Locations of a batch report. References use only BSE-measured locations; the unknown set keeps every
+    location, so an image uploaded without a BSE view of its location still gets a (low-confidence) call."""
     report = json.loads((KPI_DIR / f"batch_{batch}" / "report.json").read_text(encoding="utf-8"))
-    return [loc for loc in report["locations"] if loc["included"]], report
+    return [loc for loc in report["locations"] if include_all or loc["included"]], report
 
 
 def matrix(locations):
-    return np.array([[loc["kpis"][f] for f in FEATURES] for loc in locations], float)
+    """KPI matrix; a KPI that could not be measured (None) becomes NaN."""
+    return np.array([[np.nan if loc["kpis"].get(f) is None else loc["kpis"][f] for f in FEATURES]
+                     for loc in locations], float)
 
 
 class DiagonalLDA:
@@ -112,7 +116,7 @@ def main():
         y += [b] * len(locs)
     y = np.array(y)
     X = matrix(ref_locs)
-    unk_locs, unk_report = load_locations("unknown")
+    unk_locs, unk_report = load_locations("unknown", include_all=True)
     U = matrix(unk_locs)
 
     # Honesty checks on the references.
@@ -126,6 +130,9 @@ def main():
     print(f"reference LOO balanced accuracy {loo_bacc:.2f} (chance 0.33, permutation p = {p_value:.3f})")
 
     model = DiagonalLDA().fit(X, y)
+    # Unmeasurable KPIs take the reference mean: neutral evidence that favours no batch.
+    missing = [[FEATURES[k] for k in np.nonzero(np.isnan(row))[0]] for row in U]
+    U = np.where(np.isnan(U), model.mu, U)
     probs = model.proba(U)
     Zr, Zu = model.z(X), model.z(U)
 
@@ -147,6 +154,8 @@ def main():
         tier = "high" if p[order[0]] >= 0.75 and margin >= 0.4 else "medium" if p[order[0]] >= 0.5 else "low"
         if loo_bacc < 0.7 and tier == "high":
             tier = "medium"  # the model itself is not reliable enough on the references for "high"
+        if not loc["included"]:
+            tier = "low"  # no BSE image: measured from a detector the model was not trained on
         mp, mr = model.means[order[0]], model.means[order[1]]
         contrib = 0.5 * ((Zu[i] - mr) ** 2 - (Zu[i] - mp) ** 2) / model.var
         drivers = [{"feature": FEATURES[k], "name": batch_kpis.KPI_INDEX[FEATURES[k]][1],
@@ -160,22 +169,44 @@ def main():
                     "distance": round(float(dist[j]), 2)} for j in np.argsort(dist)[:3]]
 
         views = [v["filename"] for v in loc["views"]]
-        exact = [str(ref_hash[h].relative_to(ROOT)) for v in views
+        exact = [ref_hash[h].relative_to(ROOT).as_posix() for v in views
                  if (h := hashlib.sha256((batch_dir("unknown") / v).read_bytes()).hexdigest()) in ref_hash]
         fu = fft.fft2(edge_map(batch_dir("unknown") / loc["analysed_image"]))
         best = max(((phase_correlation(fu, f)[0], r) for r, f in ref_bse), key=lambda s: s[0])
         same_field = best[0] >= MATCH_SCORE
+        # A copy of, or the same field as, a reference image decides the batch outright; the material
+        # model's own call is kept alongside for comparison.
+        matched = ROOT / exact[0] if exact else (best[1] if same_field else None)
+        if matched is not None:
+            decided = matched.parent.name.split("_", 1)[1]
+            source = "exact copy of a reference image" if exact else "same field as a reference image"
+        else:
+            decided, source = pred, "material KPIs"
         height = image_height(batch_dir("unknown") / loc["analysed_image"])
         session = sorted(ref_height.get(height, []))
         session_batches = sorted({b for b, _ in session})
 
         cautions = []
-        if loc["confidence"] != "clean":
+        if matched is not None and decided != pred:
+            cautions.append(f"This location is the {source.split(' a ')[0]} {matched.relative_to(ROOT).as_posix()}, so it is "
+                            f"assigned to batch {decided}; the material-KPI model alone would have said batch "
+                            f"{pred}, another sign that the model is weak on its own.")
+        if not loc["included"] and matched is None:
+            cautions.append(f"No BSE image of this location: it was measured from its {loc['analysed_detector']} "
+                            "image, but the model was trained on BSE measurements, so this call is only a rough lead. "
+                            "Upload the location's BSE image for a reliable classification.")
+        elif not loc["included"]:
+            cautions.append(f"No BSE image of this location, so the material model's call comes from its "
+                            f"{loc['analysed_detector']} image; the reference match decides the batch regardless.")
+        if missing[i]:
+            names = ", ".join(batch_kpis.KPI_INDEX[f][1].lower() for f in missing[i])
+            cautions.append(f"Could not measure {names}; the reference average was used, which favours no batch.")
+        elif loc["confidence"] == "usable":
             cautions.append("This location's BSE segmentation is flagged: binder or particle edges may add to "
                             "the bright phase, inflating bright-phase features"
                             + (" — the main driver of this prediction." if drivers[0]["feature"].startswith("bright")
                                else "."))
-        if p[order[0]] > 0.95:
+        if p[order[0]] > 0.95 and matched is None:
             cautions.append(f"A probability of {p[order[0]]:.2f} overstates certainty: the model is right on "
                             f"{loo_bacc:.0%} of reference locations (balanced) when they are held out.")
         results.append({
@@ -184,27 +215,31 @@ def main():
             "views": views,
             "analysed_image": loc["analysed_image"],
             "segmentation_confidence": loc["confidence"],
-            "predicted_batch": pred,
+            "measured_from": loc["analysed_detector"],
+            "predicted_batch": decided,
+            "prediction_source": source,
+            "model_prediction": pred,
             "runner_up": runner,
             "probabilities": {c: round(float(p[k]), 3) for k, c in enumerate(model.classes)},
-            "confidence": tier,
+            "confidence": "high" if matched is not None else tier,
             "drivers": drivers,
             "nearest_reference_locations": nearest,
             "duplicate_check": {
                 "exact_copies": exact,
                 "best_same_field_score": round(float(best[0]), 3),
-                "best_same_field_reference": str(best[1].relative_to(ROOT)),
+                "best_same_field_reference": best[1].relative_to(ROOT).as_posix(),
                 "same_field_as_reference": bool(same_field),
             },
             "session_hint": {
                 "image_height_px": height,
                 "reference_locations_same_height": [f"batch {b}: {l}" for b, l in session],
                 "batches": session_batches,
-                "agrees_with_prediction": session_batches == [pred] if session_batches else None,
+                "agrees_with_prediction": session_batches == [decided] if session_batches else None,
             },
             "kpis": {f: float(U[i, k]) for k, f in enumerate(FEATURES)},
+            "unmeasured_kpis": missing[i],
         })
-        print(f"{loc['location_id']}: batch {pred} (p={p[order[0]]:.2f}, {tier}); "
+        print(f"{loc['location_id']}: batch {decided} ({source}; model batch {pred}, p={p[order[0]]:.2f}, {tier}); "
               f"session hint {session_batches or 'none'}")
 
     out = {
@@ -215,6 +250,8 @@ def main():
             "model": "Standardised BSE segmentation KPIs; Gaussian class model with shared diagonal "
                      "variance and equal batch priors (diagonal LDA). One pre-declared configuration, "
                      "not tuned on the references.",
+            "decision_rule": "An exact copy of, or the same field as, a reference image decides the batch "
+                             "(confidence high); otherwise the material-KPI model's top batch is used.",
             "confidence_rule": "high: top probability ≥ 0.75 and margin ≥ 0.40 (only if reference "
                                "LOO balanced accuracy ≥ 0.70); medium: top probability ≥ 0.50; "
                                "low otherwise.",

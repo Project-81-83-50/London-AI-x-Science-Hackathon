@@ -1,3 +1,5 @@
+import { batchFolder, batchLabel } from "../../lib/batchLabel";
+
 function ImageGallery({
   apiUrl,
   selectedBatch,
@@ -17,9 +19,9 @@ function ImageGallery({
     >
       <div className="section-heading">
         <div>
-          <p className="eyebrow">LOCAL DATA / RAW BATCH {selectedBatch}</p>
+          <p className="eyebrow">LOCAL DATA / {batchLabel(selectedBatch).toUpperCase()}</p>
           <h2 id="reference-images-title">
-            Batch {selectedBatch} microscopy images
+            {batchLabel(selectedBatch)} microscopy images
           </h2>
         </div>
         <span className="section-count">
@@ -34,18 +36,18 @@ function ImageGallery({
       </div>
       {imageState === "loading" && (
         <div className="notice" role="status">
-          Loading Batch {selectedBatch} image inventory…
+          Loading {batchLabel(selectedBatch)} image inventory…
         </div>
       )}
       {imageState === "error" && (
         <div className="notice notice-error" role="alert">
-          Could not load Batch {selectedBatch} images ({imageError}). Check the
-          API and confirm the files are in data/raw/batch_{selectedBatch}.
+          Could not load {batchLabel(selectedBatch)} images ({imageError}). Check the
+          API and confirm the files are in {batchFolder(selectedBatch)}.
         </div>
       )}
       {imageState === "connected" && specimens.length === 0 && (
         <div className="notice">
-          No supported TIFF images were found in data/raw/batch_{selectedBatch}.
+          No supported TIFF images were found in {batchFolder(selectedBatch)}.
         </div>
       )}
       {imageState === "connected" && specimens.length > 0 && (
@@ -83,11 +85,11 @@ function ImageGallery({
                         href={imageUrl}
                         target="_blank"
                         rel="noreferrer"
-                        aria-label={`Open enlarged preview of ${image.filename} from batch ${selectedBatch}`}
+                        aria-label={`Open enlarged preview of ${image.filename} from ${batchLabel(selectedBatch)}`}
                       >
                         <img
                           src={imageUrl}
-                          alt={`Batch ${selectedBatch} ${image.detector ?? image.filter} view, file ${image.filename}`}
+                          alt={`${batchLabel(selectedBatch)} ${image.detector ?? image.filter} view, file ${image.filename}`}
                           loading="lazy"
                           decoding="async"
                         />

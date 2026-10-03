@@ -3,6 +3,7 @@ import { useJson } from "../../hooks/useJson";
 import { useTooltip } from "../../hooks/useTooltip";
 import Tabs from "../../components/Tabs";
 import { tabPanelProps } from "../../lib/tabPanel";
+import { batchLabel } from "../../lib/batchLabel";
 import "./KpiReport.css";
 
 // The three classes are intensity classes (pore darkest, bright phase lightest), so the charts use an
@@ -521,13 +522,13 @@ function KpiReport({ apiUrl, batch }) {
   if (report.status === "loading")
     return (
       <div className="notice" role="status">
-        Loading Batch {batch} KPI report…
+        Loading {batchLabel(batch)} KPI report…
       </div>
     );
   if (report.status === "error")
     return (
       <div className="notice notice-error" role="alert">
-        Could not load the Batch {batch} KPI report ({report.error}).
+        Could not load the {batchLabel(batch)} KPI report ({report.error}).
       </div>
     );
 
@@ -539,8 +540,8 @@ function KpiReport({ apiUrl, batch }) {
     <section className="section-block kpi-report" aria-labelledby="kpi-report-title">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">MICROSTRUCTURE KPIS / BATCH {data.batch_id}</p>
-          <h2 id="kpi-report-title">Batch {data.batch_id} analysis report</h2>
+          <p className="eyebrow">MICROSTRUCTURE KPIS / {batchLabel(data.batch_id).toUpperCase()}</p>
+          <h2 id="kpi-report-title">{batchLabel(data.batch_id)} analysis report</h2>
         </div>
         <span className="section-count">
           {inv.locations_analysed} OF {inv.locations} LOCATIONS ANALYSED ·{" "}

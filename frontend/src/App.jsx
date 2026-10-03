@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./styles/App.css";
 import BatchPicker from "./features/reference/BatchPicker";
 import ImageGallery from "./features/reference/ImageGallery";
@@ -10,19 +10,29 @@ import Tabs from "./components/Tabs";
 import { tabPanelProps } from "./lib/tabPanel";
 import TopBar from "./components/TopBar";
 import UnknownBatch from "./features/unknown/UnknownBatch";
+import UploadPanel from "./features/unknown/UploadPanel";
+import { UNKNOWN_BATCH, batchLabel, isUnknownBatch } from "./lib/batchLabel";
 
 // Vite reads VITE_ variables at build/start time; change this in frontend/.env.
 const API_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:8000"
 ).replace(/\/$/, "");
 
-const referenceBatches = ["1", "2", "3"];
+const allBatches = ["1", "2", "3", UNKNOWN_BATCH];
 const supportedDetectors = ["BSE", "ETD", "INLENS", "SE", "TLD", "CBS"];
-const batchViews = [
+const referenceViews = [
   { id: "images", label: "Images" },
   { id: "kpi", label: "KPI report" },
   { id: "segmentation", label: "Segmentation" },
   { id: "uncertainty", label: "Uncertainty (GET4)" },
+];
+// Segmentation and GET4 exist only for the reference batches; the unknown set adds its classification
+// and an upload tab instead.
+const unknownViews = [
+  { id: "images", label: "Images" },
+  { id: "kpi", label: "KPI report" },
+  { id: "classification", label: "Classification" },
+  { id: "upload", label: "Upload" },
 ];
 
 function App() {
@@ -38,6 +48,14 @@ function App() {
   const [uncertaintyState, setUncertaintyState] = useState("idle");
   const [uncertaintyError, setUncertaintyError] = useState("");
   const [batchView, setBatchView] = useState("images");
+  // Bumped when the unknown batch changes (new uploads, finished analysis) so its views refetch.
+  const [imagesVersion, setImagesVersion] = useState(0);
+  const [analysisVersion, setAnalysisVersion] = useState(0);
+  const refreshImages = useCallback(() => setImagesVersion((v) => v + 1), []);
+  const refreshAnalysis = useCallback(() => {
+    setAnalysisVersion((v) => v + 1);
+    setImagesVersion((v) => v + 1);
+  }, []);
 
   const availableDetectors = [
     ...new Set(
@@ -97,10 +115,11 @@ function App() {
         }
       });
     return () => controller.abort();
-  }, [selectedReferenceBatch]);
+  }, [selectedReferenceBatch, imagesVersion]);
 
   useEffect(() => {
-    if (!selectedReferenceBatch) return undefined;
+    // GET4 reports exist only for the reference batches.
+    if (!selectedReferenceBatch || isUnknownBatch(selectedReferenceBatch)) return undefined;
 
     const controller = new AbortController();
     fetch(
@@ -152,9 +171,12 @@ function App() {
     setReferenceImageState("loading");
     setUncertaintyReport(null);
     setUncertaintyError("");
-    setUncertaintyState("loading");
+    setUncertaintyState(isUnknownBatch(batch) ? "idle" : "loading");
     setSelectedReferenceBatch(batch);
   }
+
+  const views = isUnknownBatch(selectedReferenceBatch) ? unknownViews : referenceViews;
+  const activeView = views.some((v) => v.id === batchView) ? batchView : "images";
 
   const referenceImageCount = referenceSpecimens.reduce(
     (count, specimen) => count + specimen.images.length,
@@ -209,13 +231,13 @@ function App() {
         <section className="section-block" aria-labelledby="reference-title">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">KNOWN MATERIAL / REFERENCE LIBRARY</p>
-              <h2 id="reference-title">Reference batches</h2>
+              <p className="eyebrow">REFERENCE LIBRARY · UNKNOWN SET</p>
+              <h2 id="reference-title">Batches</h2>
             </div>
-            <span className="section-count">3 EXPECTED SETS</span>
+            <span className="section-count">3 REFERENCE SETS + UNKNOWN</span>
           </div>
           <BatchPicker
-            batches={referenceBatches}
+            batches={allBatches}
             selectedBatch={selectedReferenceBatch}
             imageState={referenceImageState}
             specimens={referenceSpecimens}
@@ -223,23 +245,26 @@ function App() {
             onSelect={selectReferenceBatch}
           />
           {!selectedReferenceBatch && (
-            <p className="picker-hint">Select a batch to see its images and analysis reports.</p>
+            <p className="picker-hint">
+              Select a reference batch to see its images and analysis reports, or Unknown to
+              classify, inspect and upload unknown images.
+            </p>
           )}
           {selectedReferenceBatch && (
             <div className="batch-views">
               <Tabs
-                tabs={batchViews.map((view) =>
+                tabs={views.map((view) =>
                   view.id === "images" && referenceImageState === "connected"
                     ? { ...view, badge: referenceImageCount }
                     : view,
                 )}
-                active={batchView}
+                active={activeView}
                 onChange={setBatchView}
-                label={`Batch ${selectedReferenceBatch} views`}
+                label={`${batchLabel(selectedReferenceBatch)} views`}
                 idPrefix="batch-view"
               />
-              <div {...tabPanelProps("batch-view", batchView)}>
-                {batchView === "images" && (
+              <div {...tabPanelProps("batch-view", activeView)}>
+                {activeView === "images" && (
                   <ImageGallery
                     apiUrl={API_URL}
                     selectedBatch={selectedReferenceBatch}
@@ -249,21 +274,31 @@ function App() {
                     imageCount={referenceImageCount}
                   />
                 )}
-                {batchView === "kpi" && (
+                {activeView === "kpi" && (
                   <KpiReport
-                    key={selectedReferenceBatch}
+                    key={`${selectedReferenceBatch}-${analysisVersion}`}
                     apiUrl={API_URL}
                     batch={selectedReferenceBatch}
                   />
                 )}
-                {batchView === "segmentation" && (
+                {activeView === "segmentation" && (
                   <LucasReport
                     key={`lucas-${selectedReferenceBatch}`}
                     apiUrl={API_URL}
                     batch={selectedReferenceBatch}
                   />
                 )}
-                {batchView === "uncertainty" && (
+                {activeView === "classification" && (
+                  <UnknownBatch key={analysisVersion} apiUrl={API_URL} />
+                )}
+                {activeView === "upload" && (
+                  <UploadPanel
+                    apiUrl={API_URL}
+                    onUploaded={refreshImages}
+                    onAnalysed={refreshAnalysis}
+                  />
+                )}
+                {activeView === "uncertainty" && (
                   <>
                     <div className="get4-controls">
                       <label htmlFor="get4-detector">
@@ -302,8 +337,6 @@ function App() {
             </div>
           )}
         </section>
-
-        <UnknownBatch apiUrl={API_URL} />
 
         <details
           className={`data-notice ${apiState === "error" ? "data-notice-error" : ""}`}

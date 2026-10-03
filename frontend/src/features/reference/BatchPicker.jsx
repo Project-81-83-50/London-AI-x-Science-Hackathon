@@ -1,11 +1,15 @@
-// Compact reference-batch picker: one button per batch; pressing the selected batch again clears it.
+import { batchLabel, isUnknownBatch } from "../../lib/batchLabel";
+
+// Compact batch picker: reference batches plus the unknown set; pressing the selected batch clears it.
 function BatchPicker({ batches, selectedBatch, imageState, specimens, imageCount, onSelect }) {
   return (
-    <div className="batch-picker" role="group" aria-label="Reference batch">
+    <div className="batch-picker" role="group" aria-label="Batch">
       {batches.map((batch) => {
         const selected = selectedBatch === batch;
         const status = !selected
-          ? "Reference set"
+          ? isUnknownBatch(batch)
+            ? "Classify against 1–3"
+            : "Reference set"
           : imageState === "loading"
             ? "Loading…"
             : imageState === "error"
@@ -15,11 +19,11 @@ function BatchPicker({ batches, selectedBatch, imageState, specimens, imageCount
           <button
             key={batch}
             type="button"
-            className={`batch-pick ${selected ? "batch-pick-selected" : ""}`}
+            className={`batch-pick ${selected ? "batch-pick-selected" : ""} ${isUnknownBatch(batch) ? "batch-pick-unknown" : ""}`}
             aria-pressed={selected}
             onClick={() => onSelect(batch)}
           >
-            <strong>Batch {batch}</strong>
+            <strong>{isUnknownBatch(batch) ? "Unknown" : batchLabel(batch)}</strong>
             <small>{status}</small>
           </button>
         );

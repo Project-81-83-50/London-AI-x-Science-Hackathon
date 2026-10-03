@@ -689,3 +689,8 @@
 .data-notice[open] .data-notice-heading {
   margin-bottom: 6px;
 }
+
+/* The unknown set is a different kind of batch: dashed until selected. */
+.batch-pick-unknown:not(.batch-pick-selected) {
+  border-style: dashed;
+}
