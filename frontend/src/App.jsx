@@ -6,15 +6,14 @@ const API_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:8000"
 ).replace(/\/$/, "");
 
-function App() {
-  // These values hold API data and the current user selection for this page.
-  const [batches, setBatches] = useState([]);
-  const [selectedBatch, setSelectedBatch] = useState("");
-  const [analysis, setAnalysis] = useState(null);
-  const [error, setError] = useState("");
-  const [loadingBatches, setLoadingBatches] = useState(true);
+const referenceBatches = ["1", "2", "3"];
+const incomingBatches = ["4", "5"];
 
-  // Load the batch list once. Abort the request if this component is removed.
+function App() {
+  const [apiRecords, setApiRecords] = useState([]);
+  const [apiState, setApiState] = useState("loading");
+  const [apiError, setApiError] = useState("");
+
   useEffect(() => {
     const controller = new AbortController();
     fetch(`${API_URL}/batches`, { signal: controller.signal })
@@ -23,45 +22,19 @@ function App() {
         return response.json();
       })
       .then((result) => {
-        setBatches(result);
-        setSelectedBatch(result[0]?.batch_id || "");
-        if (result.length === 0)
-          setError("The API is running, but no batches are available yet.");
+        if (!Array.isArray(result))
+          throw new Error("The API returned an unexpected batch list.");
+        setApiRecords(result);
+        setApiState("connected");
       })
-      .catch((cause) => {
-        if (cause.name !== "AbortError")
-          setError(
-            `Could not load batches. Check that the API is running at ${API_URL}.`,
-          );
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoadingBatches(false);
-      });
-    return () => controller.abort();
-  }, []);
-
-  // Whenever the selected batch changes, request its full analysis record.
-  useEffect(() => {
-    if (!selectedBatch) return undefined;
-    const controller = new AbortController();
-    fetch(`${API_URL}/batches/${encodeURIComponent(selectedBatch)}/analysis`, {
-      signal: controller.signal,
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error(`API returned ${response.status}`);
-        return response.json();
-      })
-      .then(setAnalysis)
       .catch((cause) => {
         if (cause.name !== "AbortError") {
-          setAnalysis(null);
-          setError(
-            "Could not load this batch analysis. Check the API and try again.",
-          );
+          setApiError(cause.message);
+          setApiState("error");
         }
       });
     return () => controller.abort();
-  }, [selectedBatch]);
+  }, []);
 
   return (
     <main className="app-shell">
@@ -76,7 +49,7 @@ function App() {
         </a>
         <div className="topbar-meta">
           <span className="service-indicator" />
-          QUALITY CONTROL <span className="topbar-divider" /> ANALYSIS WORKSPACE
+          MICROSCOPY / IMAGE PROVENANCE
         </div>
         <span className="workspace-label">LONDON AI × SCIENCE</span>
       </header>
@@ -84,103 +57,155 @@ function App() {
       <div className="content-wrap" id="overview">
         <section className="page-heading">
           <div>
-            <p className="eyebrow">ELECTRON MICROSCOPY / BATCH REVIEW</p>
-            <h1>Batch intelligence</h1>
+            <p className="eyebrow">ELECTRON MICROSCOPY / BATCH ORGANISATION</p>
+            <h1>Trace each image to its source</h1>
             <p className="page-subtitle">
-              Compare material properties against your established baseline.
+              Learn the three known battery batches, then sort the images in
+              mixed batches 4 and 5 with evidence.
             </p>
           </div>
-          <label className="batch-picker">
-            <span>SELECT BATCH</span>
-            <select
-              value={selectedBatch}
-              onChange={(event) => {
-                setError("");
-                setSelectedBatch(event.target.value);
-              }}
-              disabled={loadingBatches || batches.length === 0}
-            >
-              {batches.length === 0 && (
-                <option value="">No batches found</option>
-              )}
-              {batches.map((batch) => (
-                <option key={batch.batch_id} value={batch.batch_id}>
-                  {batch.batch_id}
-                </option>
-              ))}
-            </select>
-          </label>
         </section>
 
-        {loadingBatches && (
-          <div className="notice" role="status">
-            Connecting to the analysis API…
-          </div>
-        )}
-        {error && (
-          <div className="notice notice-error" role="alert">
-            {error}
-          </div>
-        )}
-        {selectedBatch &&
-          analysis?.batch_id !== selectedBatch &&
-          !error &&
-          !loadingBatches && (
-            <div className="notice" role="status">
-              Loading {selectedBatch} analysis…
+        <section className="workflow" aria-label="Analysis workflow">
+          <article className="workflow-step">
+            <span className="workflow-number">01</span>
+            <div>
+              <h2>Build the references</h2>
+              <p>Compare views within each known batch.</p>
             </div>
+          </article>
+          <article className="workflow-step">
+            <span className="workflow-number">02</span>
+            <div>
+              <h2>Sort the mixed images</h2>
+              <p>Match each view in batches 4 and 5 to batches 1–3.</p>
+            </div>
+          </article>
+          <article className="workflow-step">
+            <span className="workflow-number">03</span>
+            <div>
+              <h2>Explain every match</h2>
+              <p>Show the visual evidence and uncertainty behind each group.</p>
+            </div>
+          </article>
+        </section>
+
+        <section className="section-block" aria-labelledby="reference-title">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">KNOWN MATERIAL / REFERENCE LIBRARY</p>
+              <h2 id="reference-title">Reference batches</h2>
+            </div>
+            <span className="section-count">3 EXPECTED SETS</span>
+          </div>
+          <div className="batch-grid batch-grid-three">
+            {referenceBatches.map((batch) => (
+              <article className="batch-card" key={batch}>
+                <div className="batch-card-top">
+                  <span className="batch-index">REFERENCE {batch}</span>
+                  <span className="data-state">AWAITING IMAGES</span>
+                </div>
+                <h3>Batch {batch}</h3>
+                <p>
+                  Add the views for this known battery batch. Angles and
+                  imaging filters should be compared as evidence, not treated
+                  as separate materials.
+                </p>
+                <div className="batch-card-foot">
+                  <span>Image set</span>
+                  <strong>Not connected</strong>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="section-block" aria-labelledby="incoming-title">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">UNSEEN MATERIAL / MIXED IMAGE SETS</p>
+              <h2 id="incoming-title">Incoming batches to organise</h2>
+            </div>
+            <span className="section-count">SOURCE: BATCHES 1–3</span>
+          </div>
+          <div className="batch-grid batch-grid-two">
+            {incomingBatches.map((batch) => (
+              <article
+                className="batch-card incoming-card"
+                key={batch}
+              >
+                <div className="batch-card-top">
+                  <span className="batch-index">INCOMING / BATCH {batch}</span>
+                  <span className="data-state data-state-pending">NOT RECEIVED</span>
+                </div>
+                <h3>Batch {batch}</h3>
+                <p>
+                  Images will be grouped by the reference batch they most
+                  resemble. Each assignment should include a reason and a
+                  confidence level.
+                </p>
+                <div className="match-placeholder">
+                  <span>Image groups and match evidence will appear here.</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section
+          className={`data-notice ${apiState === "error" ? "data-notice-error" : ""}`}
+          aria-live="polite"
+        >
+          <div className="data-notice-heading">
+            <span className="data-notice-indicator" />
+            <h2>Data readiness</h2>
+            <span className="api-address">{API_URL}</span>
+          </div>
+          {apiState === "loading" && (
+            <p>Checking the local API for available batch records…</p>
           )}
+          {apiState === "error" && (
+            <p>
+              Could not reach the batch API ({apiError}). Start the backend to
+              check available records.
+            </p>
+          )}
+          {apiState === "connected" && (
+            <>
+              <p>
+                API connected · {apiRecords.length} analysis{" "}
+                {apiRecords.length === 1 ? "record" : "records"} available.
+                This API currently provides batch summaries, not microscopy
+                image inventories or image-to-reference matches.
+              </p>
+              {apiRecords.length > 0 && (
+                <ul className="api-record-list" aria-label="Available API records">
+                  {apiRecords.map((record) => (
+                    <li key={record.batch_id}>
+                      <code>{record.batch_id}</code>
+                      <span>Analysis metadata only</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {apiRecords.length === 0 && (
+                <p className="api-empty">
+                  The API is running, but it has no batch records yet.
+                </p>
+              )}
+            </>
+          )}
+        </section>
 
-        {/* Replace these starter sections with the analysis views you design. */}
-        {analysis && analysis.batch_id === selectedBatch && (
-          <>
-            <section className="section-block template-section">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">TODO: ADD A LABEL</p>
-                  <h2>Batch summary</h2>
-                </div>
-              </div>
-              {/* TODO: Choose which verdict information is useful, then design its presentation. */}
-              <div className="template-slot">
-                <span className="template-tag">YOUR COMPONENT</span>
-                <p>Build your batch summary here.</p>
-              </div>
-            </section>
-
-            <section className="section-block template-section">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">TODO: CHOOSE YOUR METRICS</p>
-                  <h2>Measurements</h2>
-                </div>
-              </div>
-              {/* TODO: Map analysis.kpis into the comparison or chart you want to build. */}
-              <div className="template-slot">
-                <span className="template-tag">YOUR COMPONENT</span>
-                <p>Build your KPI view here.</p>
-              </div>
-            </section>
-
-            <section className="section-block template-section">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">TODO: ADD INTERPRETATION</p>
-                  <h2>Drivers and evidence</h2>
-                </div>
-              </div>
-              {/* TODO: Decide how to present analysis.drivers and microscopy images. */}
-              <div className="template-slot">
-                <span className="template-tag">YOUR COMPONENT</span>
-                <p>Build your interpretation view here.</p>
-              </div>
-            </section>
-          </>
-        )}
+        <p className="integrity-note">
+          No image classifications are shown until image files and reference
+          data are available. Batch IDs alone are not enough to infer a match.
+        </p>
       </div>
+
       <footer className="footer">
-        <span>EM QC / MATERIALS ANALYTICS</span>
-        <span>LIVE API · {API_URL}</span>
+        <span>EM QC / IMAGE PROVENANCE WORKSPACE</span>
+        <span>REFERENCE SETS 1–3 · MIXED SETS 4–5</span>
       </footer>
     </main>
   );

@@ -683,6 +683,199 @@
     monospace;
 }
 
+.workflow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid #d9dfd9;
+  background: rgba(255, 255, 255, 0.78);
+}
+.workflow-step {
+  display: flex;
+  align-items: start;
+  gap: 13px;
+  min-height: 91px;
+  padding: 18px;
+}
+.workflow-step + .workflow-step {
+  border-left: 1px solid #d9dfd9;
+}
+.workflow-number {
+  color: #c85642;
+  font:
+    11px "IBM Plex Mono",
+    monospace;
+}
+.workflow-step h2 {
+  margin: 0 0 4px;
+  color: #293830;
+  font-size: 13px;
+  font-weight: 700;
+}
+.workflow-step p,
+.batch-card p {
+  color: #758078;
+  font-size: 12px;
+}
+.batch-grid {
+  display: grid;
+  gap: 14px;
+}
+.batch-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.batch-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.batch-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #d9dfd9;
+  background: rgba(255, 255, 255, 0.82);
+}
+.batch-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.batch-index,
+.data-state {
+  color: #738077;
+  font:
+    9px "IBM Plex Mono",
+    monospace;
+}
+.data-state {
+  padding: 3px 6px;
+  border: 1px solid #d8dfd9;
+  color: #6d786f;
+  background: #f4f6f3;
+  text-align: center;
+}
+.data-state-pending {
+  border-color: #e8d6ad;
+  color: #8b6b30;
+  background: #fbf6e9;
+}
+.batch-card h3 {
+  margin: 20px 0 5px;
+  color: #26362f;
+  font:
+    500 21px/1.2 "Newsreader",
+    Georgia,
+    serif;
+}
+.batch-card p {
+  min-height: 54px;
+  margin-bottom: 16px;
+}
+.batch-card-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 11px;
+  border-top: 1px solid #edf0ed;
+  color: #879189;
+  font-size: 11px;
+}
+.batch-card-foot strong {
+  color: #68766d;
+  font-weight: 600;
+}
+.incoming-card {
+  border-top: 2px solid #d45d45;
+}
+.match-placeholder {
+  min-height: 54px;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  border: 1px dashed #c3cdc5;
+  color: #7c887f;
+  background: rgba(246, 248, 245, 0.8);
+  font-size: 11px;
+  text-align: center;
+}
+.data-notice {
+  margin-top: 38px;
+  padding: 17px 19px;
+  border: 1px solid #cbd8ce;
+  border-left: 3px solid #739785;
+  color: #53645a;
+  background: rgba(232, 240, 233, 0.86);
+  font-size: 12px;
+}
+.data-notice-error {
+  border-color: #e2c7c0;
+  border-left-color: #bd4b3b;
+  color: #84382c;
+  background: #f7e8e4;
+}
+.data-notice-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 7px;
+}
+.data-notice-heading h2 {
+  margin: 0;
+  color: #34483a;
+  font-size: 13px;
+  font-weight: 700;
+}
+.data-notice-indicator {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #79a586;
+}
+.data-notice-error .data-notice-indicator {
+  background: #bd4b3b;
+}
+.api-address {
+  margin-left: auto;
+  color: #7b877f;
+  font:
+    9px "IBM Plex Mono",
+    monospace;
+}
+.api-record-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 12px 0 0;
+  list-style: none;
+}
+.api-record-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 1px solid #d6e0d8;
+  background: rgba(255, 255, 255, 0.65);
+  font-size: 10px;
+}
+.api-record-list code {
+  padding: 0;
+  color: #375c46;
+  background: transparent;
+  font-size: inherit;
+}
+.api-record-list span,
+.api-empty {
+  color: #76847a;
+}
+.api-empty {
+  margin-top: 6px;
+}
+.integrity-note {
+  margin-top: 12px;
+  color: #77837b;
+  font-size: 11px;
+}
+
 @keyframes enter {
   from {
     opacity: 0;
@@ -751,6 +944,31 @@
   }
   .kpi-grid {
     grid-template-columns: 1fr;
+  }
+  .workflow {
+    grid-template-columns: 1fr;
+  }
+  .workflow-step {
+    min-height: auto;
+    padding: 14px;
+  }
+  .workflow-step + .workflow-step {
+    border-top: 1px solid #d9dfd9;
+    border-left: 0;
+  }
+  .batch-grid-three,
+  .batch-grid-two {
+    grid-template-columns: 1fr;
+  }
+  .batch-card p {
+    min-height: 0;
+  }
+  .data-notice-heading {
+    flex-wrap: wrap;
+  }
+  .api-address {
+    width: 100%;
+    margin-left: 16px;
   }
   .section-heading h2 {
     font-size: 22px;

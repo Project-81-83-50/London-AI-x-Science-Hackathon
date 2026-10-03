@@ -2,7 +2,7 @@
 
 ## This project
 
-The page for this project is in `src/App.jsx`; it fetches batch data from the FastAPI backend using `VITE_API_URL` from `.env`. `src/main.jsx` mounts the page, `src/App.css` styles its sections, and `src/index.css` sets global styles. See the repository-root README for the backend and full project map.
+The page in `src/App.jsx` describes the microscopy workflow: batches 1–3 are known reference sets, and incoming batches 4–5 need to be organised by source image batch with supporting evidence. The page checks `GET /batches` using `VITE_API_URL` from `.env` to show which API records are available. The current API does not include image inventories or image-to-reference matches, so the page shows honest empty states instead of fabricated classifications. `src/main.jsx` mounts the page, `src/App.css` styles its sections, and `src/index.css` sets global styles. See the repository-root README for backend setup and the project map.
 
 The commands for this project's frontend are `npm run dev`, `npm run build`, and `npm run lint`.
 
