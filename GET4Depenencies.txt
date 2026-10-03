@@ -1,0 +1,6 @@
+numpy
+tifffile
+imagecodecs
+scipy
+scikit-image
+matplotlib

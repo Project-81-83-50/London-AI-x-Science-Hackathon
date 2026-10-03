@@ -33,14 +33,14 @@ function Batch({
             </div>
             <h3>Batch {batch}</h3>
             <p>
-              Local microscopy views grouped by specimen and imaging filter.
+              Local microscopy views grouped by the field of view they show.
               Select this batch to load its images.
             </p>
             <div className="batch-card-foot">
               <span>Image set</span>
               <strong>
                 {selectedBatch === batch && imageState === "connected"
-                  ? `${specimens.length} specimens · ${imageCount} TIFFs`
+                  ? `${specimens.length} ${specimens.every((s) => s.grouping === "matched") ? "fields" : "groups"} · ${imageCount} TIFFs`
                   : "Select to load"}
               </strong>
             </div>

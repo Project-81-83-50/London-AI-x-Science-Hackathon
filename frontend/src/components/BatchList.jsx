@@ -7,6 +7,7 @@ function BatchList({
   imageCount,
 }) {
   if (!selectedBatch) return null;
+  const matched = specimens.length > 0 && specimens.every((s) => s.grouping === "matched");
 
   return (
     <section
@@ -23,7 +24,7 @@ function BatchList({
         </div>
         <span className="section-count">
           {imageState === "connected"
-            ? `${specimens.length} SPECIMENS · ${imageCount} TIFFS`
+            ? `${specimens.length} LOCATIONS · ${imageCount} TIFFS`
             : imageState === "loading"
               ? "LOADING IMAGE INVENTORY"
               : imageState === "error"
@@ -48,14 +49,28 @@ function BatchList({
         </div>
       )}
       {imageState === "connected" && specimens.length > 0 && (
+        <div className={`notice ${matched ? "" : "notice-error"}`}>
+          {matched
+            ? "Images are grouped by the location they show and relabelled location_filter. The filter (BSE, InLens or ETD) is identified from the image, and each group is named with one filename code."
+            : "Views are grouped by filename code, which does not reliably identify the imaged field. Run field_matching.py to group views by matched field."}
+        </div>
+      )}
+      {imageState === "connected" && specimens.length > 0 && (
         <div className="specimen-grid">
           {specimens.map((specimen) => (
             <article className="specimen-panel" key={specimen.specimen_id}>
               <div className="specimen-heading">
-                <h3>Specimen {specimen.specimen_id}</h3>
-                <span>
+                <h3>Location {specimen.specimen_id}</h3>
+                <span
+                  title={
+                    specimen.location_alternatives?.length
+                      ? `Codes that fit equally well: ${specimen.location_alternatives.join(", ")}`
+                      : undefined
+                  }
+                >
                   {specimen.images.length}{" "}
                   {specimen.images.length === 1 ? "view" : "views"}
+                  {specimen.location_recovered === false ? " · name assigned" : ""}
                 </span>
               </div>
               <div className="microscopy-grid">
@@ -68,17 +83,31 @@ function BatchList({
                         href={imageUrl}
                         target="_blank"
                         rel="noreferrer"
-                        aria-label={`Open enlarged ${image.filter} preview for batch ${selectedBatch} specimen ${specimen.specimen_id}`}
+                        aria-label={`Open enlarged preview of ${image.filename} from batch ${selectedBatch}`}
                       >
                         <img
                           src={imageUrl}
-                          alt={`Batch ${selectedBatch} specimen ${specimen.specimen_id}, ${image.filter} filter`}
+                          alt={`Batch ${selectedBatch} ${image.detector ?? image.filter} view, file ${image.filename}`}
                           loading="lazy"
                           decoding="async"
                         />
                       </a>
                       <figcaption>
-                        <span>{image.filter}</span>
+                        <span>
+                          {image.detector ? (
+                            <>
+                              <strong>
+                                {image.display_name ??
+                                  `${specimen.specimen_id}_${image.detector}`}
+                              </strong>
+                              {image.detector_confidence !== "high"
+                                ? ` (${image.detector_confidence})`
+                                : ""}
+                            </>
+                          ) : (
+                            image.filter
+                          )}
+                        </span>
                         <a
                           href={`${imageUrl}?download=true`}
                           download={image.filename}

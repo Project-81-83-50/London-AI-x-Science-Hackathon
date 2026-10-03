@@ -85,6 +85,7 @@ from scipy import fft, ndimage, stats
 from skimage import filters, io, transform
 
 PHASES = {0: "pore", 1: "graphite", 2: "bright phase"}
+INTENSITY_CLASSES = {0: "low-intensity class", 1: "mid-intensity class", 2: "high-intensity class"}
 Z95 = 1.959964
 IMAGE_SUFFIXES = {".tif", ".tiff", ".png"}
 FULL_FFT_MAX_PX = 40_000_000  # above this, accumulate the correlation over tiles
@@ -364,8 +365,8 @@ def destripe(img, q, width=1.5):
 
 # ---------------------------------------------------------------- segmentation
 
-def segment_bse(img, smooth=1.0):
-    """Placeholder 3-phase segmentation of a BSE image: pore / graphite / bright phase."""
+def segment_intensity_classes(img, smooth=1.0):
+    """Split a detector image into three intensity classes; material meaning is unvalidated."""
     sm = ndimage.gaussian_filter(img, smooth)
     thresholds = filters.threshold_multiotsu(sm[::4, ::4], classes=3)
     return np.digitize(sm, thresholds), thresholds, sm
@@ -593,7 +594,8 @@ def analyse_phase(mask, max_lag, tile, sizes, unit_len):
     }
 
 
-def analyse_image(path, meta, target_nm, args):
+def analyse_image(path, meta, target_nm, args, class_names=None):
+    class_names = class_names or (PHASES if args.detector.upper() == "BSE" else INTENSITY_CLASSES)
     px = args.px_size or meta["pixel_size_nm"]
     plain_bin = args.bin or 2
     img, info = load_image(path, meta, args.page, args.crop_bottom, px, target_nm, plain_bin, args.tilt_deg)
@@ -613,7 +615,7 @@ def analyse_image(path, meta, target_nm, args):
     quality["stripes_curtaining_after"] = after.get("curtaining", quality["stripes_curtaining"])
     quality["stripes_scan_lines_after"] = after.get("scan_lines", quality["stripes_scan_lines"])
 
-    labels, thresholds, sm = segment_bse(img)
+    labels, thresholds, sm = segment_intensity_classes(img)
     seg_lo, seg_hi, seg_variants = segmentation_sensitivity(sm, thresholds)
     phi_local, n_refit, n_tiles = local_segmentation_fractions(sm, thresholds, labels)
 
@@ -624,10 +626,12 @@ def analyse_image(path, meta, target_nm, args):
         max_lag = min(max_lag, args.max_lag)
     sizes = np.unique(np.geomspace(4, min(h, w) // 2, 16).astype(int))
 
-    result = {"image": Path(path).name, **meta, **info, "pixel_size_nm_used": px, "target_pixel_nm": target_nm,
+    result = {"image": Path(path).name, "detector": args.detector.upper(),
+              **meta, **info, "pixel_size_nm_used": px, "target_pixel_nm": target_nm,
               "unit": unit, "thresholds": thresholds.tolist(), "quality": quality, "preprocessing": preprocessing,
-              "local_threshold_tiles": [n_refit, n_tiles], "phases": {}}
-    for k, name in PHASES.items():
+              "local_threshold_tiles": [n_refit, n_tiles],
+              "max_autocorrelation_lag_px": max_lag, "phases": {}}
+    for k, name in class_names.items():
         r = analyse_phase(labels == k, max_lag, tile, sizes, unit_len)
         r["threshold_range"] = [float(seg_lo[k]), float(seg_hi[k])]
         r["phi_local_threshold"] = float(phi_local[k])
@@ -639,7 +643,9 @@ def analyse_image(path, meta, target_nm, args):
         result["phases"][name] = r
 
     print_image_summary(result)
-    plot_image_report(labels, result, unit_len, Path(args.out) / f"{Path(path).stem}_uncertainty.png")
+    result["class_names"] = class_names
+    if not args.fast:
+        plot_image_report(labels, result, unit_len, Path(args.out) / f"{Path(path).stem}_uncertainty.png")
     return result
 
 
@@ -768,9 +774,9 @@ def next_measurement(var_area, var_irreg, tau2):
             "bits_more_fields": float(np.log2(now / se(np.concatenate([v, v]))))}
 
 
-def analyse_batch(results, tau2_prior=None):
+def analyse_batch(results, tau2_prior=None, class_names=PHASES):
     batch = {}
-    for name in PHASES.values():
+    for name in class_names.values():
         ph = [r["phases"][name] for r in results]
         prior = None if tau2_prior is None else tau2_prior.get(name)
         re_ = random_effects([p["phi"] for p in ph], [p["var_area"] for p in ph],
@@ -918,8 +924,11 @@ def compare_lots(path_a, path_b, tol_abs, tol_rel):
     lots = []
     for path in (path_a, path_b):
         data = json.loads(Path(path).read_text())
-        lots.append(data if "phases" in data else {"phases": data})
+        lots.append(data if "phases" in data or "intensity_classes" in data else {"phases": data})
     a, b = lots
+    detector_a, detector_b = a.get("detector", "BSE"), b.get("detector", "BSE")
+    if detector_a != "BSE" or detector_b != "BSE":
+        raise ValueError("lot comparison supports BSE phase estimates only; detector intensity classes are not comparable phases")
     scale_a, scale_b = a.get("target_pixel_nm"), b.get("target_pixel_nm")
     scale_mismatch = bool(scale_a and scale_b and abs(scale_a / scale_b - 1) > 0.01) or (bool(scale_a) != bool(scale_b))
     flagged = [im["image"] for lot in lots for im in lot.get("images", []) if im.get("imaging_flags")]
@@ -996,7 +1005,8 @@ def print_image_summary(result):
         reg = (f"D={d['D']:.2f} [{d['D_90'][0]:.2f}-{d['D_90'][1]:.2f}]" if d else "D=n/a (image too small)")
         trend = r["depth_trend"]
         tr = (f"top->bottom {trend['change_top_to_bottom']:+.3f} +- {Z95 * trend['se']:.3f}" if trend else "")
-        print(f"  {name:13s} phi={r['phi']:.4f}  +-{Z95 * r['se_image']:.4f} (95%)  "
+        estimate = "phi" if result["detector"] == "BSE" else "fraction"
+        print(f"  {name:22s} {estimate}={r['phi']:.4f}  +- {Z95 * r['se_image']:.4f} (95%)  "
               f"N_eff~{r['n_eff']:,.0f}  regularity {reg}  {tr}")
         if d and d["D_90"][0] > 1:
             print(f"  {'':13s} -> image is NOT statistically regular for {name}: error bar inflated x{np.sqrt(d['D']):.2f}")
@@ -1071,18 +1081,19 @@ def plot_image_report(labels, result, unit_len, out_png):
 
     ax = fig.add_subplot(gs[0, :])
     step = max(1, max(labels.shape) // 2000)
-    cmap = ListedColormap([PHASE_COLORS[k] for k in sorted(PHASES)])
-    ax.imshow(labels[::step, ::step], cmap=cmap, interpolation="nearest", vmin=-0.5, vmax=len(PHASES) - 0.5)
+    class_names = result["class_names"]
+    cmap = ListedColormap([PHASE_COLORS[k] for k in class_names])
+    ax.imshow(labels[::step, ::step], cmap=cmap, interpolation="nearest", vmin=-0.5, vmax=len(class_names) - 0.5)
     ax.set_title(f"Segmentation: {result['image']}  (check this before trusting any number below)",
                  loc="left", color=INK)
     ax.set_xticks([]); ax.set_yticks([])
-    for k, name in PHASES.items():
+    for k, name in class_names.items():
         ax.plot([], [], "s", color=PHASE_COLORS[k], markersize=10,
-                label=f"{name}  phi={result['phases'][name]['phi']:.3f}")
+                label=f"{name}  fraction={result['phases'][name]['phi']:.3f}")
     ax.legend(loc="upper left", bbox_to_anchor=(1.0, 1.0), frameon=False)
 
     full_side = np.sqrt(labels.size) * unit_len
-    for i, (k, name) in enumerate(PHASES.items()):
+    for i, (k, name) in enumerate(class_names.items()):
         r = result["phases"][name]
         ax = fig.add_subplot(gs[1, i], facecolor=SURFACE)
         c = PHASE_COLORS[k]
@@ -1102,7 +1113,8 @@ def plot_image_report(labels, result, unit_len, out_png):
         ax.grid(True, which="major", color=GRID, lw=0.8)
         ax.set_xlabel(f"window side length ({result['unit']})")
         if i == 0:
-            ax.set_ylabel("standard error of phase fraction")
+            metric = "phase fraction" if result["detector"] == "BSE" else "intensity-class fraction"
+            ax.set_ylabel(f"standard error of {metric}")
             ax.legend(loc="lower left", frameon=False, fontsize=9)
         d = r["dispersion"]
         ax.set_title(f"{name}:  N_eff ~ {r['n_eff']:,.0f},  D = {d['D']:.2f}" if d else name, loc="left", color=INK)
@@ -1113,7 +1125,7 @@ def plot_image_report(labels, result, unit_len, out_png):
     plt.close(fig)
 
 
-def plot_batch_report(batch, out_png):
+def plot_batch_report(batch, out_png, fraction_label="phase fraction"):
     """Forest plot per phase (each field, pooled CI, next-field interval) + uncertainty budget."""
     plt = _style()
     names = list(batch)
@@ -1142,7 +1154,7 @@ def plot_batch_report(batch, out_png):
         ax.tick_params(axis="y", length=0)
         ax.set_ylim(-0.7, n_img + 1.7)
         ax.grid(True, axis="x", color=GRID, lw=0.8)
-        ax.set_xlabel("phase fraction")
+        ax.set_xlabel(fraction_label)
         ax.set_title(f"{name}:  tau = {b['tau']:.4f},  I2 = {100 * b['I2']:.0f}%", loc="left", color=INK)
         for s in ax.spines.values():
             s.set_visible(False)
@@ -1184,15 +1196,23 @@ def _detector_of(path):
     return next((t for t in DETECTOR_TAGS if t in parts), None)
 
 
-def collect_images(inputs, detector="bse"):
+def _location_of(path):
+    """Return the leading image code, which identifies a location in project filenames."""
+    match = re.fullmatch(r"img_([^_]+)_[A-Za-z0-9-]+(?: \(\d+\))?", Path(path).stem, re.IGNORECASE)
+    return match.group(1).casefold() if match else None
+
+
+def collect_images(inputs, detector="bse", require_detector=False):
     """Images to treat as separate fields. In a folder, files tagged with another detector
-    are skipped: BSE / ETD / InLens of one spot are one field, not three."""
+    are skipped: BSE / ETD / InLens of one spot are one field, not three. Project mode can
+    also require an explicit detector tag so unknown files are never treated as BSE."""
     paths, skipped = [], []
     for p in map(Path, inputs):
         if p.is_dir():
             for q in sorted(q for q in p.iterdir() if q.suffix.lower() in IMAGE_SUFFIXES):
                 tag = _detector_of(q)
-                (skipped if tag and detector != "all" and tag != detector else paths).append(q)
+                exclude = (require_detector and tag is None) or (tag and detector != "all" and tag != detector)
+                (skipped if exclude else paths).append(q)
         else:
             paths.append(p)
     if skipped:
@@ -1200,9 +1220,148 @@ def collect_images(inputs, detector="bse"):
     return paths
 
 
+def analyse_paths(paths, args, out, parser, baseline=None, class_names=None, locations=None,
+                  batch_id=None):
+    """Run the existing per-image and batch analysis for one detector-specific image set."""
+    class_names = class_names or (PHASES if args.detector.upper() == "BSE" else INTENSITY_CLASSES)
+    measurement_key = "phases" if args.detector.upper() == "BSE" else "intensity_classes"
+    if baseline and measurement_key not in baseline:
+        parser.error(f"baseline does not contain {args.detector.upper()} {measurement_key}")
+    out.mkdir(parents=True, exist_ok=True)
+    args.out = str(out)
+
+    if args.fast and args.bin is None and args.target_px is None and baseline is None:
+        args.bin = 2
+
+    metas = [read_meta(path, args.page) for path in paths]
+    try:
+        target_nm, target_note = resolve_target(metas, args, baseline)
+    except ValueError as e:
+        parser.error(str(e))
+    print(f"scale: {f'{target_nm:.2f} nm/px' if target_nm else 'pixels'} ({target_note})")
+
+    results = [analyse_image(path, meta, target_nm, args, class_names) for path, meta in zip(paths, metas)]
+
+    ref_images = (baseline or {}).get("images")
+    for i, r in enumerate(results):
+        location_id = locations.get(r["image"]) if locations is not None else _location_of(r["image"])
+        if location_id is not None:
+            r["location_id"] = location_id
+        ref = [b["quality"] for b in ref_images] if ref_images else \
+              [o["quality"] for j, o in enumerate(results) if j != i]
+        flags = quality_flags(r["quality"], ref if (ref_images or len(ref) >= 2) else [])
+        if r["upsampled"]:
+            flags.append("image is coarser than the analysis scale (upsampled): fine features may be lost")
+        flags += [f"{name} resolution-limited (features < 5 px)"
+                  for name, ph in r["phases"].items() if ph["resolution_limited"]]
+        r["imaging_flags"] = flags
+        image_report = dict(r)
+        image_report[measurement_key] = image_report.pop("phases")
+        (out / f"{Path(r['image']).stem}_uncertainty.json").write_text(json.dumps(image_report, indent=2))
+    reference = "baseline images" if ref_images else (
+        "the rest of this batch" if len(results) >= 3 else "absolute limits only (need >= 3 images or --baseline)")
+    print_quality_report(results, reference)
+
+    tau2_prior = None
+    if baseline:
+        tau2_prior = {name: b["tau2"] for name, b in baseline[measurement_key].items()
+                      if "estimated" in b["tau2_source"]}
+    batch = analyse_batch(results, tau2_prior, class_names)
+    print_batch_summary(batch)
+    fraction_label = "phase fraction" if args.detector.upper() == "BSE" else "intensity-class fraction"
+    plot_batch_report(batch, out / "batch_uncertainty.png", fraction_label)
+    detector_name = args.detector.upper()
+    is_bse = detector_name == "BSE"
+    measurement_names = class_names
+    kpis = []
+    for name, measurement in batch.items():
+        lo, hi = measurement["ci95"]
+        candidate_name = (
+            f"Candidate {name} fraction (provisional)"
+            if is_bse else f"{name} fraction ({detector_name} intensity class)"
+        )
+        kpis.append({
+            "id": name,
+            "name": candidate_name,
+            "value": measurement["phi"],
+            "unit": "fraction (0-1)",
+            "ci_low": lo,
+            "ci_high": hi,
+            "status": "provisional",
+            "locations_measured": measurement["n_images"],
+            "between_location_sd": (
+                None if "NOT ESTIMABLE" in measurement["tau2_source"] else measurement["tau"]
+            ),
+            "measurement_kind": "candidate_material_kpi" if is_bse else "detector_intensity_metric",
+            "evidence_note": (
+                "Threshold-defined class; validate the segmentation against labelled images "
+                "before interpreting as a material phase."
+                if is_bse else
+                "Detector intensity class only; not a validated material property."
+            ),
+        })
+
+    summary = {"detector": detector_name,
+               "segmentation_interpretation": (
+                   "provisional BSE intensity classes; verify against ground truth before interpreting as phases"
+                   if args.detector.upper() == "BSE"
+                   else "low/mid/high detector-intensity classes only; not validated material phases"),
+               "target_pixel_nm": target_nm, "scale_note": target_note,
+               "images": [{"image": r["image"], "location_id": r.get("location_id"),
+                           "quality": r["quality"], "imaging_flags": r["imaging_flags"],
+                           "fraction_estimates": {
+                               name: {"fraction": phase["phi"],
+                                      "uncertainty_95": [max(0.0, phase["phi"] - Z95 * phase["se_image"]),
+                                                         min(1.0, phase["phi"] + Z95 * phase["se_image"])]}
+                               for name, phase in r["phases"].items()}}
+                          for r in results],
+               measurement_key: batch}
+    summary.update({
+        "report_type": "battery-image-analysis",
+        "report_version": 1,
+        "analysis_settings": {
+            "mode": "fast" if args.fast else "full",
+            "target_pixel_nm": target_nm,
+            "scale_note": target_note,
+            "per_image_plots_generated": not args.fast,
+        },
+        "batch_id": batch_id,
+        "report_title": f"{batch_id or 'Image set'} / {detector_name} analysis",
+        "report_summary": (
+            f"Descriptive image-derived measurements from {len(results)} {detector_name} "
+            f"images across {len({r.get('location_id', r['image']) for r in results})} locations."
+        ),
+        "comparison": {
+            "performed": False,
+            "reference_batch": None,
+            "reason": "Each reference batch represents a different battery; no cross-batch baseline is assumed.",
+        },
+        "decision": {
+            "status": "not_assessed",
+            "reason": "No approved KPI limits or acceptance criteria were supplied.",
+        },
+        "kpis": kpis if is_bse else [],
+        "image_metrics": [] if is_bse else kpis,
+        "quality_findings": [
+            {"image": image["image"], "location_id": image.get("location_id"), "flags": image["imaging_flags"]}
+            for image in summary["images"] if image["imaging_flags"]
+        ],
+        "measurement_groups": list(measurement_names.values()),
+    })
+    (out / "batch_uncertainty.json").write_text(json.dumps(summary, indent=2))
+    (out / "analysis_report.json").write_text(json.dumps(summary, indent=2))
+    return summary
+
+
 def main():
     p = argparse.ArgumentParser(description="Area / regularity / between-image uncertainty of phase fractions.")
-    p.add_argument("inputs", nargs="*", help="BSE images or folders of them: different locations, same batch")
+    p.add_argument("inputs", nargs="*", help="images or folders of one detector: different locations, same batch")
+    p.add_argument("--project", action="store_true",
+                   help="analyse all recognized detector files, separately by batch and filter")
+    p.add_argument("--list-only", action="store_true",
+                   help="with --project, list location codes, filters, and images without processing")
+    p.add_argument("--fast", action="store_true",
+                   help="use 2x coarser sampling by default and skip per-image plots; full analysis remains available without this flag")
     p.add_argument("--compare", nargs=2, metavar=("LOT_A_JSON", "LOT_B_JSON"), default=None,
                    help="compare two batch_uncertainty.json files (A = baseline / approved lot)")
     p.add_argument("--tol", default=None,
@@ -1231,8 +1390,13 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
 
     if args.compare:
+        if args.project or args.inputs or args.list_only:
+            p.error("--compare cannot be combined with --project, --list-only, or image inputs")
         tol_abs = parse_tolerances(args.tol)
-        result = compare_lots(*args.compare, tol_abs, args.tol_rel)
+        try:
+            result = compare_lots(*args.compare, tol_abs, args.tol_rel)
+        except ValueError as e:
+            p.error(str(e))
         names = [Path(f).parent.name or Path(f).stem for f in args.compare]
         tol_note = ", ".join(f"{k} +-{v}" for k, v in tol_abs.items())
         tol_note = (tol_note + "; " if tol_note else "") + f"others +-{100 * args.tol_rel:.0f}% of lot A " \
@@ -1241,48 +1405,68 @@ def main():
         (out / "comparison.json").write_text(json.dumps(result, indent=2))
         return
 
+    if args.project:
+        if args.inputs:
+            p.error("--project cannot be combined with image inputs")
+        if args.baseline:
+            p.error("--baseline is not supported with --project; analyse a batch separately to use one")
+        raw_root = Path(__file__).resolve().parent / "data" / "raw"
+        batches = sorted(path for path in raw_root.iterdir()
+                         if path.is_dir() and re.fullmatch(r"batch_\d+", path.name.lower())) if raw_root.is_dir() else []
+        if not batches:
+            p.error(f"no data/raw/batch_N folders found under {raw_root}")
+        for batch_dir in batches:
+            grouped = {tag: [] for tag in DETECTOR_TAGS}
+            locations = {}
+            location_views = {}
+            image_paths = sorted(path for path in batch_dir.iterdir()
+                                 if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES)
+            for path in image_paths:
+                detector = _detector_of(path)
+                location = _location_of(path)
+                if detector is None or location is None:
+                    p.error(f"cannot determine location and supported detector from filename: {path.name}")
+                grouped[detector].append(path)
+                locations[path.name] = location
+                location_views.setdefault(location, []).append(
+                    {"detector": detector.upper(), "image": path.name})
+            if not image_paths:
+                p.error(f"no supported images found in {batch_dir}")
+            for detector in DETECTOR_TAGS:
+                paths = grouped[detector]
+                if not paths:
+                    continue
+                args.detector = detector.upper()
+                class_names = PHASES if detector == "bse" else INTENSITY_CLASSES
+                print(f"\n=== project analysis: {batch_dir.name} / {args.detector} ({len(paths)} images) ===")
+                if args.list_only:
+                    for path in paths:
+                        print(f"  {locations[path.name]} :: {args.detector} :: {path.name}")
+                    continue
+                analyse_paths(paths, args, out / batch_dir.name / args.detector, p,
+                              class_names=class_names, locations=locations, batch_id=batch_dir.name)
+            if not args.list_only:
+                manifest = {
+                    "batch": batch_dir.name,
+                    "location_code_source": "filename component after 'img_' and before the detector suffix",
+                    "locations": [
+                        {"location_id": location, "views": sorted(views, key=lambda view: view["detector"])}
+                        for location, views in sorted(location_views.items())
+                    ],
+                }
+                (out / batch_dir.name / "location_manifest.json").write_text(json.dumps(manifest, indent=2))
+        return
+    if args.list_only:
+        p.error("--list-only requires --project")
+
     paths = collect_images(args.inputs, args.detector.lower())
     if not paths:
         p.error(f"no images found (in folders, only files tagged {args.detector} or untagged are used)")
     baseline = json.loads(Path(args.baseline).read_text()) if args.baseline else None
-    if baseline and "phases" not in baseline:  # older batch JSON: phases at top level
+    if baseline and "phases" not in baseline and "intensity_classes" not in baseline:
+        # Older batch JSON stored phase estimates at top level.
         baseline = {"phases": baseline}
-
-    metas = [read_meta(path, args.page) for path in paths]
-    try:
-        target_nm, target_note = resolve_target(metas, args, baseline)
-    except ValueError as e:
-        p.error(str(e))
-    print(f"scale: {f'{target_nm:.2f} nm/px' if target_nm else 'pixels'} ({target_note})")
-
-    results = [analyse_image(path, meta, target_nm, args) for path, meta in zip(paths, metas)]
-
-    ref_images = (baseline or {}).get("images")
-    for i, r in enumerate(results):
-        ref = [b["quality"] for b in ref_images] if ref_images else \
-              [o["quality"] for j, o in enumerate(results) if j != i]
-        flags = quality_flags(r["quality"], ref if (ref_images or len(ref) >= 2) else [])
-        if r["upsampled"]:
-            flags.append("image is coarser than the analysis scale (upsampled): fine features may be lost")
-        flags += [f"{name} resolution-limited (features < 5 px)"
-                  for name, ph in r["phases"].items() if ph["resolution_limited"]]
-        r["imaging_flags"] = flags
-        (out / f"{Path(r['image']).stem}_uncertainty.json").write_text(json.dumps(r, indent=2))
-    reference = "baseline images" if ref_images else (
-        "the rest of this batch" if len(results) >= 3 else "absolute limits only (need >= 3 images or --baseline)")
-    print_quality_report(results, reference)
-
-    tau2_prior = None
-    if baseline:
-        tau2_prior = {name: b["tau2"] for name, b in baseline["phases"].items() if "estimated" in b["tau2_source"]}
-    batch = analyse_batch(results, tau2_prior)
-    print_batch_summary(batch)
-    plot_batch_report(batch, out / "batch_uncertainty.png")
-    summary = {"target_pixel_nm": target_nm, "scale_note": target_note,
-               "images": [{"image": r["image"], "quality": r["quality"], "imaging_flags": r["imaging_flags"]}
-                          for r in results],
-               "phases": batch}
-    (out / "batch_uncertainty.json").write_text(json.dumps(summary, indent=2))
+    analyse_paths(paths, args, out, p, baseline)
 
 
 if __name__ == "__main__":

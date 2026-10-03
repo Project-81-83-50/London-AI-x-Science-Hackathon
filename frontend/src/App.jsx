@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import Batch from "./components/Batch";
+import Get4Results from "./components/Get4Results";
+import KpiReport from "./components/KpiReport";
 import TopBar from "./components/TopBar";
 
 // Vite reads VITE_ variables at build/start time; change this in frontend/.env.
@@ -10,6 +12,7 @@ const API_URL = (
 
 const referenceBatches = ["1", "2", "3"];
 const incomingBatches = ["4", "5"];
+const supportedDetectors = ["BSE", "ETD", "INLENS", "SE", "TLD", "CBS"];
 
 function App() {
   const [apiRecords, setApiRecords] = useState([]);
@@ -19,6 +22,23 @@ function App() {
   const [referenceSpecimens, setReferenceSpecimens] = useState([]);
   const [referenceImageState, setReferenceImageState] = useState("idle");
   const [referenceImageError, setReferenceImageError] = useState("");
+  const [selectedDetector, setSelectedDetector] = useState("BSE");
+  const [uncertaintyReport, setUncertaintyReport] = useState(null);
+  const [uncertaintyState, setUncertaintyState] = useState("idle");
+  const [uncertaintyError, setUncertaintyError] = useState("");
+
+  const availableDetectors = [
+    ...new Set(
+      referenceSpecimens.flatMap((specimen) =>
+        specimen.images.map((image) => image.filter.toUpperCase()),
+      ),
+    ),
+  ].filter((detector) => supportedDetectors.includes(detector));
+  const analysisDetector = availableDetectors.includes(selectedDetector)
+    ? selectedDetector
+    : availableDetectors.includes("BSE")
+      ? "BSE"
+      : availableDetectors[0] || selectedDetector;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -67,17 +87,60 @@ function App() {
     return () => controller.abort();
   }, [selectedReferenceBatch]);
 
+  useEffect(() => {
+    if (!selectedReferenceBatch) return undefined;
+
+    const controller = new AbortController();
+    fetch(
+      `${API_URL}/batches/${selectedReferenceBatch}/analysis-report?detector=${encodeURIComponent(analysisDetector)}`,
+      { signal: controller.signal },
+    )
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error(
+            body?.detail || `Analysis API returned ${response.status}`,
+          );
+        }
+        return response.json();
+      })
+      .then((result) => {
+        if (
+          !result ||
+          typeof result !== "object" ||
+          !Array.isArray(result.images)
+        ) {
+          throw new Error("The API returned an unexpected GET4 report.");
+        }
+        setUncertaintyReport(result);
+        setUncertaintyState("connected");
+      })
+      .catch((cause) => {
+        if (cause.name !== "AbortError") {
+          setUncertaintyError(cause.message);
+          setUncertaintyState("error");
+        }
+      });
+    return () => controller.abort();
+  }, [selectedReferenceBatch, analysisDetector]);
+
   function selectReferenceBatch(batch) {
     if (selectedReferenceBatch === batch) {
       setSelectedReferenceBatch("");
       setReferenceSpecimens([]);
       setReferenceImageError("");
       setReferenceImageState("idle");
+      setUncertaintyReport(null);
+      setUncertaintyError("");
+      setUncertaintyState("idle");
       return;
     }
     setReferenceSpecimens([]);
     setReferenceImageError("");
     setReferenceImageState("loading");
+    setUncertaintyReport(null);
+    setUncertaintyError("");
+    setUncertaintyState("loading");
     setSelectedReferenceBatch(batch);
   }
 
@@ -85,6 +148,13 @@ function App() {
     (count, specimen) => count + specimen.images.length,
     0,
   );
+
+  function selectDetector(detector) {
+    setSelectedDetector(detector);
+    setUncertaintyReport(null);
+    setUncertaintyError("");
+    setUncertaintyState("loading");
+  }
 
   return (
     <main className="app-shell">
@@ -144,6 +214,48 @@ function App() {
             imageCount={referenceImageCount}
             onSelect={selectReferenceBatch}
           />
+          {selectedReferenceBatch && (
+            <>
+              <KpiReport
+                key={selectedReferenceBatch}
+                apiUrl={API_URL}
+                batch={selectedReferenceBatch}
+              />
+              <div className="get4-controls">
+                <label htmlFor="get4-detector">
+                  Analysis filter
+                  <select
+                    id="get4-detector"
+                    value={analysisDetector}
+                    onChange={(event) => selectDetector(event.target.value)}
+                  >
+                    {(availableDetectors.length > 0
+                      ? availableDetectors
+                      : [selectedDetector]
+                    ).map((detector) => (
+                      <option value={detector} key={detector}>
+                        {detector}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span>
+                  Reports are analysed per filter. Views from one location are
+                  not counted as separate locations across filters.
+                </span>
+              </div>
+              <Get4Results
+                key={`${selectedReferenceBatch}-${analysisDetector}`}
+                report={uncertaintyReport}
+                batchLabel={`Batch ${selectedReferenceBatch}`}
+                title="GET4 uncertainty results"
+                loading={uncertaintyState === "loading"}
+                error={
+                  uncertaintyState === "error" ? uncertaintyError : ""
+                }
+              />
+            </>
+          )}
         </section>
 
         <section className="section-block" aria-labelledby="incoming-title">
@@ -203,7 +315,7 @@ function App() {
                 {selectedReferenceBatch
                   ? ` Batch ${selectedReferenceBatch} image inventory: ${
                       referenceImageState === "connected"
-                        ? `${referenceImageCount} TIFFs across ${referenceSpecimens.length} specimens.`
+                        ? `${referenceImageCount} TIFFs across ${referenceSpecimens.length} groups.`
                         : referenceImageState === "error"
                           ? `unavailable (${referenceImageError}).`
                           : "loading."
