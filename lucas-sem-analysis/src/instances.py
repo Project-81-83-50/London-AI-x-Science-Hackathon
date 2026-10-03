@@ -49,7 +49,7 @@ def run(key):
 
 
 def main():
-    with ProcessPoolExecutor(8) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         rows = [r for rs in ex.map(run, C.sample_ids()) for r in rs]
     C.write_csv(C.OUT_MET / "particle_sizes.csv", rows)
     summary = []

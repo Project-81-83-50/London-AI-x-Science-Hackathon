@@ -95,7 +95,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--overlay", nargs="*", default=["kbdh4tri", "r17byphk", "epqdaau9"])
     args = ap.parse_args()
-    with ProcessPoolExecutor(8) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         results = list(ex.map(run, C.sample_ids()))
     rows = []
     for batch, sid, frac, thr in results:

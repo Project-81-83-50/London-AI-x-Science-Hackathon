@@ -69,7 +69,7 @@ def process(item):
 
 
 def main():
-    with ProcessPoolExecutor(8) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         metas = list(ex.map(process, C.discover().items()))
     for m in metas:
         flag = []

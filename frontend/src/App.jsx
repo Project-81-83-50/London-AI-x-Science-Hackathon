@@ -3,6 +3,7 @@ import "./App.css";
 import Batch from "./components/Batch";
 import Get4Results from "./components/Get4Results";
 import KpiReport from "./components/KpiReport";
+import LucasReport from "./components/LucasReport";
 import TopBar from "./components/TopBar";
 
 // Vite reads VITE_ variables at build/start time; change this in frontend/.env.
@@ -218,6 +219,11 @@ function App() {
             <>
               <KpiReport
                 key={selectedReferenceBatch}
+                apiUrl={API_URL}
+                batch={selectedReferenceBatch}
+              />
+              <LucasReport
+                key={`lucas-${selectedReferenceBatch}`}
                 apiUrl={API_URL}
                 batch={selectedReferenceBatch}
               />

@@ -165,7 +165,7 @@ def prepare_sample(key):
 
 def cmd_prepare(_):
     CROPS.mkdir(parents=True, exist_ok=True)
-    with ProcessPoolExecutor(8) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         rows = [r for rs in ex.map(prepare_sample, C.sample_ids()) for r in rs]
     rng = np.random.default_rng(0)
     order = rng.permutation(len(rows))                     # mix samples within each request

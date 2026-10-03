@@ -124,6 +124,21 @@ How it works:
 
 The phases are intensity classes and have not been validated against labelled or EDS data, and no pass/fail limits are defined.
 
+## lucas-sem-analysis four-phase segmentation
+
+`lucas-sem-analysis/` segments each sample into pore, graphite, SiOx and carbon-binder domain (CBD) and attempts batch identification; its own README and HANDOFF explain the method. It reads the shared `data/raw/batch_N` folders directly (override with `SEM_RAW_DIR`). Its committed results were computed on files byte-identical to the current `data/raw`: all 93 SHA-256 hashes match `lucas-sem-analysis/data/manifest.csv`. The frontend shows them under each selected reference batch, as phase tiles, per-sample composition, leave-one-out batch identification and segmentation overlays.
+
+The overlays need label maps, which are not in Git. The delivered U-Net needs a GPU and model weights that were never published, so on a CPU-only machine rebuild them with the LightGBM teacher. Install its extra package once, then run the CPU pipeline:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install lightgbm==4.7.0
+cd lucas-sem-analysis
+$env:SEM_WORKERS = 3     # fewer parallel processes for machines with < 16 GB RAM
+..\.venv\Scripts\python.exe run_cpu_pipeline.py
+```
+
+The run uses the committed AI labels, so it makes no API calls, and it takes roughly an hour on an 8-core laptop. It writes `outputs/segmentation/` and `outputs/metrics/teacher_cpu_fractions.csv`. The committed U-Net results (`phase_fractions.csv`, `batch_stats.csv`, `siox_summary.csv`, `batchid/*.json`) are left unchanged, and the frontend shows those numbers. Each overlay card also lists the teacher's fractions, so you can see how closely the overlay model agrees. The API routes are `GET /batches/{batch_id}/lucas-report` and `GET /batches/{batch_id}/lucas-report/overlays/{sample_id}`.
+
 ## Project map
 
 Source and supported configuration files include concise comments. JSON cannot contain comments, lockfiles are generated, and binary assets cannot hold useful source comments, so those purposes are listed here.
@@ -138,6 +153,9 @@ Source and supported configuration files include concise comments. JSON cannot c
 | `batch_kpis.py`                                               | Standalone per-batch KPI analysis: view selection, segmentation, KPI statistics and overlays.     |
 | `batch_kpis_requirements.txt`                                 | Python packages required by batch_kpis.py and field_matching.py.                                   |
 | `field_matching.py`                                           | Groups each batch's images into the fields of view they show, by image registration.              |
+| `lucas-sem-analysis/`                                         | Four-phase segmentation and batch identification (see its README); reads `data/raw/batch_N`.      |
+| `frontend/src/components/LucasReport.jsx` and `.css`          | lucas-sem-analysis results per batch: phase tiles, composition, batch ID and overlays.            |
+| `frontend/src/components/chartHooks.jsx`                      | Shared JSON-fetch and tooltip hooks for the report views.                                          |
 | `frontend/src/components/KpiReport.jsx` and `KpiReport.css`  | Batch KPI report view: findings, KPI tiles and tables, charts and segmentation overlays.          |
 | `backend/app/mock/B-01.json`                                  | Example analysis returned by the API; JSON syntax does not allow comments.                              |
 | `backend/modal_app.py`                                        | Modal image and web-function configuration for hosting FastAPI.                                    |

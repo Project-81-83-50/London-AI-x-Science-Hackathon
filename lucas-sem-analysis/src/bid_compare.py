@@ -83,7 +83,7 @@ def main():
     for v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
         os.environ[v] = "1"
     null_A, null_B = [], []
-    with ProcessPoolExecutor(12) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         for i, (a, b) in enumerate(ex.map(_perm, [(5000 + i, hists) for i in range(args.n)])):
             null_A.append(a); null_B.append(b)
             if (i + 1) % 50 == 0:

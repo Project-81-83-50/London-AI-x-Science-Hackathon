@@ -43,7 +43,7 @@ def one(item):
 
 
 def main():
-    with ProcessPoolExecutor(8) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         rows = list(ex.map(one, C.discover().items()))
     C.write_csv(C.OUT_MET / "roughness_check.csv", rows)
     norm = {r["sample_id"]: float(r["etd_graphite_roughness"]) for r in C.read_csv(C.OUT_MET / "kpi_topo_values.csv")}

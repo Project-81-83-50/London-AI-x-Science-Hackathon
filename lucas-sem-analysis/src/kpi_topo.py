@@ -83,7 +83,7 @@ def topo(item):
 
 
 def main():
-    with ProcessPoolExecutor(8) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         res = list(ex.map(topo, C.discover().items()))
     ps = C.read_csv(C.OUT_MET / "particle_sizes.csv")
     rows = []

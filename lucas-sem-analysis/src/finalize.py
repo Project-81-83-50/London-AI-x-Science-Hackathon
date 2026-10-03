@@ -18,7 +18,8 @@ from . import config as C
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--source", choices=["student", "teacher"], default="student")
+    # student, teacher, or a tagged teacher run such as teacher_cpu (src.teacher train --tag _cpu)
+    ap.add_argument("--source", default="student")
     args = ap.parse_args()
     for batch, sid in C.sample_ids():
         lab = np.load(C.proc_dir(sid) / f"{args.source}_labels.npy")

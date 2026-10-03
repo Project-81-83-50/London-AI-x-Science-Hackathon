@@ -216,7 +216,7 @@ def bal_acc(y, pred):
 
 def main():
     sids = [s for _, s in C.sample_ids()]
-    with ProcessPoolExecutor(8) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         res = dict(ex.map(kpis, sids))
     names = sorted({k for v in res.values() for k in v})
     batch = {s: b for b, s in C.sample_ids()}

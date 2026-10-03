@@ -138,7 +138,7 @@ def main():
     args = ap.parse_args()
     t_low = {r["sample_id"]: float(r["bse_t_low"]) for r in C.read_csv(C.OUT_MET / "seed_coverage.csv")}
     jobs = [(k, p, args.labels, t_low[k[1]]) for k, p in C.discover().items()]
-    with ProcessPoolExecutor(8) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         res = list(ex.map(run, jobs))
     C.write_csv(C.OUT_MET / "bid_features.csv", [r for r, _ in res])
     C.write_csv(C.OUT_MET / "bid_session_probes.csv", [p for _, p in res])

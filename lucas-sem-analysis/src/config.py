@@ -8,7 +8,12 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "data" / "raw"
+# Raw TIFFs: SEM_RAW_DIR if set, else the hackathon repo's shared data/raw (batch_1..batch_3) when this
+# folder sits inside it, else this project's own data/raw (Batch_1..Batch_3).
+_SHARED_RAW = ROOT.parent / "data" / "raw"
+RAW = Path(os.environ.get("SEM_RAW_DIR") or (_SHARED_RAW if _SHARED_RAW.is_dir() else ROOT / "data" / "raw"))
+# Worker processes for the parallel stages; lower it (e.g. SEM_WORKERS=3) on machines with little RAM.
+WORKERS = int(os.environ.get("SEM_WORKERS", "8"))
 PROC = ROOT / "data" / "processed"
 MANIFEST = ROOT / "data" / "manifest.csv"
 QC = ROOT / "data" / "qc.csv"
@@ -36,14 +41,16 @@ for d in (PROC, MODELS, OUT_SEG, OUT_MET, REPORTS):
 
 
 def discover():
-    """{(batch, sample_id): {detector: path}} from data/raw, with ETD/SE mapped to SE2."""
+    """{(batch, sample_id): {detector: path}} from RAW, with ETD/SE mapped to SE2. Batch folders may be
+    named Batch_N or batch_N; the batch is always reported as Batch_N."""
     samples = {}
-    for p in sorted(RAW.glob("Batch_*/img_*_*.tif")):
+    for p in sorted(RAW.glob("[Bb]atch_*/img_*_*.tif")):
         m = re.match(r"img_([a-z0-9]+)_([A-Za-z]+)\.tif$", p.name)
         if not m:
             continue
         det = m.group(2)
-        samples.setdefault((p.parent.name, m.group(1)), {})[det] = p
+        batch = "Batch_" + p.parent.name.split("_", 1)[1]
+        samples.setdefault((batch, m.group(1)), {})[det] = p
     for dets in samples.values():
         dets["SE2"] = dets.get("ETD") or dets.get("SE")
     return dict(sorted(samples.items()))

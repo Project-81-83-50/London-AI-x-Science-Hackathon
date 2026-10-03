@@ -1,0 +1,102 @@
+
+=== preprocess: python -m src.preprocess
+Batch_1/4ih2ggld: [1158, 3498] SE2=ETD excluded 0.92% 
+Batch_1/5n1q8atc: [1158, 3500] SE2=ETD excluded 1.31% manual exclusion
+Batch_1/f1vzngrs: [1074, 3500] SE2=ETD excluded 0.97% 
+Batch_1/ffwubibz: [1040, 3500] SE2=ETD excluded 1.00% 
+Batch_1/fzrt2k6r: [1078, 3500] SE2=ETD excluded 0.97% 
+Batch_1/iv6g2oq0: [890, 3480] SE2=ETD excluded 1.13% 
+Batch_1/uhdslk0o: [940, 3500] SE2=ETD excluded 1.08% 
+Batch_2/3806gxp0: [1024, 3500] SE2=ETD excluded 1.01% 
+Batch_2/avn74qx1: [1024, 3500] SE2=ETD excluded 1.01% 
+Batch_2/b3esycq1: [1078, 3500] SE2=ETD excluded 0.97% 
+Batch_2/epqdaau9: [1074, 3500] SE2=ETD excluded 1.29% Cu foil 14128 px
+Batch_2/i9jiqjwl: [1136, 3500] SE2=ETD excluded 3.36% manual exclusion
+Batch_2/r17byphk: [1040, 3500] SE2=ETD excluded 1.00% 
+Batch_2/rxax5ozo: [1034, 3500] SE2=SE excluded 1.00% 
+Batch_3/0grcilhi: [952, 3500] SE2=ETD excluded 1.07% 
+Batch_3/71vgq3fw: [1030, 3500] SE2=ETD excluded 1.00% 
+Batch_3/9luzk4jm: [1044, 3500] SE2=ETD excluded 0.99% 
+Batch_3/cfe5vt7s: [1040, 3500] SE2=ETD excluded 1.00% 
+Batch_3/hawkfj64: [952, 3500] SE2=ETD excluded 1.07% 
+Batch_3/hzumfsms: [1044, 3500] SE2=ETD excluded 0.99% 
+Batch_3/kbdh4tri: [1030, 3500] SE2=ETD excluded 1.00% 
+Batch_3/mgxahqnk: [952, 3500] SE2=ETD excluded 1.07% 
+Batch_3/pl8uabbv: [1136, 3500] SE2=ETD excluded 0.93% 
+Batch_3/ptg8lmto: [806, 3500] SE2=ETD excluded 1.22% 
+Batch_3/tuy3zymq: [1030, 3500] SE2=ETD excluded 1.00% 
+Batch_3/ufdvpb81: [1044, 3500] SE2=ETD excluded 0.99% 
+Batch_3/utfgcjfa: [1034, 3498] SE2=SE excluded 1.00% 
+Batch_3/vc2whyaq: [1034, 3500] SE2=SE excluded 1.00% 
+Batch_3/x77cy643: [1034, 3498] SE2=SE excluded 1.00% 
+Batch_3/x7u69zsw: [1030, 3500] SE2=ETD excluded 1.00% 
+Batch_3/xgj4xftb: [806, 3500] SE2=ETD excluded 1.22% 
+
+=== seeds: python -m src.seeds --overlay
+Batch_1/4ih2ggld: pore  6.46%  graphite 25.41%  SiOx  9.07%  CBD  0.68%
+Batch_1/5n1q8atc: pore  3.89%  graphite 25.78%  SiOx 12.06%  CBD  0.53%
+Batch_1/f1vzngrs: pore  2.96%  graphite 30.69%  SiOx  5.94%  CBD  5.49%
+Batch_1/ffwubibz: pore  4.69%  graphite 31.01%  SiOx  3.57%  CBD  6.25%
+Batch_1/fzrt2k6r: pore  5.58%  graphite 29.71%  SiOx  4.92%  CBD  3.46%
+Batch_1/iv6g2oq0: pore  5.93%  graphite 30.32%  SiOx  4.52%  CBD  5.18%
+Batch_1/uhdslk0o: pore  5.11%  graphite 30.39%  SiOx  5.05%  CBD  3.86%
+Batch_2/3806gxp0: pore  6.38%  graphite 29.85%  SiOx  4.57%  CBD  4.85%
+Batch_2/avn74qx1: pore  6.34%  graphite 30.96%  SiOx  3.35%  CBD  5.95%
+Batch_2/b3esycq1: pore  5.55%  graphite 29.27%  SiOx  6.51%  CBD  3.29%
+Batch_2/epqdaau9: pore  4.22%  graphite 30.72%  SiOx  4.93%  CBD  5.50%
+Batch_2/i9jiqjwl: pore  4.63%  graphite 30.09%  SiOx  4.44%  CBD  3.80%
+Batch_2/r17byphk: pore  6.88%  graphite 29.77%  SiOx  3.42%  CBD  4.65%
+Batch_2/rxax5ozo: pore  5.26%  graphite 30.88%  SiOx  4.18%  CBD  5.33%
+Batch_3/0grcilhi: pore  8.72%  graphite 28.28%  SiOx  4.14%  CBD  3.72%
+Batch_3/71vgq3fw: pore  4.86%  graphite 30.25%  SiOx  5.08%  CBD  4.14%
+Batch_3/9luzk4jm: pore  7.44%  graphite 29.18%  SiOx  4.66%  CBD  4.10%
+Batch_3/cfe5vt7s: pore  5.49%  graphite 29.77%  SiOx  5.13%  CBD  5.09%
+Batch_3/hawkfj64: pore  5.72%  graphite 31.07%  SiOx  3.22%  CBD  4.21%
+Batch_3/hzumfsms: pore  8.84%  graphite 28.82%  SiOx  3.67%  CBD  4.66%
+Batch_3/kbdh4tri: pore  4.66%  graphite 29.63%  SiOx  4.74%  CBD  2.95%
+Batch_3/mgxahqnk: pore  5.92%  graphite 29.86%  SiOx  5.52%  CBD  4.09%
+Batch_3/pl8uabbv: pore  6.01%  graphite 30.43%  SiOx  4.09%  CBD  3.92%
+Batch_3/ptg8lmto: pore  4.67%  graphite 31.57%  SiOx  3.94%  CBD  4.97%
+Batch_3/tuy3zymq: pore  5.28%  graphite 29.13%  SiOx  4.30%  CBD  2.26%
+Batch_3/ufdvpb81: pore  7.00%  graphite 29.81%  SiOx  4.09%  CBD  4.62%
+Batch_3/utfgcjfa: pore  6.11%  graphite 29.85%  SiOx  4.44%  CBD  4.88%
+Batch_3/vc2whyaq: pore  5.93%  graphite 30.47%  SiOx  4.46%  CBD  5.00%
+Batch_3/x77cy643: pore  5.77%  graphite 28.76%  SiOx  4.98%  CBD  4.89%
+Batch_3/x7u69zsw: pore  4.69%  graphite 29.12%  SiOx  6.50%  CBD  3.30%
+Batch_3/xgj4xftb: pore  5.71%  graphite 30.24%  SiOx  4.45%  CBD  4.00%
+seed overlays: []
+
+=== features: python -m src.features
+features done: 4ih2ggld
+features done: 5n1q8atc
+features done: f1vzngrs
+features done: ffwubibz
+features done: fzrt2k6r
+features done: iv6g2oq0
+features done: uhdslk0o
+features done: 3806gxp0
+features done: avn74qx1
+features done: b3esycq1
+features done: epqdaau9
+features done: i9jiqjwl
+features done: r17byphk
+features done: rxax5ozo
+features done: 0grcilhi
+features done: 71vgq3fw
+features done: 9luzk4jm
+features done: cfe5vt7s
+features done: hawkfj64
+features done: hzumfsms
+features done: kbdh4tri
+features done: mgxahqnk
+features done: pl8uabbv
+features done: ptg8lmto
+features done: tuy3zymq
+features done: ufdvpb81
+features done: utfgcjfa
+features done: vc2whyaq
+features done: x77cy643
+features done: x7u69zsw
+features done: xgj4xftb
+
+=== superpixels: python -m src.ai_labels prepare

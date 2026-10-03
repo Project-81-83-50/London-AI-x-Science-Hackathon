@@ -1,0 +1,317 @@
+import { useJson, useTooltip } from "./chartHooks";
+import "./KpiReport.css";
+import "./LucasReport.css";
+
+// Chart colours: validated categorical palette, kept in the same hue family as the
+// lucas-sem-analysis overlays (blue pore, purple graphite, orange SiOx, green CBD).
+const PHASES = [
+  { key: "pore", label: "Pore", color: "#2a78d6" },
+  { key: "graphite", label: "Graphite", color: "#4a3aa7" },
+  { key: "SiOx", label: "SiOx", color: "#eb6834" },
+  { key: "CBD", label: "Carbon-binder (CBD)", color: "#1baf7a" },
+];
+const pct = (v, digits = 1) => (Number.isFinite(v) ? `${v.toFixed(digits)}%` : "—");
+
+function PhaseTiles({ stats }) {
+  return (
+    <div className="kpi-tiles lucas-tiles">
+      {PHASES.map((phase) => {
+        const s = stats.find((row) => row.class === phase.key);
+        if (!s) return null;
+        const differs = Number.isFinite(s.kruskal_p) && s.kruskal_p < 0.05;
+        return (
+          <article className="kpi-tile" key={phase.key}>
+            <span className="kpi-tile-label">
+              <span className="kpi-swatch" style={{ background: phase.color }} /> {phase.label}
+            </span>
+            <strong className="kpi-tile-value">{pct(s.mean_pct)}</strong>
+            <span className="kpi-tile-meta">
+              SD {pct(s.sd_pct)} · range {pct(s.min_pct)}–{pct(s.max_pct)} · n={s.n}
+            </span>
+            <span className={`kpi-chip ${differs ? "kpi-chip-moderate" : ""}`}>
+              {differs ? "differs between batches" : "no clear batch difference"} · p ={" "}
+              {s.kruskal_p?.toFixed(3)}
+            </span>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function CompositionBars({ samples }) {
+  const { frame, handlers, layer, width } = useTooltip();
+  const labelWidth = 92;
+  const valueWidth = 110;
+  const bar = 16;
+  const pitch = 26;
+  const plot = Math.max(120, width - labelWidth - valueWidth);
+  return (
+    <div className="kpi-chart-frame" ref={frame}>
+      <svg
+        viewBox={`0 0 ${width} ${samples.length * pitch + 6}`}
+        className="kpi-chart"
+        role="img"
+        aria-label="Four-phase composition of each sample; values are in the table below"
+      >
+        {samples.map((sample, row) => {
+          const y = row * pitch + 4;
+          const total = PHASES.reduce((sum, p) => sum + (sample.phases_pct[p.key] ?? 0), 0) || 100;
+          let offset = 0;
+          const rows = PHASES.map((p) => ({
+            color: p.color,
+            value: pct(sample.phases_pct[p.key]),
+            label: `${p.label} · ${sample.sample_id}`,
+          }));
+          return (
+            <g key={sample.sample_id}>
+              <text x="0" y={y + bar - 3} className="kpi-row-label">
+                {sample.sample_id}
+              </text>
+              {PHASES.map((p, i) => {
+                const share = (sample.phases_pct[p.key] ?? 0) / total;
+                const x = labelWidth + offset * plot;
+                offset += share;
+                return (
+                  <rect
+                    key={p.key}
+                    x={x}
+                    y={y}
+                    width={Math.max(0, share * plot - (i < PHASES.length - 1 ? 2 : 0))}
+                    height={bar}
+                    rx={i === PHASES.length - 1 ? 4 : 0}
+                    fill={p.color}
+                    className="kpi-hit kpi-segment"
+                    {...handlers(rows)}
+                  />
+                );
+              })}
+              <text x={width} y={y + bar - 3} className="kpi-row-value" textAnchor="end">
+                {pct(sample.phases_pct.pore)} pore
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      {layer}
+    </div>
+  );
+}
+
+function BatchIdTable({ samples, batch, reference }) {
+  const scored = samples.filter((s) => s.batch_id.loo_predicted);
+  const correct = scored.filter((s) => s.batch_id.correct).length;
+  return (
+    <div className="kpi-card">
+      <div className="kpi-card-heading">
+        <h3>Batch identification (leave-one-out)</h3>
+        <span className="kpi-card-note">
+          {correct} of {scored.length} samples assigned to Batch {batch} when held out
+          {reference ? ` · model balanced accuracy ${reference.LOO_F}` : ""}
+        </span>
+      </div>
+      <p className="kpi-card-note">
+        Each sample is predicted by a model trained without it. Imaging session alone predicts
+        batch at {reference?.nuisance_only_LOO ?? "0.68"} balanced accuracy, so a correct
+        prediction may reflect the session rather than the material.
+      </p>
+      <div className="kpi-table-scroll">
+        <table className="kpi-table">
+          <thead>
+            <tr>
+              <th scope="col">Sample</th>
+              <th scope="col">Session</th>
+              <th scope="col">Predicted</th>
+              <th scope="col">P(Batch {batch})</th>
+              <th scope="col">Result</th>
+              <th scope="col">Confidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            {samples.map((s) => (
+              <tr key={s.sample_id}>
+                <th scope="row">{s.sample_id}</th>
+                <td>{s.session}</td>
+                <td>{s.batch_id.loo_predicted?.replace("_", " ") ?? "—"}</td>
+                <td className="kpi-num">
+                  {s.batch_id.loo_probabilities
+                    ? s.batch_id.loo_probabilities[`Batch_${batch}`].toFixed(2)
+                    : "—"}
+                </td>
+                <td>
+                  <span
+                    className={`kpi-chip ${s.batch_id.correct ? "" : "kpi-chip-variable"}`}
+                  >
+                    {s.batch_id.correct ? "✓ correct" : "✗ wrong batch"}
+                  </span>
+                </td>
+                <td>{s.batch_id.confidence ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function LucasReport({ apiUrl, batch }) {
+  const report = useJson(`${apiUrl}/batches/${batch}/lucas-report`);
+  if (report.status === "loading")
+    return (
+      <div className="notice" role="status">
+        Loading lucas-sem-analysis results for Batch {batch}…
+      </div>
+    );
+  if (report.status === "error")
+    return (
+      <div className="notice notice-error" role="alert">
+        Could not load lucas-sem-analysis results for Batch {batch} ({report.error}).
+      </div>
+    );
+  const data = report.data;
+  const overlays = data.samples.filter((s) => s.overlay).length;
+  return (
+    <section className="section-block kpi-report" aria-labelledby="lucas-report-title">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">LUCAS-SEM-ANALYSIS / BATCH {data.batch_id}</p>
+          <h2 id="lucas-report-title">Batch {data.batch_id} four-phase segmentation</h2>
+        </div>
+        <span className="section-count">
+          {data.samples.length} SAMPLES · {overlays} OVERLAYS
+        </span>
+      </div>
+
+      <div className="kpi-card">
+        <p className="kpi-card-note lucas-intro">
+          Label-free segmentation into pore, graphite, SiOx and carbon-binder domain (CBD) from the BSE
+          and InLens images of data/raw/batch_{data.batch_id}. Phase fractions are Lucas&apos;s delivered
+          U-Net results, computed on byte-identical copies of these files. Independent accuracy check:
+          82% of random points agree (CBD precision 0.50, so CBD and pore are the least certain classes).
+        </p>
+      </div>
+
+      <PhaseTiles stats={data.batch_stats} />
+      <p className="kpi-axis-note">
+        p is a Kruskal-Wallis test across the three reference batches. Imaging sessions differ between
+        batches, which can inflate these differences.
+      </p>
+
+      <div className="kpi-card">
+        <div className="kpi-card-heading">
+          <h3>Composition by sample</h3>
+          <ul className="kpi-legend" aria-label="Phase legend">
+            {PHASES.map((p) => (
+              <li key={p.key}>
+                <span className="kpi-swatch" style={{ background: p.color }} />
+                {p.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <CompositionBars samples={data.samples} />
+        <details className="kpi-table-toggle">
+          <summary>Show composition table</summary>
+          <table className="kpi-table">
+            <thead>
+              <tr>
+                <th scope="col">Sample</th>
+                {PHASES.map((p) => (
+                  <th scope="col" key={p.key}>
+                    {p.label}
+                  </th>
+                ))}
+                <th scope="col">Deep / open pore</th>
+                <th scope="col">SiOx particles per 1000 µm²</th>
+                <th scope="col">SiOx median diameter</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.samples.map((s) => (
+                <tr key={s.sample_id}>
+                  <th scope="row">{s.sample_id}</th>
+                  {PHASES.map((p) => (
+                    <td className="kpi-num" key={p.key}>
+                      {pct(s.phases_pct[p.key])}
+                    </td>
+                  ))}
+                  <td className="kpi-num">
+                    {pct(s.pore_deep_pct)} / {pct(s.pore_open_pct)}
+                  </td>
+                  <td className="kpi-num">{s.siox_particles.per_1000um2 ?? "—"}</td>
+                  <td className="kpi-num">
+                    {Number.isFinite(s.siox_particles.median_diameter_um)
+                      ? `${s.siox_particles.median_diameter_um.toFixed(2)} µm`
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      </div>
+
+      <BatchIdTable samples={data.samples} batch={data.batch_id} reference={data.batch_id_reference} />
+
+      <div className="kpi-card">
+        <div className="kpi-card-heading">
+          <h3>Segmentation overlays</h3>
+          <span className="kpi-card-note">
+            Overlay colours: blue pore, purple graphite, orange SiOx, green CBD, red excluded
+            {data.overlay_source === "teacher_cpu"
+              ? " · overlays rebuilt on CPU from the LightGBM teacher (the delivered U-Net needs a GPU)"
+              : ""}
+          </span>
+        </div>
+        {overlays === 0 && (
+          <div className="notice">
+            No overlays yet. Run <code>python run_cpu_pipeline.py</code> in lucas-sem-analysis to
+            build them from data/raw.
+          </div>
+        )}
+        <div className="kpi-locations">
+          {data.samples
+            .filter((s) => s.overlay)
+            .map((s) => {
+              const url = `${apiUrl}/batches/${data.batch_id}/lucas-report/overlays/${encodeURIComponent(s.sample_id)}`;
+              return (
+                <article className="kpi-location" key={s.sample_id}>
+                  <a href={url} target="_blank" rel="noreferrer" className="kpi-overlay-link">
+                    <img
+                      src={url}
+                      alt={`Four-phase segmentation overlay for ${s.sample_id}`}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </a>
+                  <div className="kpi-location-body">
+                    <div className="kpi-location-heading">
+                      <h4>{s.sample_id}</h4>
+                      <span className="kpi-chip">session {s.session}</span>
+                    </div>
+                    <dl className="kpi-location-values">
+                      {PHASES.map((p) => (
+                        <div key={p.key}>
+                          <dt>{p.key}</dt>
+                          <dd>{pct(s.phases_pct[p.key])}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    {s.teacher_cpu_phases_pct && (
+                      <p className="kpi-location-file">
+                        Overlay model (teacher):{" "}
+                        {PHASES.map((p) => `${p.key} ${pct(s.teacher_cpu_phases_pct[p.key])}`).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default LucasReport;

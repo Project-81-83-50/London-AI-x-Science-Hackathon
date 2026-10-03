@@ -72,7 +72,7 @@ pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytor
 pip install --no-deps -r requirements-gpu.txt
 ```
 
-Put the raw data in `data/raw/Batch_{1,2,3}/`. The AI-annotation stages need an Anthropic API key in `.env`
+Put the raw data in `data/raw/Batch_{1,2,3}/`. Inside the hackathon repo, the shared `../data/raw/batch_{1,2,3}/` is used automatically; set `SEM_RAW_DIR` to point elsewhere. Without a GPU, `python run_cpu_pipeline.py` rebuilds the label maps and overlays from the LightGBM teacher and leaves the committed U-Net metrics untouched. The AI-annotation stages need an Anthropic API key in `.env`
 (`ANTHROPIC_API_KEY=...`, git-ignored).
 
 ## Running

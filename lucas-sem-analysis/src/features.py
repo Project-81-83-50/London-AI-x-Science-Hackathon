@@ -56,7 +56,7 @@ def run(key):
 
 
 def main():
-    with ProcessPoolExecutor(8) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         for sid in ex.map(run, C.sample_ids()):
             print("features done:", sid, flush=True)
 

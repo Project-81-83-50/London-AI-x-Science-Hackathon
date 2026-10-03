@@ -246,7 +246,7 @@ def cmd_null(args):
     for v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
         os.environ[v] = "1"                      # inherited by the spawned workers: one thread each
     null_S, null_F = [], []
-    with ProcessPoolExecutor(12) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         for i, (s_, f_) in enumerate(ex.map(_perm, [(1000 + i, hists) for i in range(args.n)])):
             null_S.append(s_); null_F.append(f_)
             if (i + 1) % 25 == 0:

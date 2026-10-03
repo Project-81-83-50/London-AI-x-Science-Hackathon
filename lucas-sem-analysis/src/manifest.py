@@ -80,7 +80,7 @@ def build_baseline():
 def main():
     samples = C.discover()
     jobs = [(key, det, p) for key, dets in samples.items() for det, p in dets.items() if det != "SE2"]
-    with ProcessPoolExecutor(8) as ex:
+    with ProcessPoolExecutor(C.WORKERS) as ex:
         rows = list(ex.map(file_row, jobs))
         qc = list(ex.map(registration, samples.items()))
     rows.sort(key=lambda r: (r["batch"], r["sample_id"], r["detector"]))
