@@ -1,0 +1,199 @@
+{
+  "sample_id": "ufdvpb81",
+  "predicted_batch": "Batch_2",
+  "runner_up": "Batch_3",
+  "probabilities": {
+    "fused_F": {
+      "Batch_1": 0.22,
+      "Batch_2": 0.408,
+      "Batch_3": 0.372
+    },
+    "S_head": {
+      "Batch_1": 0.117,
+      "Batch_2": 0.481,
+      "Batch_3": 0.403
+    },
+    "dino_head": {
+      "Batch_1": 0.324,
+      "Batch_2": 0.335,
+      "Batch_3": 0.341
+    }
+  },
+  "features_S": {
+    "siox_frac": {
+      "value": 5.4489,
+      "robust_z": -0.49,
+      "push_toward_winner_vs_runner_up": 0.118
+    },
+    "siox_ecd_aw": {
+      "value": 3.735,
+      "robust_z": -0.46,
+      "push_toward_winner_vs_runner_up": -0.143
+    },
+    "pore_open_excess": {
+      "value": 4.5782,
+      "robust_z": -0.43,
+      "push_toward_winner_vs_runner_up": -0.131
+    },
+    "pore_all_frac": {
+      "value": 15.5888,
+      "robust_z": 0.3,
+      "push_toward_winner_vs_runner_up": -0.057
+    },
+    "pore_chord_aniso": {
+      "value": 1.0,
+      "robust_z": -0.72,
+      "push_toward_winner_vs_runner_up": 0.602
+    }
+  },
+  "evidence": {
+    "phase_share_in_top10pct_evidence_pct": {
+      "pore": 6.0,
+      "graphite": 85.8,
+      "SiOx": 1.1,
+      "CBD": 7.0
+    },
+    "phase_share_whole_image_pct": {
+      "pore": 15.4,
+      "graphite": 68.0,
+      "SiOx": 5.5,
+      "CBD": 11.1
+    },
+    "top_regions": [
+      {
+        "bbox_um": [
+          81.9,
+          16.8,
+          88.2,
+          23.8
+        ],
+        "evidence_share": 0.008,
+        "local_phase_pct": {
+          "pore": 1.3,
+          "graphite": 97.0,
+          "SiOx": 0.0,
+          "CBD": 1.7
+        }
+      },
+      {
+        "bbox_um": [
+          162.4,
+          31.5,
+          171.5,
+          37.1
+        ],
+        "evidence_share": 0.008,
+        "local_phase_pct": {
+          "pore": 2.3,
+          "graphite": 97.7,
+          "SiOx": 0.0,
+          "CBD": 0.0
+        }
+      },
+      {
+        "bbox_um": [
+          102.9,
+          8.4,
+          107.1,
+          12.6
+        ],
+        "evidence_share": 0.004,
+        "local_phase_pct": {
+          "pore": 3.8,
+          "graphite": 87.7,
+          "SiOx": 0.0,
+          "CBD": 8.5
+        }
+      }
+    ],
+    "reconstruction_error": 1.3988810110276972e-14,
+    "shortcut_alarm": false
+  },
+  "true_batch": "Batch_3",
+  "note": "training sample: the probabilities above come from a model that saw it; the honest prediction is loo_prediction",
+  "loo_prediction": {
+    "true": "Batch_3",
+    "pred_S": "Batch_2",
+    "pred_F": "Batch_2",
+    "p_F": [
+      0.199,
+      0.452,
+      0.349
+    ]
+  },
+  "validation_reference": {
+    "LOO_F": 0.588,
+    "LOO_S": 0.415,
+    "LOGO_F": 0.465,
+    "nuisance_only_LOO": 0.675,
+    "permutation": {
+      "S": {
+        "observed": 0.415,
+        "null_mean": 0.331,
+        "null_p95": 0.49,
+        "null_p99": 0.585,
+        "p_value": 0.199,
+        "n_permutations": 200
+      },
+      "F": {
+        "observed": 0.588,
+        "null_mean": 0.326,
+        "null_p95": 0.482,
+        "null_p99": 0.549,
+        "p_value": 0.01,
+        "n_permutations": 200
+      }
+    }
+  },
+  "features_half_split_sd": {
+    "siox_frac": 2.93451,
+    "siox_ecd_aw": 0.83477,
+    "pore_open_excess": 1.35968,
+    "pore_all_frac": 1.44079,
+    "pore_chord_aniso": 0.12998
+  },
+  "qc": {
+    "excluded_pct": 0.99,
+    "cu_foil_detected": false,
+    "manual_exclusion": false,
+    "detectors_used": [
+      "BSE",
+      "Inlens"
+    ]
+  },
+  "acquisition": {
+    "probes": {
+      "height_px": 2088.0,
+      "width_px": 7000.0,
+      "bse_p1": 3.0,
+      "bse_p50": 59.0,
+      "bse_p99": 117.0,
+      "inlens_p1": 13.0,
+      "inlens_p50": 128.0,
+      "inlens_p99": 255.0,
+      "bse_noise_sigma": 6.289,
+      "inlens_sharpness": 36.487,
+      "inlens_banding_power": 1.589,
+      "excluded_frac": 0.01,
+      "bse_file_mb": 15.96
+    },
+    "nearest_training_acquisition": {
+      "sample_id": "hzumfsms",
+      "batch": "Batch_3",
+      "height_group": "h2088",
+      "distance_z": 0.67
+    },
+    "novel_acquisition": false,
+    "warning": "acquisition properties alone predict batch at 0.68 balanced accuracy in training; a prediction that matches the nearest-acquisition batch may reflect imaging session, not material"
+  },
+  "novelty": {
+    "unusual_features_abs_robust_z_ge_3": [],
+    "novel_acquisition": false
+  },
+  "confidence": {
+    "tier": "Low",
+    "reasons": [
+      "top probability 0.41 < 0.5"
+    ]
+  }
+}
