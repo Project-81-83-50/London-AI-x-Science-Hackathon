@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import LoadBatchBtn from "./LoadBatchBtn";
 
 // Vite reads VITE_ variables at build/start time; change this in frontend/.env.
 const API_URL = (
@@ -178,16 +179,11 @@ function App() {
                       : "Select to load"}
                   </strong>
                 </div>
-                <button
-                  className="reference-select"
-                  type="button"
-                  aria-pressed={selectedReferenceBatch === batch}
-                  onClick={() => selectReferenceBatch(batch)}
-                >
-                  {selectedReferenceBatch === batch
-                    ? "Hide images"
-                    : `Load Batch ${batch} images`}
-                </button>
+                <LoadBatchBtn
+                  batch={batch}
+                  selected={selectedReferenceBatch === batch}
+                  onToggle={selectReferenceBatch}
+                />
               </article>
             ))}
           </div>
