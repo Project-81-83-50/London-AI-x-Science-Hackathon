@@ -12,7 +12,7 @@ The frontend presents this reference-to-incoming workflow. It does not claim to 
 
 ## Batch image dataset
 
-Download the batch microscopy images from the [Google Drive folder](https://drive.google.com/drive/folders/12UnB4HYDElXzoR4I0mG7NZ0buSr4QXF6). The folder owner must enable link access for repository users to open or download its files.
+The local API reads Batch 1 microscopy TIFFs from `data/raw/batch_1`. Put the image files there before starting the backend. Raw datasets are excluded from Git, so they are not automatically included when someone clones the repository.
 
 ## Run locally
 
@@ -32,7 +32,7 @@ npm run dev
 
 Open the Vite URL printed in the frontend terminal, normally <http://localhost:5173>. The browser page is served by Vite; `http://localhost:8000` is the API, with interactive docs at <http://localhost:8000/docs>.
 
-The frontend checks batch summaries from `GET /batches` to report API data readiness. `GET /batches/{batch_id}/analysis` remains available for analysis records, but the current API does not provide a microscopy image inventory or image-to-reference matches. Set `VITE_API_URL` in `frontend/.env` if the API is running somewhere other than `http://localhost:8000`.
+The frontend reads batch summaries from `GET /batches` and the Batch 1 image inventory from `GET /batches/1/images`. The API serves browser-sized JPEG previews and downloadable original TIFFs from the local raw-data folder. `GET /batches/{batch_id}/analysis` remains available for analysis records; image-to-reference matches are not implemented. Set `VITE_API_URL` in `frontend/.env` if the API is running somewhere other than `http://localhost:8000`.
 
 ## Project map
 
@@ -40,12 +40,13 @@ Source and supported configuration files include concise comments. JSON cannot c
 
 | File or folder                                                | Purpose                                                                                            |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `backend/app/main.py`                                         | FastAPI app, CORS setup, mock-data loading, and the batch API routes.                              |
+| `backend/app/main.py`                                         | FastAPI app, CORS setup, mock-data loading, and local microscopy image routes.                    |
 | `backend/app/schemas.py`                                      | Pydantic models that validate summaries, KPIs, drivers, and analyses.                              |
-| `backend/app/requirements.txt`                                | Python dependencies used by the backend and Modal image.                                           |
+| `backend/app/requirements.txt`                                | Python dependencies used by the backend and Modal image, including TIFF preview support.           |
 | `backend/app/mock/B-01.json`                                  | Example analysis returned by the API; JSON syntax does not allow comments.                         |
 | `backend/modal_app.py`                                        | Modal image and web-function configuration for hosting FastAPI.                                    |
-| `frontend/src/App.jsx`                                        | Reference-batch and mixed-image workflow, plus API data-readiness status.                          |
+| `data/raw/batch_1/`                                           | Local microscopy TIFFs displayed in the Batch 1 reference gallery; raw data is Git-ignored.         |
+| `frontend/src/App.jsx`                                        | Reference-batch workflow, Batch 1 image gallery, and API data-readiness status.                     |
 | `frontend/src/main.jsx`                                       | React entry point that mounts `App` into the HTML root.                                            |
 | `frontend/src/App.css`                                         | Workflow layout, responsive rules, and batch-card styling.                                        |
 | `frontend/src/index.css`                                      | Global defaults and root element styling.                                                          |
