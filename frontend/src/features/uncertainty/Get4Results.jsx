@@ -199,21 +199,7 @@ function Get4Results({
         <p className="get4-comparison-note">{report.comparison.reason}</p>
       )}
 
-      {report.report_summary && report.analysis_settings?.mode !== "fast" && (
-        <p className="get4-comparison-note">{report.report_summary}</p>
-      )}
-
-      {report.analysis_settings?.mode === "fast" && (
-        <p className="get4-comparison-note get4-fast-mode-note">
-          Fast mode report.{" "}
-          {Number.isFinite(report.analysis_settings.target_pixel_nm)
-            ? `Images were analysed at ${report.analysis_settings.target_pixel_nm.toFixed(1)} nm per pixel. `
-            : ""}
-          Fine detail may be lost at this scale; per-image plots were skipped.
-          Run GET4 without <code>--fast</code>{" "}
-          when you need the full-resolution analysis and plots.
-        </p>
-      )}
+      {report.report_summary && <p className="get4-comparison-note">{report.report_summary}</p>}
 
       {report.decision?.status === "not_assessed" && (
         <p className="get4-comparison-note">

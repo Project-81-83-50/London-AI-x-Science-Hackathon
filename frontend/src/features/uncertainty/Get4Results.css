@@ -112,13 +112,6 @@
   line-height: 1.6;
 }
 
-.get4-fast-mode-note {
-  padding: 10px 12px;
-  border-left: 3px solid var(--amber);
-  border-radius: 0 8px 8px 0;
-  color: var(--amber-ink);
-  background: var(--surface-2);
-}
 
 .get4-kpi-grid {
   display: grid;
