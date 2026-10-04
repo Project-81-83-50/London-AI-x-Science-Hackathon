@@ -1,5 +1,31 @@
 # London AI × Science Hackathon
 
+## Quick start (Windows)
+
+**Double-click `START_WEBSITE.bat`.** It starts the API (port 8002) and the website (port 5173) and opens
+<http://localhost:5173>. The website has three pages:
+
+1. **Batches** - reports for batches 1-3 and the unknown batch; under Unknown → Classification, the batch decision for each
+   location (current method: KPI model decides, the v3 material model checks and explains; page-1 statistics are outdated).
+2. **Demo** - upload the BSE + Inlens (+ ETD) images of one location; it returns the batch (KPI model) and a confidence,
+   checked and explained by the v3 material model, in about 1.5 minutes on a GPU.
+3. **Pipeline** - every step's output for a run (segmentation, composition with GET4 sampling intervals, DINOv2 evidence,
+   known-spot check, GET4 range rule, KPI model, decision) and **Generate report** (three Claude agents explain the result from text only).
+
+What is not in Git and has to be put in place once (all listed in `.gitignore`):
+
+| What | Where | From |
+|---|---|---|
+| Raw TIFFs (batches 1-3, unknown) | `data/raw/batch_1..3/`, `data/raw/unknown/` | the team Google Drive (see below) |
+| v3 model weights (`student.pt`, `bid_model.pkl`, `fingerprint_model.pkl`, `v3_model.pkl`, ...) | `lucas-sem-analysis-v3/models/` | release `lucas-sem-v3.0`, `models_v3.0.zip` |
+| v3 known-spot index (`known_spot_index.npz`) | `lucas-sem-analysis-v3/data/processed/` | same zip |
+| Anthropic API key (for Generate report) | `lucas-sem-analysis-v3/.env` as `ANTHROPIC_API_KEY=...` | your own key; never commit it |
+
+The Demo and Pipeline pages need a Python 3.14 with PyTorch (CUDA for speed) and the packages in
+`lucas-sem-analysis-v3/requirements.txt` + `requirements-gpu.txt`; `START_WEBSITE.bat` records its path the first time.
+The rest of the website runs from `.venv` (created automatically). The methods are outlined in `METHODS.md`; a longer explanation and a judge
+question bank are in `lucas-sem-analysis-v3/docs/PROJECT_EXPLAINED.md`.
+
 An attempt at Track 4
 
 ## Track 4: Materials manufacturing by Polaron
@@ -67,6 +93,22 @@ Open the Vite URL printed in the frontend terminal, normally <http://localhost:5
 
 Before opening the gallery, check that the API sees each local folder by opening <http://localhost:8000/batches/1/images>, <http://localhost:8000/batches/2/images>, and <http://localhost:8000/batches/3/images>. Each URL should return a JSON list of specimen groups and TIFF filenames. An empty list means the corresponding local folder is empty or the TIFFs are nested/misnamed. Select a reference batch to load its image inventory; select it again to hide the gallery. Image previews and original TIFF downloads are fetched only for the selected batch from the local raw-data folder. `GET /batches/{batch_id}/analysis` remains available for analysis records; image-to-reference matches are not implemented. The default API address is `http://localhost:8000`; if you change it, set `VITE_API_URL` in `frontend/.env` and restart Vite.
 
+## Generate reference reports
+
+After copying images directly into `data/raw/batch_N/`, generate the reference-batch reports from the repository root with one command:
+
+```powershell
+.\.venv\Scripts\python.exe -m analysis.reports
+```
+
+The command detects populated `batch_N` folders and runs the KPI, fast GET4, and General/Detailed report generators in sequence. It stops and reports an error if any generator fails. Use `--full-resolution` to run GET4 at full resolution and create its per-image diagnostic plots:
+
+```powershell
+.\.venv\Scripts\python.exe -m analysis.reports --full-resolution
+```
+
+Reports are written under `data/processed/`. The General/Detailed report builder summarizes the v3 results already included in the repository; it does not retrain or re-segment the v3 model. Run this command again after changing the reference images. The running backend reads the generated files when requests are made; refresh the frontend to load the updated reports.
+
 ## GET4 batch uncertainty analysis
 
 GET4 can run a separate uncertainty analysis for every `data/raw/batch_N` folder. Install its Python packages from the repository root, then optionally check which images it will use:
@@ -93,6 +135,8 @@ Fast mode uses 2x coarser sampling by default when image calibration is availabl
 Project mode reads the filename location code (`img_<location>_<detector> (N).tif`) and analyses every recognized detector separately within each batch. For example, `img_4ih2ggld_BSE (6).tif` is location `4ih2ggld` imaged with BSE. Results are written under `data/processed/get4/batch_N/<DETECTOR>/`; `location_manifest.json` links all detector views that share a location code.
 
 When a reference batch is selected in the frontend, its website-ready report is requested from `GET /batches/{batch_id}/analysis-report?detector=BSE` (replace `BSE` with the selected filter). The generated `analysis_report.json` contains provisional image-derived KPI candidates for BSE, detector-intensity metrics for other filters, per-location evidence, confidence intervals, quality flags, and a machine-readable decision status. Generate the GET4 reports locally before expecting results to appear.
+
+The unknown batch has the same **Uncertainty (GET4)** tab, served by `GET /batches/unknown/analysis-report?detector=BSE`. You don't generate it by hand: the unknown-batch analysis job runs `python -m analysis.get4 --project --fast --batch unknown` after the KPI classification (about 30 s for three locations) and writes to `data/processed/get4/unknown/`. `--batch` limits project mode to the named `data/raw` folders; without it, project mode analyses every `batch_N` folder as before.
 
 Each batch is a separate battery, so reports do not compare one batch against another or use a cross-batch baseline. No accept/watch/reject verdict is assigned unless approved KPI limits are defined. Different detector views of one location are linked as related observations, not pooled as independent locations. BSE uses GET4's provisional pore/graphite/bright intensity segmentation; ETD, InLens, and other recognized detectors report low/mid/high intensity classes only, because the BSE material-phase labels are not validated for those filters. Inspect each segmentation plot before interpreting any fractions as material properties. The reports estimate segmentation/sampling uncertainty within each detector group; they do not prove a change in battery properties or match images to source batches.
 
@@ -266,9 +310,10 @@ This takes about a minute for three locations, and writes `data/processed/classi
 
 1. **Measure:** the unknown images are grouped into locations, and their detectors are checked from the pixels, by `analysis/fields.py`. Each location's BSE image is then measured by the same `analysis/kpis.py` code as the references.
 2. **Check for duplicates:** every unknown image is compared with every reference image, by file hash and by image content.
-3. **Classify:** each location gets a probability for batch 1, 2 and 3 from a diagonal LDA. The model ranks all 25 BSE KPIs by how well they separate the reference batches (ANOVA F) and keeps the best *k*. It chooses *k* from 1, 2, 3, 4, 6, 8 or 12 by an inner leave-one-out test, preferring the smaller *k* on ties. On the current references it keeps one KPI, pore–solid interface density. That KPI orders the batches 1 < 2 < 3 even within imaging sessions shared by two batches, so it reflects the material, not the imaging. The output lists the features driving each call and the most similar reference locations.
-4. **Test the model on the references:** each reference location is held out in turn, and the *whole* procedure is re-run without it: the KPI ranking, the choice of *k* and the fit. This nested test is needed because choosing features on all 31 locations and then testing on them would overstate the accuracy. A 200-shuffle permutation test repeats the full procedure too. Together with per-batch recall and the KPIs each fold chose, these results are cached in `data/processed/classification/reference_validation.json`. They are recomputed (about 10 minutes) only when the reference KPIs change, so uploads stay fast. The nested balanced accuracy is 58%, up from 48% for the previous fixed eight-KPI model; wider searches over model types scored lower in the same nested test. Chance is 33%.
-5. **Show a session hint:** the reference batches imaged at the same image height are listed separately, because image height marks the imaging session. The hint is not used by the model.
+3. **Compare the detectors:** the location's ETD and InLens views are segmented like the BSE view, aligned to it, and compared pixel by pixel, giving 7 cross-detector KPIs (`analysis.kpis.cross_detector`). ETD keeps pores black and InLens fills shallow pores in and lights up particle rims, so where they disagree with BSE says something about the pores and surfaces that BSE alone does not. Example: *ETD-dark solid* is the area that is dark in ETD but solid in BSE (sub-surface pores, shadowed edges or carbon-binder). Measuring the ETD and InLens views on their own, as 50 more separate KPIs, lowered the nested accuracy (53%), so only the comparisons are used.
+4. **Classify:** each location gets a probability for batch 1, 2 and 3 from a diagonal LDA. The model ranks all 32 candidate KPIs (25 BSE + 7 cross-detector) by how well they separate the reference batches (ANOVA F) and keeps the best *k*. It chooses *k* from 1, 2, 3, 4, 6, 8 or 12 by an inner leave-one-out test, preferring the smaller *k* on ties. On the current references it keeps one KPI, ETD-dark solid, in 30 of 31 folds. Within the imaging sessions shared by several batches it orders batch 1 below batch 2 in all three such sessions and batch 2 below batch 3 in two of three, so it mostly reflects the material, not the imaging. It does depend on detector settings too: a within-session label shuffle raises the null accuracy to about 54% (p = 0.06). The output lists the features driving each call and the most similar reference locations.
+5. **Test the model on the references:** each reference location is held out in turn, and the *whole* procedure is re-run without it: the KPI ranking, the choice of *k* and the fit. This nested test is needed because choosing features on all 31 locations and then testing on them would overstate the accuracy. A 200-shuffle permutation test repeats the full procedure too. Together with per-batch recall and the KPIs each fold chose, these results are cached in `data/processed/classification/reference_validation.json`. They are recomputed (about 10 minutes) only when the reference KPIs change, so uploads stay fast. The nested balanced accuracy is 68% (permutation p = 0.005), up from 58% with BSE KPIs only and 48% for the earlier fixed eight-KPI model; wider searches over model types scored lower in the same nested test. Chance is 33%. Per-batch recall is 71% / 57% / 76%.
+6. **Show a session hint:** the reference batches imaged at the same image height are listed separately, because image height marks the imaging session. The hint is not used by the model.
 
 Images in the unknown set are also available through the image routes as batch `unknown`, for example `GET /batches/unknown/images` and `GET /batches/unknown/kpi-report`.
 

@@ -14,7 +14,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from ..batches import read_kpi_json
-from ..paths import (BATCH_MATCH_PATH, CLASSIFICATION_PATH, FIELD_DATA_DIR, V3_REPORT_DIR, V3_TEACHER_PATH,
+from ..paths import (BATCH_MATCH_PATH, CLASSIFICATION_PATH, FIELD_DATA_DIR, GET4_DATA_DIR, V3_REPORT_DIR, V3_TEACHER_PATH,
                      V3_UNKNOWN_DIR, IMAGE_NAME_PATTERN, KPI_DATA_DIR, PREVIEW_CACHE_DIR,
                      RAW_DATA_DIR, REPO_ROOT, UNKNOWN_BATCH)
 
@@ -144,23 +144,39 @@ def delete_unknown_image(image_name: str):
         shutil.rmtree(V3_UNKNOWN_DIR, ignore_errors=True)
         (FIELD_DATA_DIR / f"batch_{UNKNOWN_BATCH}.json").unlink(missing_ok=True)
         shutil.rmtree(KPI_DATA_DIR / f"batch_{UNKNOWN_BATCH}", ignore_errors=True)
+        shutil.rmtree(GET4_DATA_DIR / UNKNOWN_BATCH, ignore_errors=True)
     return {"deleted": image_name, "remaining": len(remaining)}
 
 
 BATCH_MATCH_MODEL = BATCH_MATCH_PATH.parent / "batch_model.pkl"
 
 
+def _run_get4(log, env) -> None:
+    """GET4's per-detector uncertainty and analysis reports for the unknown batch (Uncertainty (GET4) tab).
+    The old output is removed first, so a detector whose images were deleted leaves no stale report."""
+    log.write("GET4: measuring segmentation uncertainty of the unknown images\n")
+    log.flush()
+    shutil.rmtree(GET4_DATA_DIR / UNKNOWN_BATCH, ignore_errors=True)
+    done = subprocess.run([sys.executable, "-m", "analysis.get4", "--project", "--fast", "--batch", UNKNOWN_BATCH,
+                           "--out", str(GET4_DATA_DIR)], cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT,
+                          env=env).returncode
+    if done != 0:
+        log.write(f"GET4 failed (exit {done}); the KPI classification is still valid\n")
+
+
 def _run_analysis():
-    """KPI classification first; then, when their models exist, the teammate's batch-match classifier
-    (python -m analysis.batch_match train) and v3's segmentation of the unknown images with the General and
-    Detailed reports (lucas-sem-analysis-v3/run_cpu_pipeline.py). A failure in those optional steps is logged
-    but does not fail the job."""
+    """KPI classification first; then GET4's uncertainty reports; then, when their models exist, the teammate's
+    batch-match classifier (python -m analysis.batch_match train) and v3's segmentation of the unknown images with
+    the General and Detailed reports (lucas-sem-analysis-v3/run_cpu_pipeline.py). A failure in those later steps
+    is logged but does not fail the job."""
     ANALYSIS_LOG.parent.mkdir(parents=True, exist_ok=True)
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
     try:
         with open(ANALYSIS_LOG, "w", encoding="utf-8") as log:
             code = subprocess.run([sys.executable, "-m", "analysis.classify", "--rebuild"],
                                   cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT, env=env).returncode
+            if code == 0:
+                _run_get4(log, env)
             if code == 0 and BATCH_MATCH_MODEL.is_file():
                 log.write("batch match: classifying the unknown images with the teammate's classifier\n")
                 log.flush()

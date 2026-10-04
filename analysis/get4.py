@@ -1358,6 +1358,9 @@ def main():
     p.add_argument("inputs", nargs="*", help="images or folders of one detector: different locations, same batch")
     p.add_argument("--project", action="store_true",
                    help="analyse all recognized detector files, separately by batch and filter")
+    p.add_argument("--batch", action="append", default=None, metavar="FOLDER",
+                   help="with --project, analyse only this data/raw folder (e.g. batch_1 or unknown); "
+                        "repeatable; default: every batch_N folder")
     p.add_argument("--list-only", action="store_true",
                    help="with --project, list location codes, filters, and images without processing")
     p.add_argument("--fast", action="store_true",
@@ -1411,8 +1414,14 @@ def main():
         if args.baseline:
             p.error("--baseline is not supported with --project; analyse a batch separately to use one")
         raw_root = Path(__file__).resolve().parents[1] / "data" / "raw"
-        batches = sorted(path for path in raw_root.iterdir()
-                         if path.is_dir() and re.fullmatch(r"batch_\d+", path.name.lower())) if raw_root.is_dir() else []
+        if args.batch:
+            batches = [raw_root / name for name in args.batch]
+            missing = [path.name for path in batches if not path.is_dir() or path.parent != raw_root]
+            if missing:
+                p.error(f"no such folder under {raw_root}: {', '.join(missing)}")
+        else:
+            batches = sorted(path for path in raw_root.iterdir()
+                             if path.is_dir() and re.fullmatch(r"batch_\d+", path.name.lower())) if raw_root.is_dir() else []
         if not batches:
             p.error(f"no data/raw/batch_N folders found under {raw_root}")
         for batch_dir in batches:

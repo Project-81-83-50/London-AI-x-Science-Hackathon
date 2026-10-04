@@ -16,7 +16,9 @@ higher-Z phase (likely the silicon-containing additive). This script:
 2. Segments that view into pore / graphite / bright phase (3-class Otsu after removing
    smooth shading) and measures composition, pore network, bright-particle, graphite
    texture, interface and homogeneity KPIs.
-3. Summarises every KPI across locations (mean, SD, CV, t-based 95% CI, range) and writes
+3. Segments the field's ETD and InLens views the same way, aligns them to the BSE view and compares them
+   pixel by pixel (cross-detector KPIs: where ETD and InLens agree or disagree with the BSE phases).
+4. Summarises every KPI across locations (mean, SD, CV, t-based 95% CI, range) and writes
    a frontend-ready report plus a segmentation overlay per field.
 
 Outputs (Git-ignored, like the raw data):
@@ -34,7 +36,7 @@ import numpy as np
 import tifffile
 from PIL import Image
 from scipy import ndimage, spatial, stats
-from skimage import filters, measure
+from skimage import filters, measure, registration
 
 from .fields import batch_dir, load_or_match
 
@@ -255,6 +257,51 @@ def measure_location(labels, px_um):
                   "pore_ecd": p_ecd, "bright_ecd": b_ecd}
 
 
+def _gradient(img):
+    g = ndimage.gaussian_filter(img, 1.5)
+    return np.hypot(ndimage.sobel(g, 0), ndimage.sobel(g, 1))
+
+
+def _overlap(a, b, shift):
+    """a and b cropped to their common area, b displaced by `shift` (dy, dx) relative to a."""
+    dy, dx = (int(round(s)) for s in shift)
+    h, w = min(a.shape[0], b.shape[0]), min(a.shape[1], b.shape[1])
+    a, b = a[:h, :w], b[:h, :w]
+    ya, yb = (slice(dy, h), slice(0, h - dy)) if dy >= 0 else (slice(0, h + dy), slice(-dy, h))
+    xa, xb = (slice(dx, w), slice(0, w - dx)) if dx >= 0 else (slice(0, w + dx), slice(-dx, w))
+    return a[ya, xa], b[yb, xb]
+
+
+def cross_detector(bse_img, bse_labels, views):
+    """Compare the BSE segmentation pixel by pixel with the same field's ETD and InLens segmentations.
+
+    Each secondary-electron view is segmented like the BSE view (same 3 intensity classes) and aligned to it
+    by phase correlation of the gradient images. The detectors see different contrast: ETD keeps pores black,
+    InLens fills shallow pores in and lights up particle rims. Where they agree or disagree with BSE is
+    a property of the material's surface and pores, which BSE alone does not show."""
+    kpis, alignment = {}, {}
+    for detector, img in views.items():
+        labels, _ = segment(img)
+        h, w = min(bse_img.shape[0], img.shape[0]), min(bse_img.shape[1], img.shape[1])
+        shift = registration.phase_cross_correlation(_gradient(bse_img[:h, :w]), _gradient(img[:h, :w]),
+                                                     normalization=None)[0]
+        alignment[detector] = [int(round(s)) for s in shift]
+        lb, lo = _overlap(bse_labels, labels, shift)
+        pore, bright = lb == 0, lb == 2
+        if detector == "ETD":
+            dark = lo == 0
+            kpis["pore_agreement_etd"] = float(2 * (pore & dark).sum() / max(pore.sum() + dark.sum(), 1))
+            kpis["porosity_confirmed_etd"] = float((pore & dark).mean())
+            kpis["porosity_bse_minus_etd"] = float(pore.mean() - dark.mean())
+            kpis["etd_dark_solid"] = float((dark & ~pore).mean())
+        elif detector == "InLens":
+            lit = lo == 2
+            kpis["bright_lit_inlens"] = float(lit[bright].mean()) if bright.any() else None
+            kpis["pores_filled_inlens"] = float((lo[pore] != 0).mean()) if pore.any() else None
+            kpis["inlens_lit_outside_bright"] = float((lit & ~bright).mean())
+    return kpis, alignment
+
+
 def save_overlay(img, labels, path, width=1400):
     """Grey image with pores tinted blue and the bright phase tinted orange."""
     scale = width / img.shape[1]
@@ -331,13 +378,32 @@ KPI_GROUPS = [
         ("porosity_inplane_cv", "Horizontal porosity variation", PERCENT, 100,
          "Coefficient of variation of porosity across vertical bands."),
     ]),
+    ("detectors", "Cross-detector comparison", "The field's ETD and InLens views are segmented like the BSE "
+     "view, aligned to it, and compared pixel by pixel. ETD keeps pores black; InLens fills shallow pores in and "
+     "lights up particle rims. These depend on detector settings as well as the material.", [
+        ("pore_agreement_etd", "BSE–ETD pore agreement", PERCENT, 100,
+         "Dice overlap of the BSE pore class and the ETD dark class."),
+        ("porosity_confirmed_etd", "Porosity confirmed by ETD", PERCENT, 100,
+         "Area share that is pore in both the BSE and the ETD view."),
+        ("porosity_bse_minus_etd", "BSE minus ETD porosity", "pp", 100,
+         "BSE pore share minus ETD dark share, in percentage points."),
+        ("etd_dark_solid", "ETD-dark solid", PERCENT, 100,
+         "Area share dark in ETD but solid in BSE: sub-surface pores, shadowed edges or carbon-binder."),
+        ("bright_lit_inlens", "Bright phase lit in InLens", PERCENT, 100,
+         "Share of BSE bright-phase pixels that are also bright in InLens."),
+        ("pores_filled_inlens", "Pores filled in by InLens", PERCENT, 100,
+         "Share of BSE pore pixels that are not dark in InLens: shallow pores or pore walls."),
+        ("inlens_lit_outside_bright", "InLens-lit outside the bright phase", PERCENT, 100,
+         "Area share bright in InLens but not in the BSE bright class: lit rims and edges."),
+    ]),
 ]
+CROSS_DETECTOR_KPIS = [k[0] for g in KPI_GROUPS if g[0] == "detectors" for k in g[3]]
 HEADLINE = ["porosity", "graphite_fraction", "bright_fraction", "bright_area_d50", "pore_ecd_area_d50",
             "graphite_orientation"]
 KPI_INDEX = {k[0]: (g[0], *k[1:]) for g in KPI_GROUPS for k in g[3]}
 
 
-SIGNED_KPIS = {"porosity_gradient"}  # can be negative: CV is meaningless, judge by the CI instead
+SIGNED_KPIS = {"porosity_gradient", "porosity_bse_minus_etd"}  # can be negative: CV is meaningless, judge by the CI instead
 
 
 def summarise(values, signed=False):
@@ -460,6 +526,17 @@ def analyse_batch(batch, rebuild_fields=False):
         labels, quality = segment(work)
         kpis, extra = measure_location(labels, px_um)
         flags = []
+        # Compare with the field's secondary-electron views, binned to the same analysis pixel size.
+        others = {s["view"]["detector"]: bin_image(s["img"], max(1, round(TARGET_NM / s["px"])) if s["px"] else 2)
+                  for s in scored if s["view"]["detector"] in ("ETD", "InLens")}
+        alignment = {}
+        if view["detector"] == "BSE" and others:
+            cross, alignment = cross_detector(work, labels, others)
+            kpis.update(cross)
+        kpis.update({k: None for k in CROSS_DETECTOR_KPIS if k not in kpis})
+        missing = [d for d in ("ETD", "InLens") if d not in others]
+        if view["detector"] == "BSE" and missing:
+            flags.append(f"no {' or '.join(missing)} view, so the cross-detector comparison with it is not measured")
         included = confidence != "excluded"
         if confidence == "usable":
             flags.append(f"bright class has rough rims or a high share (perimeter/area {best['rim']:.2f} µm⁻¹, "
@@ -494,7 +571,7 @@ def analyse_batch(batch, rebuild_fields=False):
                        "filename_detector": s["view"]["filename_detector"],
                        "rim_score": s["rim"], "bright_share": s["share"],
                        "analysed": s is best} for s in scored],
-            "quality": quality, "flags": flags, "kpis": kpis,
+            "quality": quality, "flags": flags, "kpis": kpis, "cross_detector_shift_px": alignment,
             "profile_pore": extra["profile_pore"], "profile_bright": extra["profile_bright"],
             "overlay": overlay,
         })
@@ -543,6 +620,8 @@ def analyse_batch(batch, rebuild_fields=False):
                               "are kept but flagged lower-confidence.",
             "segmentation": "Gaussian smoothing (1 px), shading surface fitted to the graphite class, "
                             "3-class Otsu thresholds, 3×3 median clean-up.",
+            "cross_detector": "The ETD and InLens views of each field are segmented the same way, aligned to "
+                              "the BSE view by phase correlation of gradient images, and compared pixel by pixel.",
             "statistics": "Each matched location is one replicate. Mean, sample SD, CV and a t-based 95% CI of "
                           "the batch mean across locations.",
             "consistency_bands": "CV < 10% consistent · 10–25% moderate · > 25% variable. Signed KPIs "

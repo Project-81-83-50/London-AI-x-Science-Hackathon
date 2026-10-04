@@ -238,6 +238,8 @@ def decide(p_img, p_mat, fp_views_agree=True, flags=(), t_high=1.01, rng=None):
     return {"answer": answer if kind != "unsure" else f"unsure (leaning {lean})", "answer_type": kind,
             "confidence": tier, "leaning": lean,
             "imaging_side_pick": BATCHES[fa], "material_side_pick": BATCHES[fb], "sides_agree": fa == fb,
+            "imaging_side_calibrated": dict(zip(BATCHES, np.round(a, 3).tolist())),
+            "material_side_calibrated": dict(zip(BATCHES, np.round(b, 3).tolist())),
             "prediction_set": [BATCHES[k] for k in range(3) if avg[k] >= 0.2],
             "average_calibrated_probabilities": dict(zip(BATCHES, np.round(avg, 3).tolist())),
             "high_tier_threshold": round(float(t_high), 3),

@@ -390,6 +390,7 @@ def cmd_predict(args):
     timings = {}
     x, exclude = prepare(args.bse, args.inlens)
     timings["read_preprocess_s"] = time.time() - t0
+    print("STEP read_preprocess_s", flush=True)
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     models_dir = Path(args.models_dir) if args.models_dir else C.MODELS
     seg = build_model(pretrained=False).to(dev)
@@ -399,15 +400,18 @@ def cmd_predict(args):
     probs = constrain_siox(segment(x, torch_runner(seg, dev)), x[0], exclude, class_axis=0)
     lab = clean(probs.argmax(0), exclude)
     timings["segmentation_s"] = time.time() - t
+    print("STEP segmentation_s", flush=True)
     t = time.time()
     t_low = float(threshold_multiotsu(x[0][~exclude], classes=3)[0])
     f = label_features(lab, x[0], t_low)
     timings["features_s"] = time.time() - t
+    print("STEP features_s", flush=True)
     t = time.time()
     dmodel = load_dino(dev)
     img = [np.where(exclude, np.median(x[i][~exclude]), x[i]) for i in range(2)]
     tokens = np.concatenate([token_map(dmodel, a, dev) for a in img], -1)
     timings["dino_s"] = time.time() - t
+    print("STEP dino_s", flush=True)
     from .fingerprint_model import fit_model as fp_fit, measure_view, predict as fp_predict
     from .bid_model import fit_model as mat_fit
     if args.holdout:
@@ -422,6 +426,7 @@ def cmd_predict(args):
         fp_feats["se2"] = measure_view(args.etd, "se2")
     fp = fp_predict(fp_feats, fp_model)
     timings["fingerprint_s"] = time.time() - t
+    print("STEP fingerprint_s", flush=True)
     t = time.time()
     scores = json.load(open(C.OUT_MET / "bid_scores.json"))
     stem = Path(args.bse).stem
@@ -440,6 +445,7 @@ def cmd_predict(args):
     facts["decision_v2"] = decide(fp["probabilities"], mat_p, fp["views_agree"], flags_from(facts))
     facts["inputs"]["detectors_used_by_fingerprint"] = fp["views_used"]
     timings["classify_explain_s"] = time.time() - t
+    print("STEP classify_explain_s", flush=True)
     # ---- v3: guard + known-location matcher, texture model, calibration, GET4 range rule
     from . import known_spot as KS, texture_model as TXM, v3 as V3
     from .fingerprint_model import view_proba as fp_view_proba
@@ -450,6 +456,7 @@ def cmd_predict(args):
     names = {"bse": "BSE", "inlens": "Inlens", "se2": "ETD/SE"}
     check = KS.Index(exclude_sids=[args.holdout] if args.holdout else ()).check({names[v]: a for v, a in raws.items()})
     timings["known_location_s"] = time.time() - t
+    print("STEP known_location_s", flush=True)
     t = time.time()
     if args.holdout:
         D = V3.load_data()
@@ -467,9 +474,11 @@ def cmd_predict(args):
           "mat": np.array([[mat_p[b] for b in BATCHES]])}
     p_img, p_mat = V3.sides(lv, T)
     timings["texture_s"] = time.time() - t
+    print("STEP texture_s", flush=True)
     t = time.time()
     rng = V3.range_rule(V3.material_se(lab), parts["ranges"])
     timings["get4_range_rule_s"] = time.time() - t
+    print("STEP get4_range_rule_s", flush=True)
     dec = V3.decide(p_img[0], p_mat[0], fp["views_agree"], flags_from(facts), t_high, rng)
     dec["track_record"] = V3.track_record(dec)
     fp_cal = V3.apply_T(lv["fp"], T["fp"])[0]
@@ -494,6 +503,7 @@ def cmd_predict(args):
                                               BATCHES[int(np.argsort(ct)[-2])])
     facts = v2_layout(facts)
     timings["total_s"] = time.time() - t0
+    print("STEP total_s", flush=True)
     facts["timings_s"] = {k: round(v, 2) for k, v in timings.items()}
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)

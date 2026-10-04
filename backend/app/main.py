@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import get4, images, kpi, lucas, mock, unknown
+from .routers import get4, images, kpi, lucas, mock, unknown, v3
 
 app = FastAPI(title="EM QC API")
 
@@ -17,7 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for module in (mock, get4, kpi, unknown, lucas, images):
+for module in (mock, get4, kpi, unknown, lucas, images, v3):
     app.include_router(module.router)
 
 

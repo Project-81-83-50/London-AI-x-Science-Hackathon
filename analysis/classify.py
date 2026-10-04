@@ -7,7 +7,8 @@ Classify the locations in data/raw/unknown as reference batch 1, 2 or 3.
 2. Duplicate check: every unknown image is compared with every reference image (file hash and
    phase-correlation of edge maps). A same-field match would identify the batch directly.
 3. Classifier: a Gaussian class model with per-feature pooled within-batch variance and equal batch
-   priors (diagonal LDA) on standardised BSE KPIs. Which KPIs it uses is part of the fitted model,
+   priors (diagonal LDA) on standardised KPIs: the BSE segmentation KPIs plus the cross-detector comparisons
+   (BSE against the same field's ETD and InLens segmentations; see analysis.kpis.cross_detector). Which KPIs it uses is part of the fitted model,
    not a hand-picked list: the candidate KPIs are ranked by their between-/within-batch variance
    ratio (one-way ANOVA F) on the training locations, and the number kept, k from K_GRID, is the one
    with the best inner leave-one-out balanced accuracy (ties go to the smaller k). Probabilities are
@@ -43,7 +44,8 @@ KPI_DIR = ROOT / "data" / "processed" / "batch_kpis"
 OUT = ROOT / "data" / "processed" / "classification" / "unknown.json"
 BATCHES = ["1", "2", "3"]
 VALIDATION_CACHE = OUT.parent / "reference_validation.json"
-# Candidate material features: every BSE segmentation KPI (no acquisition properties). The model keeps the
+# Candidate material features: every BSE segmentation KPI and every BSE-vs-ETD/InLens comparison (no acquisition
+# properties). The model keeps the
 # K_GRID size that classifies held-out training locations best; see SelectedDLDA.
 FEATURES = list(batch_kpis.KPI_INDEX)
 K_GRID = (1, 2, 3, 4, 6, 8, 12)
@@ -51,7 +53,7 @@ K_GRID = (1, 2, 3, 4, 6, 8, 12)
 PREVIOUS_FEATURES = ["porosity", "bright_fraction", "bright_area_d50", "pore_ecd_area_d50",
                      "graphite_chord_x", "graphite_orientation", "pore_interface_density", "crack_share"]
 N_PERMUTATIONS = 200
-PROCEDURE = "selected-dlda-v1"  # bump when the procedure changes, to invalidate the validation cache
+PROCEDURE = "selected-dlda-v2-cross-detector"  # bump when the procedure changes, to invalidate the validation cache
 
 
 def load_locations(batch, include_all=False):
@@ -205,6 +207,8 @@ def main():
         y += [b] * len(locs)
     y = np.array(y)
     X = matrix(ref_locs)
+    # A reference location missing a view has no comparison with it; it takes the other references' mean.
+    X = np.where(np.isnan(X), np.nanmean(X, 0), X)
     unk_locs, unk_report = load_locations("unknown", include_all=True)
     U = matrix(unk_locs)
 
@@ -342,7 +346,7 @@ def main():
             "k_grid": list(K_GRID),
             "inner_scores": {str(k): round(v, 3) for k, v in selected.inner_scores.items()},
             "model": f"Diagonal LDA (shared diagonal variance, equal batch priors) on the {selected.k} of "
-                     f"{len(FEATURES)} standardised BSE KPIs that best separate the reference batches (ANOVA F); "
+                     f"{len(FEATURES)} standardised KPIs (BSE segmentation and BSE-vs-ETD/InLens comparisons) that best separate the reference batches (ANOVA F); "
                      "the number kept is chosen by inner leave-one-out, and the whole procedure is "
                      "re-run inside every validation fold.",
             "decision_rule": "An exact copy of, or the same field as, a reference image decides the batch "

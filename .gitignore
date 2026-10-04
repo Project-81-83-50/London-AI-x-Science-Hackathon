@@ -13,3 +13,9 @@ data/raw/
 data/processed/
 # Logs from local pipeline runs.
 *.log
+
+# lucas-sem-analysis-v3 website runs: machine-specific Python path, uploaded TIFFs, logs, transient report status.
+lucas-sem-analysis-v3/website/v3_python.txt
+lucas-sem-analysis-v3/website/runs/*/input/*.tif
+lucas-sem-analysis-v3/website/runs/*/log.txt
+lucas-sem-analysis-v3/website/runs/*/output/report_status.json

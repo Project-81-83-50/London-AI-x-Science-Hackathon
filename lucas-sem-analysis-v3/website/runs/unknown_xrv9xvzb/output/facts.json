@@ -1,0 +1,1636 @@
+{
+ "summary_sentences": [
+  "Answer: Batch_3 (High confidence), 59% (90% KPI model + 10% v3 material model); the v3 material model alone picks Batch_3 (agrees).",
+  "KPI evidence: ETD-dark solid (area that is dark in ETD but solid in BSE (sub-surface pores, shadowed edges or binder)) is 4.2 %; batch means Batch 1 2.5 %, Batch 2 3.0 %, Batch 3 4.6 %.",
+  "Composition (U-Net segmentation, 95 % sampling interval from GET4): pore 19.7 % [17.2 to 22.2], carbon 75.0 % [71.1 to 79.1], SiOx 5.2 % [1.8 to 8.6].",
+  "DINOv2 evidence map: 50 % of the evidence for Batch_3 (over Batch_2) lies on graphite, which covers 62 % of the image.",
+  "DINOv2 evidence for the prediction is concentrated on binder (1.5x its share of the image).",
+  "DINOv2 evidence map: 86 % of the evidence against Batch_3 (for Batch_2) lies on graphite.",
+  "In the DINOv2 evidence map alone, 53 % of all evidence points toward Batch_3 (the DINOv2 head is only one part of the material side).",
+  "Not a training image and not a known location (best edge-map match 10 SD; a match needs 15).",
+  "GET4 range check: the composition fits the ranges of more than one batch, so it gives no answer.",
+  "Batch_1 vs Batch_2: they differ subtly. Batch_2 is more porous on average (more open and hidden sub-surface pores); Batch_1 has slightly more and larger SiOx particles. Their ranges overlap, so a single location between them is the hardest call; this location's porosity is 19.7 %, closer to Batch_2's mean (14.3 % vs 17.8 %)."
+ ],
+ "field_guide": "Read `decision` first: the answer comes from the KPI model (`kpi_model`, Guanyi's classifier); our material model (`material_model`: U-Net segmentation + DINOv2) is a check that raises or lowers confidence and supplies the explanation (`material_model.map_text` describes the maps in words). `phases` is the composition with GET4 sampling intervals. Only `summary_sentences` is generated text.",
+ "sample_id": "img_xrv9xvzb",
+ "decision": {
+  "answer": "Batch_3",
+  "answer_type": "specific",
+  "confidence": "High",
+  "method": "90 % KPI classifier (Guanyi: diagonal LDA on the most batch-separating measured KPI, fitted on the 31 reference locations) + 10 % v3 material model (U-Net segmentation + DINOv2, calibrated; no fingerprint)",
+  "probabilities": {
+   "Batch_1": 0.1249,
+   "Batch_2": 0.2826,
+   "Batch_3": 0.5925
+  },
+  "weights": {
+   "kpi_model": 0.9,
+   "v3_material_model": 0.1
+  },
+  "kpi_probabilities": {
+   "Batch_1": 0.1357,
+   "Batch_2": 0.2844,
+   "Batch_3": 0.5799
+  },
+  "prediction_set": [
+   "Batch_2",
+   "Batch_3"
+  ],
+  "material_model_pick": "Batch_3",
+  "material_model_agrees": true,
+  "material_model_calibrated": {
+   "Batch_1": 0.028,
+   "Batch_2": 0.266,
+   "Batch_3": 0.706
+  },
+  "reasons": [
+   "Final probability = 90% KPI model + 10% v3 material model.",
+   "KPI model: ETD-dark solid (area that is dark in ETD but solid in BSE (sub-surface pores, shadowed edges or binder)) is 4.2 %; batch means Batch 1 2.5 %, Batch 2 3.0 %, Batch 3 4.6 %.",
+   "Our material model (U-Net segmentation + DINOv2) picks Batch_3: agrees.",
+   "Confidence rule: High when the KPI model is at least 50 % sure and the v3 material model agrees; otherwise Low."
+  ],
+  "basis": "models trained on all 31 known locations",
+  "statistics_note": "track-record statistics for this combined method have not been recomputed"
+ },
+ "phases": {
+  "four_class_pct": {
+   "pore": 19.7,
+   "graphite": 61.71,
+   "SiOx": 5.25,
+   "CBD": 13.34
+  },
+  "three_class_pct": {
+   "pore": 19.7,
+   "carbon (graphite + binder)": 75.05,
+   "SiOx": 5.25
+  },
+  "reliability": "pore / carbon / SiOx are reliable (87 % agreement with an independent annotator); the graphite-vs-binder split is experimental (binder precision ~50 %)",
+  "sampling_uncertainty_95": {
+   "pore": [
+    17.17,
+    22.16
+   ],
+   "carbon": [
+    71.08,
+    79.13
+   ],
+   "SiOx": [
+    1.82,
+    8.64
+   ]
+  }
+ },
+ "batch_1_vs_batch_2": {
+  "summary": "Batch_1 and Batch_2 differ, but subtly. Batch_2 is more porous on average (about 3.5 percentage points more pores, with more open and hidden sub-surface pores and a more open pore network); Batch_1 has slightly more and larger SiOx particles, a lower SiOx-to-graphite brightness in BSE and a rougher graphite surface texture in ETD. The batches' location ranges overlap (porosity about 11-17 % in Batch_1 vs 14-23 % in Batch_2), so a single location in the overlap is hard to call, even though the batches differ.",
+  "differences": [
+   {
+    "measure": "total porosity (U-Net segmentation)",
+    "unit": "%",
+    "source": "U-Net segmentation / v3 measurements",
+    "Batch_1_mean": 14.346,
+    "Batch_2_mean": 17.821,
+    "Batch_2_minus_Batch_1": 3.475,
+    "ci95": [
+     0.952,
+     6.322
+    ],
+    "evidence": "clear (95 % interval excludes zero)",
+    "may_reflect_imaging": false
+   },
+   {
+    "measure": "open, grey-floored pores",
+    "unit": "%",
+    "source": "U-Net segmentation / v3 measurements",
+    "Batch_1_mean": 6.26,
+    "Batch_2_mean": 8.457,
+    "Batch_2_minus_Batch_1": 2.197,
+    "ci95": [
+     0.557,
+     4.119
+    ],
+    "evidence": "clear (95 % interval excludes zero)",
+    "may_reflect_imaging": false
+   },
+   {
+    "measure": "deep (BSE-black) pores",
+    "unit": "%",
+    "source": "U-Net segmentation / v3 measurements",
+    "Batch_1_mean": 8.086,
+    "Batch_2_mean": 9.364,
+    "Batch_2_minus_Batch_1": 1.277,
+    "ci95": [
+     -0.145,
+     2.794
+    ],
+    "evidence": "weak (interval includes zero)",
+    "may_reflect_imaging": false
+   },
+   {
+    "measure": "SiOx area",
+    "unit": "%",
+    "source": "U-Net segmentation / v3 measurements",
+    "Batch_1_mean": 7.886,
+    "Batch_2_mean": 5.716,
+    "Batch_2_minus_Batch_1": -2.17,
+    "ci95": [
+     -4.833,
+     0.086
+    ],
+    "evidence": "weak (interval includes zero)",
+    "may_reflect_imaging": false
+   },
+   {
+    "measure": "SiOx particle size, area-weighted",
+    "unit": "um",
+    "source": "U-Net segmentation / v3 measurements",
+    "Batch_1_mean": 4.295,
+    "Batch_2_mean": 3.981,
+    "Batch_2_minus_Batch_1": -0.314,
+    "ci95": [
+     -0.832,
+     0.154
+    ],
+    "evidence": "weak (interval includes zero)",
+    "may_reflect_imaging": false
+   },
+   {
+    "measure": "SiOx-to-graphite brightness in BSE",
+    "unit": "ratio",
+    "source": "U-Net segmentation / v3 measurements",
+    "Batch_1_mean": 1.199,
+    "Batch_2_mean": 1.525,
+    "Batch_2_minus_Batch_1": 0.326,
+    "ci95": [
+     0.08,
+     0.571
+    ],
+    "evidence": "clear (95 % interval excludes zero)",
+    "may_reflect_imaging": true
+   },
+   {
+    "measure": "graphite surface texture in ETD",
+    "unit": "a.u.",
+    "source": "U-Net segmentation / v3 measurements",
+    "Batch_1_mean": 0.014,
+    "Batch_2_mean": 0.012,
+    "Batch_2_minus_Batch_1": -0.003,
+    "ci95": [
+     -0.004,
+     -0.001
+    ],
+    "evidence": "clear (95 % interval excludes zero)",
+    "may_reflect_imaging": true
+   },
+   {
+    "measure": "hidden sub-surface pores (dark in ETD, solid in BSE)",
+    "unit": "%",
+    "source": "KPI model measurements (Guanyi)",
+    "Batch_1_mean": 2.495,
+    "Batch_2_mean": 2.956,
+    "this_location": 4.165,
+    "may_reflect_imaging": true
+   },
+   {
+    "measure": "pores confirmed in ETD",
+    "unit": "%",
+    "source": "KPI model measurements (Guanyi)",
+    "Batch_1_mean": 7.746,
+    "Batch_2_mean": 8.855,
+    "this_location": 11.559,
+    "may_reflect_imaging": false
+   },
+   {
+    "measure": "pore-solid interface density",
+    "unit": "µm / µm²",
+    "source": "KPI model measurements (Guanyi)",
+    "Batch_1_mean": 0.405,
+    "Batch_2_mean": 0.451,
+    "this_location": 0.497,
+    "may_reflect_imaging": false
+   },
+   {
+    "measure": "pore-network tortuosity (lower = more open)",
+    "unit": "ratio",
+    "source": "KPI model measurements (Guanyi)",
+    "Batch_1_mean": 3.495,
+    "Batch_2_mean": 3.236,
+    "this_location": 2.832,
+    "may_reflect_imaging": false
+   },
+   {
+    "measure": "median pore size",
+    "unit": "µm",
+    "source": "KPI model measurements (Guanyi)",
+    "Batch_1_mean": 0.272,
+    "Batch_2_mean": 0.298,
+    "this_location": 0.293,
+    "may_reflect_imaging": false
+   }
+  ],
+  "this_location": "this location's porosity is 19.7 %, closer to Batch_2's mean (14.3 % vs 17.8 %)",
+  "caveat": "7 reference locations per batch; differences marked may_reflect_imaging can partly come from how the images were taken or prepared"
+ },
+ "kpi_model": {
+  "model": "KPI classifier (Guanyi, analysis.classify)",
+  "method": "Diagonal LDA (shared diagonal variance, equal batch priors) on the standardised KPI(s) that best separate the reference batches (one-way ANOVA F), chosen from 32 candidates: 25 measured on the BSE image's 3-class intensity segmentation (pore / graphite / bright phase) and 7 from comparing it pixel by pixel with the same field's ETD and InLens segmentations. How many KPIs to keep is chosen by an inner leave-one-out test.",
+  "predicted_batch": "Batch_3",
+  "runner_up": "Batch_2",
+  "probabilities": {
+   "Batch_1": 0.1357,
+   "Batch_2": 0.2844,
+   "Batch_3": 0.5799
+  },
+  "confidence": "medium",
+  "margin": 0.296,
+  "kpis_used": [
+   "etd_dark_solid"
+  ],
+  "inner_scores_by_k": {
+   "1": 0.731,
+   "2": 0.636,
+   "3": 0.541,
+   "4": 0.569,
+   "6": 0.616,
+   "8": 0.521,
+   "12": 0.616
+  },
+  "drivers": [
+   {
+    "feature": "etd_dark_solid",
+    "name": "ETD-dark solid",
+    "unit": "%",
+    "scale": 100,
+    "value": 0.04164627222446698,
+    "description": "Area share dark in ETD but solid in BSE: sub-surface pores, shadowed edges or carbon-binder.",
+    "batch_means": {
+     "Batch_1": 0.02494855197120028,
+     "Batch_2": 0.029555708560448413,
+     "Batch_3": 0.04594067399473805
+    },
+    "support_for_answer": 0.713
+   }
+  ],
+  "nearest_reference_locations": [
+   {
+    "batch": "Batch_1",
+    "location_id": "4ih2ggld",
+    "distance": 0.12
+   },
+   {
+    "batch": "Batch_2",
+    "location_id": "r17byphk",
+    "distance": 0.19
+   },
+   {
+    "batch": "Batch_3",
+    "location_id": "x77cy643",
+    "distance": 0.27
+   }
+  ],
+  "all_kpis": [
+   {
+    "id": "etd_dark_solid",
+    "name": "ETD-dark solid",
+    "group": "detectors",
+    "unit": "%",
+    "description": "Area share dark in ETD but solid in BSE: sub-surface pores, shadowed edges or carbon-binder.",
+    "value": 4.165,
+    "batch_means": {
+     "Batch_1": 2.495,
+     "Batch_2": 2.956,
+     "Batch_3": 4.594
+    },
+    "separation_rank": 1,
+    "used_by_model": true,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "porosity_bse_minus_etd",
+    "name": "BSE minus ETD porosity",
+    "group": "detectors",
+    "unit": "pp",
+    "description": "BSE pore share minus ETD dark share, in percentage points.",
+    "value": -3.256,
+    "batch_means": {
+     "Batch_1": -1.845,
+     "Batch_2": -2.134,
+     "Batch_3": -3.972
+    },
+    "separation_rank": 2,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "pore_interface_density",
+    "name": "Pore–solid interface density",
+    "group": "interfaces",
+    "unit": "µm / µm²",
+    "description": "Pore boundary length per unit area (stereological estimate of specific surface).",
+    "value": 0.497,
+    "batch_means": {
+     "Batch_1": 0.405,
+     "Batch_2": 0.451,
+     "Batch_3": 0.475
+    },
+    "separation_rank": 3,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "bright_lit_inlens",
+    "name": "Bright phase lit in InLens",
+    "group": "detectors",
+    "unit": "%",
+    "description": "Share of BSE bright-phase pixels that are also bright in InLens.",
+    "value": 10.095,
+    "batch_means": {
+     "Batch_1": 71.167,
+     "Batch_2": 79.075,
+     "Batch_3": 40.782
+    },
+    "separation_rank": 4,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "pore_agreement_etd",
+    "name": "BSE–ETD pore agreement",
+    "group": "detectors",
+    "unit": "%",
+    "description": "Dice overlap of the BSE pore class and the ETD dark class.",
+    "value": 82.005,
+    "batch_means": {
+     "Batch_1": 83.029,
+     "Batch_2": 82.331,
+     "Batch_3": 79.009
+    },
+    "separation_rank": 5,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_2"
+   },
+   {
+    "id": "pore_ecd_d50",
+    "name": "Median pore size",
+    "group": "pores",
+    "unit": "µm",
+    "description": "Median equivalent circle diameter (ECD) of pore regions, by count.",
+    "value": 0.293,
+    "batch_means": {
+     "Batch_1": 0.272,
+     "Batch_2": 0.298,
+     "Batch_3": 0.302
+    },
+    "separation_rank": 6,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_2"
+   },
+   {
+    "id": "bruggeman_tortuosity",
+    "name": "Tortuosity (Bruggeman estimate)",
+    "group": "interfaces",
+    "unit": "ratio",
+    "description": "Model value porosity^-0.5. Assumes spherical particles, so treat as a lower bound.",
+    "value": 2.832,
+    "batch_means": {
+     "Batch_1": 3.495,
+     "Batch_2": 3.236,
+     "Batch_3": 3.112
+    },
+    "separation_rank": 7,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "porosity_confirmed_etd",
+    "name": "Porosity confirmed by ETD",
+    "group": "detectors",
+    "unit": "%",
+    "description": "Area share that is pore in both the BSE and the ETD view.",
+    "value": 11.559,
+    "batch_means": {
+     "Batch_1": 7.746,
+     "Batch_2": 8.855,
+     "Batch_3": 9.929
+    },
+    "separation_rank": 8,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "porosity",
+    "name": "Porosity",
+    "group": "composition",
+    "unit": "%",
+    "description": "Area share of the black pore class.",
+    "value": 12.467,
+    "batch_means": {
+     "Batch_1": 8.396,
+     "Batch_2": 9.677,
+     "Batch_3": 10.551
+    },
+    "separation_rank": 9,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "bright_area_d50",
+    "name": "Area-weighted bright particle size",
+    "group": "bright",
+    "unit": "µm",
+    "description": "ECD at which half of the bright-phase area lies in larger particles.",
+    "value": 3.863,
+    "batch_means": {
+     "Batch_1": 4.564,
+     "Batch_2": 3.915,
+     "Batch_3": 3.723
+    },
+    "separation_rank": 10,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_2"
+   },
+   {
+    "id": "bruggeman_transport",
+    "name": "Effective transport factor (Bruggeman)",
+    "group": "interfaces",
+    "unit": "%",
+    "description": "Model value porosity^1.5: electrolyte conductivity as a share of bulk.",
+    "value": 4.402,
+    "batch_means": {
+     "Batch_1": 2.46,
+     "Batch_2": 3.03,
+     "Batch_3": 3.468
+    },
+    "separation_rank": 11,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "bright_fraction",
+    "name": "Bright-phase fraction",
+    "group": "composition",
+    "unit": "%",
+    "description": "Area share of the bright, higher-Z class (likely the Si-containing additive).",
+    "value": 5.479,
+    "batch_means": {
+     "Batch_1": 10.065,
+     "Batch_2": 6.408,
+     "Batch_3": 6.775
+    },
+    "separation_rank": 12,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_2"
+   },
+   {
+    "id": "bright_to_solid",
+    "name": "Bright phase share of solids",
+    "group": "composition",
+    "unit": "%",
+    "description": "Bright phase / (graphite + bright phase): the additive loading of the active material.",
+    "value": 6.259,
+    "batch_means": {
+     "Batch_1": 10.963,
+     "Batch_2": 7.089,
+     "Batch_3": 7.561
+    },
+    "separation_rank": 13,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_2"
+   },
+   {
+    "id": "bright_interface_density",
+    "name": "Bright-phase interface density",
+    "group": "interfaces",
+    "unit": "µm / µm²",
+    "description": "Bright-phase boundary length per unit area.",
+    "value": 0.122,
+    "batch_means": {
+     "Batch_1": 0.34,
+     "Batch_2": 0.155,
+     "Batch_3": 0.192
+    },
+    "separation_rank": 14,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_2"
+   },
+   {
+    "id": "largest_pore_share",
+    "name": "Largest pore network share",
+    "group": "pores",
+    "unit": "%",
+    "description": "Share of pore area in the single largest connected pore region: a 2D connectivity proxy.",
+    "value": 12.332,
+    "batch_means": {
+     "Batch_1": 4.716,
+     "Batch_2": 5.173,
+     "Batch_3": 7.571
+    },
+    "separation_rank": 15,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "bright_aspect",
+    "name": "Bright particle aspect ratio",
+    "group": "bright",
+    "unit": "ratio",
+    "description": "Median major / minor axis length.",
+    "value": 1.925,
+    "batch_means": {
+     "Batch_1": 2.209,
+     "Batch_2": 2.035,
+     "Batch_3": 2.101
+    },
+    "separation_rank": 16,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_2"
+   },
+   {
+    "id": "bright_clustering",
+    "name": "Bright particle dispersion",
+    "group": "bright",
+    "unit": "ratio",
+    "description": "Clark–Evans nearest-neighbour ratio: below 1 clustered, about 1 random, above 1 evenly spread.",
+    "value": 0.817,
+    "batch_means": {
+     "Batch_1": 0.867,
+     "Batch_2": 0.863,
+     "Batch_3": 0.837
+    },
+    "separation_rank": 17,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "bright_density",
+    "name": "Bright particle density",
+    "group": "bright",
+    "unit": "per 100 µm²",
+    "description": "Bright particles per 100 µm².",
+    "value": 2.245,
+    "batch_means": {
+     "Batch_1": 6.095,
+     "Batch_2": 2.879,
+     "Batch_3": 3.8
+    },
+    "separation_rank": 18,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_2"
+   },
+   {
+    "id": "graphite_chord_y",
+    "name": "Graphite chord length, vertical",
+    "group": "graphite",
+    "unit": "µm",
+    "description": "Mean length of uninterrupted graphite runs along image columns.",
+    "value": 3.467,
+    "batch_means": {
+     "Batch_1": 3.231,
+     "Batch_2": 3.735,
+     "Batch_3": 3.323
+    },
+    "separation_rank": 19,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "bright_d90",
+    "name": "Bright particle D90",
+    "group": "bright",
+    "unit": "µm",
+    "description": "90th percentile ECD by count.",
+    "value": 3.034,
+    "batch_means": {
+     "Batch_1": 2.377,
+     "Batch_2": 2.903,
+     "Batch_3": 2.552
+    },
+    "separation_rank": 20,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_2"
+   },
+   {
+    "id": "pores_filled_inlens",
+    "name": "Pores filled in by InLens",
+    "group": "detectors",
+    "unit": "%",
+    "description": "Share of BSE pore pixels that are not dark in InLens: shallow pores or pore walls.",
+    "value": 31.954,
+    "batch_means": {
+     "Batch_1": 34.666,
+     "Batch_2": 41.322,
+     "Batch_3": 40.589
+    },
+    "separation_rank": 21,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_1"
+   },
+   {
+    "id": "porosity_gradient",
+    "name": "Top-to-bottom porosity change",
+    "group": "homogeneity",
+    "unit": "pp",
+    "description": "Porosity of the bottom third minus the top third of the image, in percentage points.",
+    "value": 6.889,
+    "batch_means": {
+     "Batch_1": -0.128,
+     "Batch_2": 0.558,
+     "Batch_3": 1.405
+    },
+    "separation_rank": 22,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "porosity_inplane_cv",
+    "name": "Horizontal porosity variation",
+    "group": "homogeneity",
+    "unit": "%",
+    "description": "Coefficient of variation of porosity across vertical bands.",
+    "value": 18.685,
+    "batch_means": {
+     "Batch_1": 20.281,
+     "Batch_2": 20.546,
+     "Batch_3": 18.668
+    },
+    "separation_rank": 23,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "graphite_fraction",
+    "name": "Graphite fraction",
+    "group": "composition",
+    "unit": "%",
+    "description": "Area share of the dark-grey flake class.",
+    "value": 82.054,
+    "batch_means": {
+     "Batch_1": 81.539,
+     "Batch_2": 83.915,
+     "Batch_3": 82.674
+    },
+    "separation_rank": 24,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_1"
+   },
+   {
+    "id": "pore_density",
+    "name": "Pore count density",
+    "group": "pores",
+    "unit": "per 100 µm²",
+    "description": "Separate pore regions per 100 µm².",
+    "value": 13.413,
+    "batch_means": {
+     "Batch_1": 14.667,
+     "Batch_2": 13.681,
+     "Batch_3": 13.905
+    },
+    "separation_rank": 25,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_2"
+   },
+   {
+    "id": "bright_d50",
+    "name": "Bright particle D50",
+    "group": "bright",
+    "unit": "µm",
+    "description": "Median ECD by count. Dominated by the many small particles near the 0.25 µm detection limit.",
+    "value": 0.608,
+    "batch_means": {
+     "Batch_1": 0.519,
+     "Batch_2": 0.562,
+     "Batch_3": 0.604
+    },
+    "separation_rank": 26,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "inlens_lit_outside_bright",
+    "name": "InLens-lit outside the bright phase",
+    "group": "detectors",
+    "unit": "%",
+    "description": "Area share bright in InLens but not in the BSE bright class: lit rims and edges.",
+    "value": 13.73,
+    "batch_means": {
+     "Batch_1": 15.58,
+     "Batch_2": 17.681,
+     "Batch_3": 14.682
+    },
+    "separation_rank": 27,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "graphite_chord_x",
+    "name": "Graphite chord length, horizontal",
+    "group": "graphite",
+    "unit": "µm",
+    "description": "Mean length of uninterrupted graphite runs along image rows.",
+    "value": 4.315,
+    "batch_means": {
+     "Batch_1": 4.001,
+     "Batch_2": 4.493,
+     "Batch_3": 4.097
+    },
+    "separation_rank": 28,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_2"
+   },
+   {
+    "id": "pore_ecd_area_d50",
+    "name": "Area-weighted pore size",
+    "group": "pores",
+    "unit": "µm",
+    "description": "ECD at which half of the pore area lies in larger pores.",
+    "value": 4.094,
+    "batch_means": {
+     "Batch_1": 2.706,
+     "Batch_2": 3.0,
+     "Batch_3": 3.111
+    },
+    "separation_rank": 29,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "graphite_orientation",
+    "name": "Flake orientation index",
+    "group": "graphite",
+    "unit": "ratio",
+    "description": "Horizontal / vertical chord length: above 1 means flakes lie along the image width.",
+    "value": 1.245,
+    "batch_means": {
+     "Batch_1": 1.216,
+     "Batch_2": 1.202,
+     "Batch_3": 1.232
+    },
+    "separation_rank": 30,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "crack_share",
+    "name": "Crack-like pore share",
+    "group": "pores",
+    "unit": "%",
+    "description": "Share of pore area in elongated pores (aspect ≥ 4, length ≥ 5 µm).",
+    "value": 25.186,
+    "batch_means": {
+     "Batch_1": 20.264,
+     "Batch_2": 19.28,
+     "Batch_3": 22.378
+    },
+    "separation_rank": 31,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_3"
+   },
+   {
+    "id": "porosity_band_cv",
+    "name": "Vertical porosity variation",
+    "group": "homogeneity",
+    "unit": "%",
+    "description": "Coefficient of variation of porosity across horizontal bands.",
+    "value": 33.044,
+    "batch_means": {
+     "Batch_1": 29.106,
+     "Batch_2": 27.457,
+     "Batch_3": 27.666
+    },
+    "separation_rank": 32,
+    "used_by_model": false,
+    "closest_batch_mean": "Batch_1"
+   }
+  ],
+  "unmeasured_kpis": [],
+  "reference_validation": {
+   "protocol": "each of the 31 reference locations hidden in turn; KPI choice and fit re-run without it",
+   "loo_balanced_accuracy": 0.683,
+   "permutation_p": 0.004975124378109453,
+   "chance": 0.333,
+   "features_chosen_per_fold": {
+    "etd_dark_solid": 30,
+    "etd_dark_solid, pore_interface_density, porosity_bse_minus_etd": 1
+   }
+  },
+  "session_hint": {
+   "image_height_px": 2088,
+   "reference_locations_same_height": [
+    "Batch_3: 9luzk4jm",
+    "Batch_3: hzumfsms",
+    "Batch_3: ufdvpb81"
+   ],
+   "batches": [
+    "Batch_3"
+   ],
+   "note": "image height marks the imaging session; shown for context only, NOT used by the model"
+  },
+  "n_reference_locations": 31,
+  "measurement": {
+   "pixel_size_nm": 25.000283467781053,
+   "analysis_pixel_nm": 50.000566935562105,
+   "segmentation": "BSE grey levels split into 3 intensity classes: pore (black), graphite (grey), bright phase",
+   "segmentation_confidence": "clean",
+   "views_compared": [
+    "ETD",
+    "InLens"
+   ]
+  },
+  "kpi_values_raw": {
+   "porosity": 0.12467382580025602,
+   "graphite_fraction": 0.8205390374261283,
+   "bright_fraction": 0.05478713677361567,
+   "bright_to_solid": 0.06259053869113891,
+   "pore_density": 13.41349001334734,
+   "pore_ecd_d50": 0.2931648312154287,
+   "pore_ecd_area_d50": 4.093824075483252,
+   "largest_pore_share": 0.12332355498563988,
+   "crack_share": 0.2518576946569582,
+   "bright_density": 2.2447064920295547,
+   "bright_d50": 0.6076576679513573,
+   "bright_area_d50": 3.8625797980105667,
+   "bright_d90": 3.034485413507493,
+   "bright_aspect": 1.925111680567586,
+   "bright_clustering": 0.8168663224377358,
+   "graphite_chord_x": 4.31505202350816,
+   "graphite_chord_y": 3.466705054064507,
+   "graphite_orientation": 1.2447127621800467,
+   "pore_interface_density": 0.49734431421829844,
+   "bright_interface_density": 0.12160279099600786,
+   "porosity_gradient": 0.0688890265683635,
+   "porosity_band_cv": 0.3304364966555221,
+   "porosity_inplane_cv": 0.18685452358219076,
+   "bruggeman_transport": 0.04402130672513791,
+   "bruggeman_tortuosity": 2.832124602268163,
+   "pore_agreement_etd": 0.8200461641692635,
+   "porosity_confirmed_etd": 0.11558940211707998,
+   "porosity_bse_minus_etd": -0.03256184854129093,
+   "etd_dark_solid": 0.04164627222446698,
+   "bright_lit_inlens": 0.10094686086891348,
+   "pores_filled_inlens": 0.31953678737363533,
+   "inlens_lit_outside_bright": 0.1373046924189615
+  }
+ },
+ "known_location_check": {
+  "status": "new",
+  "matches": [
+   {
+    "view": "BSE",
+    "best_score_sd": 9.5,
+    "location": "4ih2ggld",
+    "batch": "Batch_1",
+    "reference_detector": "ETD/SE",
+    "next_best_other_score_sd": 9.3
+   },
+   {
+    "view": "Inlens",
+    "best_score_sd": 10.2,
+    "location": "ufdvpb81",
+    "batch": "Batch_3",
+    "reference_detector": "BSE",
+    "next_best_other_score_sd": 9.8
+   },
+   {
+    "view": "ETD/SE",
+    "best_score_sd": 9.0,
+    "location": "ufdvpb81",
+    "batch": "Batch_3",
+    "reference_detector": "BSE",
+    "next_best_other_score_sd": 8.7
+   }
+  ],
+  "note": "no reference image matches at >= 15 SD with a 2x margin; treated as a new location"
+ },
+ "material_range_rule": {
+  "answer": null,
+  "votes": [],
+  "phases": [
+   {
+    "phase": "pore",
+    "pct": 19.66,
+    "ci95": [
+     17.17,
+     22.16
+    ],
+    "fits_ranges_of": [
+     "Batch_1",
+     "Batch_2",
+     "Batch_3"
+    ],
+    "ranges": {
+     "Batch_1": [
+      11.12,
+      17.39
+     ],
+     "Batch_2": [
+      13.76,
+      23.57
+     ],
+     "Batch_3": [
+      15.14,
+      23.04
+     ]
+    }
+   },
+   {
+    "phase": "carbon",
+    "pct": 75.1,
+    "ci95": [
+     71.08,
+     79.13
+    ],
+    "fits_ranges_of": [
+     "Batch_1",
+     "Batch_2",
+     "Batch_3"
+    ],
+    "ranges": {
+     "Batch_1": [
+      74.46,
+      81.28
+     ],
+     "Batch_2": [
+      70.85,
+      80.14
+     ],
+     "Batch_3": [
+      71.63,
+      79.73
+     ]
+    }
+   },
+   {
+    "phase": "SiOx",
+    "pct": 5.23,
+    "ci95": [
+     1.82,
+     8.64
+    ],
+    "fits_ranges_of": [
+     "Batch_1",
+     "Batch_2",
+     "Batch_3"
+    ],
+    "ranges": {
+     "Batch_1": [
+      4.72,
+      14.42
+     ],
+     "Batch_2": [
+      4.2,
+      8.05
+     ],
+     "Batch_3": [
+      4.28,
+      8.31
+     ]
+    }
+   }
+  ],
+  "material_error_bars": "GET4 (teammate), 95 % = 1.96 x SE"
+ },
+ "material_model": {
+  "predicted_batch": "Batch_3",
+  "runner_up": "Batch_2",
+  "probabilities": {
+   "fused_F": {
+    "Batch_1": 0.077,
+    "Batch_2": 0.322,
+    "Batch_3": 0.601
+   },
+   "S_head": {
+    "Batch_1": 0.029,
+    "Batch_2": 0.398,
+    "Batch_3": 0.574
+   },
+   "dino_head": {
+    "Batch_1": 0.125,
+    "Batch_2": 0.247,
+    "Batch_3": 0.628
+   }
+  },
+  "features_S": {
+   "siox_frac": {
+    "value": 5.2527,
+    "robust_z": -0.6,
+    "push_toward_winner_vs_runner_up": -0.138
+   },
+   "siox_ecd_aw": {
+    "value": 3.7222,
+    "robust_z": -0.79,
+    "push_toward_winner_vs_runner_up": 0.253
+   },
+   "pore_open_excess": {
+    "value": 7.6831,
+    "robust_z": 0.02,
+    "push_toward_winner_vs_runner_up": -0.004
+   },
+   "pore_all_frac": {
+    "value": 19.6968,
+    "robust_z": 0.9,
+    "push_toward_winner_vs_runner_up": 0.327
+   },
+   "pore_chord_aniso": {
+    "value": 1.0556,
+    "robust_z": -0.16,
+    "push_toward_winner_vs_runner_up": -0.042
+   }
+  },
+  "evidence": {
+   "phase_share_in_top10pct_evidence_pct": {
+    "pore": 21.7,
+    "graphite": 61.6,
+    "SiOx": 1.8,
+    "CBD": 15.0
+   },
+   "phase_share_whole_image_pct": {
+    "pore": 19.6,
+    "graphite": 61.7,
+    "SiOx": 5.2,
+    "CBD": 13.4
+   },
+   "top_regions": [
+    {
+     "bbox_um": [
+      165.2,
+      47.6,
+      171.5,
+      51.8
+     ],
+     "evidence_share": 0.004,
+     "local_phase_pct": {
+      "pore": 5.2,
+      "graphite": 86.5,
+      "SiOx": 0.0,
+      "CBD": 8.3
+     }
+    },
+    {
+     "bbox_um": [
+      151.2,
+      15.4,
+      154.7,
+      23.1
+     ],
+     "evidence_share": 0.004,
+     "local_phase_pct": {
+      "pore": 15.9,
+      "graphite": 40.3,
+      "SiOx": 3.8,
+      "CBD": 40.0
+     }
+    },
+    {
+     "bbox_um": [
+      157.5,
+      48.3,
+      163.1,
+      51.8
+     ],
+     "evidence_share": 0.004,
+     "local_phase_pct": {
+      "pore": 13.7,
+      "graphite": 79.0,
+      "SiOx": 0.0,
+      "CBD": 7.3
+     }
+    }
+   ],
+   "reconstruction_error": 4.618527782440651e-14,
+   "shortcut_alarm": false
+  },
+  "map_text": {
+   "evidence_by_phase": {
+    "positive": {
+     "pore": {
+      "share_pct": 24.9,
+      "enrichment_vs_area": 1.27
+     },
+     "graphite": {
+      "share_pct": 50.2,
+      "enrichment_vs_area": 0.81
+     },
+     "SiOx": {
+      "share_pct": 4.5,
+      "enrichment_vs_area": 0.85
+     },
+     "CBD": {
+      "share_pct": 19.8,
+      "enrichment_vs_area": 1.48
+     }
+    },
+    "negative": {
+     "pore": {
+      "share_pct": 5.8,
+      "enrichment_vs_area": 0.29
+     },
+     "graphite": {
+      "share_pct": 86.2,
+      "enrichment_vs_area": 1.4
+     },
+     "SiOx": {
+      "share_pct": 2.3,
+      "enrichment_vs_area": 0.43
+     },
+     "CBD": {
+      "share_pct": 5.0,
+      "enrichment_vs_area": 0.37
+     }
+    },
+    "area_pct": {
+     "pore": 19.6,
+     "graphite": 61.7,
+     "SiOx": 5.2,
+     "CBD": 13.4
+    },
+    "positive_share_of_total_evidence_pct": 52.8
+   },
+   "evidence_by_region": {
+    "positive": {
+     "top-left": {
+      "share_pct": 11.1,
+      "area_pct": 10.8,
+      "enrichment": 1.03
+     },
+     "top-centre": {
+      "share_pct": 10.2,
+      "area_pct": 10.8,
+      "enrichment": 0.94
+     },
+     "top-right": {
+      "share_pct": 9.7,
+      "area_pct": 10.9,
+      "enrichment": 0.89
+     },
+     "middle-left": {
+      "share_pct": 10.4,
+      "area_pct": 11.2,
+      "enrichment": 0.93
+     },
+     "middle-centre": {
+      "share_pct": 11.2,
+      "area_pct": 11.2,
+      "enrichment": 1.0
+     },
+     "middle-right": {
+      "share_pct": 13.2,
+      "area_pct": 11.4,
+      "enrichment": 1.16
+     },
+     "bottom-left": {
+      "share_pct": 11.3,
+      "area_pct": 11.2,
+      "enrichment": 1.01
+     },
+     "bottom-centre": {
+      "share_pct": 12.0,
+      "area_pct": 11.2,
+      "enrichment": 1.07
+     },
+     "bottom-right": {
+      "share_pct": 10.9,
+      "area_pct": 11.4,
+      "enrichment": 0.96
+     }
+    },
+    "negative": {
+     "top-left": {
+      "share_pct": 8.9,
+      "area_pct": 10.8,
+      "enrichment": 0.82
+     },
+     "top-centre": {
+      "share_pct": 12.0,
+      "area_pct": 10.8,
+      "enrichment": 1.11
+     },
+     "top-right": {
+      "share_pct": 12.8,
+      "area_pct": 10.9,
+      "enrichment": 1.17
+     },
+     "middle-left": {
+      "share_pct": 11.3,
+      "area_pct": 11.2,
+      "enrichment": 1.01
+     },
+     "middle-centre": {
+      "share_pct": 11.3,
+      "area_pct": 11.2,
+      "enrichment": 1.01
+     },
+     "middle-right": {
+      "share_pct": 9.5,
+      "area_pct": 11.4,
+      "enrichment": 0.84
+     },
+     "bottom-left": {
+      "share_pct": 10.7,
+      "area_pct": 11.2,
+      "enrichment": 0.95
+     },
+     "bottom-centre": {
+      "share_pct": 11.4,
+      "area_pct": 11.2,
+      "enrichment": 1.02
+     },
+     "bottom-right": {
+      "share_pct": 12.2,
+      "area_pct": 11.4,
+      "enrichment": 1.08
+     }
+    }
+   },
+   "spatial": {
+    "grid_3x3_pct": {
+     "top-left": {
+      "pore": 20.8,
+      "graphite": 50.6,
+      "SiOx": 14.0,
+      "CBD": 14.6
+     },
+     "top-centre": {
+      "pore": 13.0,
+      "graphite": 68.1,
+      "SiOx": 3.8,
+      "CBD": 15.1
+     },
+     "top-right": {
+      "pore": 11.3,
+      "graphite": 71.1,
+      "SiOx": 4.4,
+      "CBD": 13.2
+     },
+     "middle-left": {
+      "pore": 17.7,
+      "graphite": 65.8,
+      "SiOx": 3.9,
+      "CBD": 12.5
+     },
+     "middle-centre": {
+      "pore": 23.6,
+      "graphite": 61.0,
+      "SiOx": 1.1,
+      "CBD": 14.3
+     },
+     "middle-right": {
+      "pore": 21.3,
+      "graphite": 55.4,
+      "SiOx": 5.3,
+      "CBD": 18.0
+     },
+     "bottom-left": {
+      "pore": 23.3,
+      "graphite": 62.3,
+      "SiOx": 4.0,
+      "CBD": 10.4
+     },
+     "bottom-centre": {
+      "pore": 26.2,
+      "graphite": 60.8,
+      "SiOx": 1.6,
+      "CBD": 11.5
+     },
+     "bottom-right": {
+      "pore": 20.1,
+      "graphite": 60.2,
+      "SiOx": 9.3,
+      "CBD": 10.3
+     }
+    },
+    "notable_regions": [
+     {
+      "region": "top-left",
+      "phase": "SiOx",
+      "region_pct": 14.0,
+      "image_pct": 5.3,
+      "direction": "enriched"
+     },
+     {
+      "region": "top-right",
+      "phase": "pore",
+      "region_pct": 11.3,
+      "image_pct": 19.7,
+      "direction": "depleted"
+     },
+     {
+      "region": "top-centre",
+      "phase": "pore",
+      "region_pct": 13.0,
+      "image_pct": 19.7,
+      "direction": "depleted"
+     },
+     {
+      "region": "bottom-centre",
+      "phase": "pore",
+      "region_pct": 26.2,
+      "image_pct": 19.7,
+      "direction": "enriched"
+     },
+     {
+      "region": "middle-right",
+      "phase": "CBD",
+      "region_pct": 18.0,
+      "image_pct": 13.3,
+      "direction": "enriched"
+     },
+     {
+      "region": "middle-centre",
+      "phase": "SiOx",
+      "region_pct": 1.1,
+      "image_pct": 5.3,
+      "direction": "depleted"
+     }
+    ],
+    "top_to_bottom_pct": {
+     "top": {
+      "pore": 15.0,
+      "graphite": 63.3,
+      "SiOx": 7.4,
+      "CBD": 14.3
+     },
+     "middle": {
+      "pore": 20.9,
+      "graphite": 60.7,
+      "SiOx": 3.4,
+      "CBD": 15.0
+     },
+     "bottom": {
+      "pore": 23.2,
+      "graphite": 61.1,
+      "SiOx": 5.0,
+      "CBD": 10.7
+     }
+    },
+    "image_mean_pct": {
+     "pore": 19.7,
+     "graphite": 61.7,
+     "SiOx": 5.3,
+     "CBD": 13.3
+    }
+   },
+   "objects": {
+    "largest_pores": [
+     {
+      "area_um2": 332.87,
+      "length_um": 87.58,
+      "width_um": 24.32,
+      "orientation": "horizontal",
+      "location": "bottom-centre",
+      "centre_um": [
+       71.4,
+       36.0
+      ]
+     },
+     {
+      "area_um2": 287.92,
+      "length_um": 69.5,
+      "width_um": 19.53,
+      "orientation": "horizontal",
+      "location": "bottom-right",
+      "centre_um": [
+       125.4,
+       38.2
+      ]
+     },
+     {
+      "area_um2": 51.62,
+      "length_um": 17.06,
+      "width_um": 7.55,
+      "orientation": "horizontal",
+      "location": "bottom-centre",
+      "centre_um": [
+       85.1,
+       48.8
+      ]
+     }
+    ],
+    "largest_SiOx_particles": [
+     {
+      "area_um2": 29.52,
+      "diameter_um": 6.13,
+      "location": "top-left",
+      "centre_um": [
+       27.3,
+       7.5
+      ]
+     },
+     {
+      "area_um2": 29.41,
+      "diameter_um": 6.12,
+      "location": "top-left",
+      "centre_um": [
+       33.7,
+       11.2
+      ]
+     },
+     {
+      "area_um2": 25.82,
+      "diameter_um": 5.73,
+      "location": "middle-right",
+      "centre_um": [
+       124.5,
+       29.7
+      ]
+     }
+    ],
+    "SiOx_particle_count": 120,
+    "SiOx_clark_evans": 0.87,
+    "SiOx_arrangement": "roughly random",
+    "SiOx_count_by_region": {
+     "top-left": 19,
+     "top-right": 15,
+     "top-centre": 15,
+     "middle-left": 11,
+     "middle-right": 12,
+     "middle-centre": 9,
+     "bottom-right": 12,
+     "bottom-centre": 8,
+     "bottom-left": 19
+    }
+   },
+   "evidence_regions": {
+    "positive": [
+     {
+      "location": "top-left",
+      "share_of_evidence_pct": 0.3,
+      "bbox_um": [
+       6.3,
+       0.0,
+       11.9,
+       2.1
+      ],
+      "local_phase_pct": {
+       "pore": 26.3,
+       "graphite": 46.7,
+       "SiOx": 11.6,
+       "CBD": 15.4
+      },
+      "dominant_phase": "graphite"
+     },
+     {
+      "location": "top-centre",
+      "share_of_evidence_pct": 0.2,
+      "bbox_um": [
+       77.0,
+       0.0,
+       83.3,
+       1.4
+      ],
+      "local_phase_pct": {
+       "pore": 43.9,
+       "graphite": 34.6,
+       "SiOx": 0.0,
+       "CBD": 21.6
+      },
+      "dominant_phase": "pore"
+     },
+     {
+      "location": "bottom-centre",
+      "share_of_evidence_pct": 0.2,
+      "bbox_um": [
+       89.6,
+       36.4,
+       91.7,
+       40.6
+      ],
+      "local_phase_pct": {
+       "pore": 0.0,
+       "graphite": 100.0,
+       "SiOx": 0.0,
+       "CBD": 0.0
+      },
+      "dominant_phase": "graphite"
+     }
+    ],
+    "negative": [
+     {
+      "location": "top-left",
+      "share_of_evidence_pct": 1.0,
+      "bbox_um": [
+       40.6,
+       12.6,
+       46.2,
+       20.3
+      ],
+      "local_phase_pct": {
+       "pore": 14.0,
+       "graphite": 80.6,
+       "SiOx": 0.0,
+       "CBD": 5.4
+      },
+      "dominant_phase": "graphite"
+     },
+     {
+      "location": "bottom-right",
+      "share_of_evidence_pct": 0.5,
+      "bbox_um": [
+       128.1,
+       46.2,
+       132.3,
+       51.1
+      ],
+      "local_phase_pct": {
+       "pore": 2.3,
+       "graphite": 97.1,
+       "SiOx": 0.0,
+       "CBD": 0.5
+      },
+      "dominant_phase": "graphite"
+     },
+     {
+      "location": "bottom-centre",
+      "share_of_evidence_pct": 0.5,
+      "bbox_um": [
+       110.6,
+       48.3,
+       116.9,
+       51.8
+      ],
+      "local_phase_pct": {
+       "pore": 13.0,
+       "graphite": 84.8,
+       "SiOx": 0.0,
+       "CBD": 2.2
+      },
+      "dominant_phase": "graphite"
+     }
+    ]
+   },
+   "sentences": [
+    "DINOv2 evidence map: 50 % of the evidence for Batch_3 (over Batch_2) lies on graphite, which covers 62 % of the image.",
+    "DINOv2 evidence for the prediction is concentrated on binder (1.5x its share of the image).",
+    "DINOv2 evidence map: 86 % of the evidence against Batch_3 (for Batch_2) lies on graphite.",
+    "In the DINOv2 evidence map alone, 53 % of all evidence points toward Batch_3 (the DINOv2 head is only one part of the material side).",
+    "SiOx is enriched in the top-left of the image (14 % vs 5 % overall).",
+    "Pores are depleted in the top-right of the image (11 % vs 20 % overall).",
+    "Pores are depleted in the top-centre of the image (13 % vs 20 % overall).",
+    "Pores change through the thickness: 15 % in the top third vs 23 % in the bottom third.",
+    "SiOx changes through the thickness: 7 % in the top third vs 5 % in the bottom third.",
+    "Binder changes through the thickness: 14 % in the top third vs 11 % in the bottom third.",
+    "The largest pore (332.9 um^2, 87.6 x 24.3 um, horizontal) is in the bottom-centre.",
+    "The largest SiOx particle (6.1 um across) is in the top-left.",
+    "The 120 SiOx particles are roughly random (Clark-Evans index 0.87)."
+   ],
+   "notes": "Image vertical = through-thickness direction of the electrode; locations use a 3 x 3 grid (top/middle/bottom x left/centre/right). Evidence = the batch model's DINO-head contribution map (winner minus runner-up)."
+  },
+  "what_this_is": "material model: 5 segmentation features (S head) + DINOv2 texture head, fused"
+ },
+ "inputs": {
+  "BSE": "github/London-AI-x-Science-Hackathon/data/raw/unknown/img_xrv9xvzb_BSE.tif",
+  "Inlens": "github/London-AI-x-Science-Hackathon/data/raw/unknown/img_xrv9xvzb_Inlens.tif",
+  "detectors_used": [
+   "BSE",
+   "Inlens"
+  ]
+ },
+ "qc": {
+  "excluded_pct": 0.99,
+  "cu_foil_detected": false,
+  "manual_exclusion": false,
+  "detectors_used": [
+   "BSE",
+   "Inlens"
+  ]
+ },
+ "acquisition": {
+  "probes": {
+   "height_px": 2088.0,
+   "width_px": 7000.0,
+   "bse_p1": 6.0,
+   "bse_p50": 59.0,
+   "bse_p99": 120.0,
+   "inlens_p1": 22.0,
+   "inlens_p50": 123.0,
+   "inlens_p99": 255.0,
+   "bse_noise_sigma": 6.289,
+   "inlens_sharpness": 44.417,
+   "inlens_banding_power": 1.954,
+   "excluded_frac": 0.01,
+   "bse_file_mb": 15.968
+  },
+  "nearest_training_acquisition": {
+   "sample_id": "9luzk4jm",
+   "batch": "Batch_3",
+   "height_group": "h2088",
+   "distance_z": 0.25
+  },
+  "novel_acquisition": false,
+  "warning": "acquisition properties alone predict batch at 0.68 balanced accuracy in training; a prediction that matches the nearest-acquisition batch may reflect imaging session, not material"
+ },
+ "novelty": {
+  "unusual_features_abs_robust_z_ge_3": [],
+  "novel_acquisition": false
+ },
+ "timings_s": {
+  "read_preprocess_s": 1.55,
+  "segmentation_s": 1.22,
+  "features_s": 2.54,
+  "dino_s": 1.23,
+  "fingerprint_s": 7.03,
+  "classify_explain_s": 1.93,
+  "known_location_s": 1.59,
+  "texture_s": 9.87,
+  "get4_range_rule_s": 1.23,
+  "total_s": 31.46
+ }
+}

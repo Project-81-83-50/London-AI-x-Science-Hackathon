@@ -10,8 +10,18 @@ import Tabs from "./components/Tabs";
 import { tabPanelProps } from "./lib/tabPanel";
 import TopBar from "./components/TopBar";
 import UnknownBatch from "./features/unknown/UnknownBatch";
-import UploadPanel from "./features/unknown/UploadPanel";
 import { UNKNOWN_BATCH, batchLabel, isUnknownBatch } from "./lib/batchLabel";
+import DemoPage from "./features/v3live/DemoPage";
+import PipelinePage from "./features/v3live/PipelinePage";
+import V3UnknownCalls from "./features/v3live/V3UnknownCalls";
+
+// Pages: the batch workspace (default), the v3 Demo and the v3 Pipeline view (#demo, #pipeline/<run>).
+function routeFromHash() {
+  const hash = window.location.hash.replace(/^#/, "");
+  if (hash.startsWith("demo")) return { page: "demo", run: "" };
+  if (hash.startsWith("pipeline")) return { page: "pipeline", run: hash.split("/")[1] || "" };
+  return { page: "batches", run: "" };
+}
 
 // Vite reads VITE_ variables at build/start time; change this in frontend/.env.
 const API_URL = (
@@ -26,17 +36,20 @@ const referenceViews = [
   { id: "detailed", label: "Detailed report" },
   { id: "uncertainty", label: "Uncertainty (GET4)" },
 ];
-// Both sets of reports are built on lucas-sem-analysis v3's segmentation; the unknown set is segmented by v3's
-// CPU-trained teacher (analysis.v3_unknown) and adds classification and upload.
+// Reference batches show their images and reports; the unknown batch shows its images and the batch call for each
+// location (Classification). New locations go through the Demo page.
 const unknownViews = [
   { id: "images", label: "Images" },
-  { id: "general", label: "General report" },
-  { id: "detailed", label: "Detailed report" },
   { id: "classification", label: "Classification" },
-  { id: "upload", label: "Upload" },
 ];
 
 function App() {
+  const [route, setRoute] = useState(routeFromHash);
+  useEffect(() => {
+    const onHash = () => { setRoute(routeFromHash()); window.scrollTo(0, 0); };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
   const [apiRecords, setApiRecords] = useState([]);
   const [apiState, setApiState] = useState("loading");
   const [apiError, setApiError] = useState("");
@@ -119,8 +132,7 @@ function App() {
   }, [selectedReferenceBatch, imagesVersion]);
 
   useEffect(() => {
-    // GET4 reports exist only for the reference batches.
-    if (!selectedReferenceBatch || isUnknownBatch(selectedReferenceBatch)) return undefined;
+    if (!selectedReferenceBatch) return undefined;
 
     const controller = new AbortController();
     fetch(
@@ -154,7 +166,7 @@ function App() {
         }
       });
     return () => controller.abort();
-  }, [selectedReferenceBatch, analysisDetector]);
+  }, [selectedReferenceBatch, analysisDetector, analysisVersion]);
 
   function selectReferenceBatch(batch) {
     if (selectedReferenceBatch === batch) {
@@ -172,7 +184,7 @@ function App() {
     setReferenceImageState("loading");
     setUncertaintyReport(null);
     setUncertaintyError("");
-    setUncertaintyState(isUnknownBatch(batch) ? "idle" : "loading");
+    setUncertaintyState("loading");
     setSelectedReferenceBatch(batch);
   }
 
@@ -194,8 +206,11 @@ function App() {
   return (
     <main className="app-shell">
       <PointNetwork />
-      <TopBar />
+      <TopBar page={route.page} />
 
+      {route.page === "demo" && <DemoPage apiUrl={API_URL} />}
+      {route.page === "pipeline" && <PipelinePage apiUrl={API_URL} run={route.run} />}
+      {route.page === "batches" && (
       <div className="content-wrap" id="overview">
         <section className="page-heading">
           <div>
@@ -248,7 +263,7 @@ function App() {
           {!selectedReferenceBatch && (
             <p className="picker-hint">
               Select a reference batch to see its images and analysis reports, or Unknown to
-              classify, inspect and upload unknown images.
+              classify and inspect the unknown images. To test a new location, use the Demo page.
             </p>
           )}
           {selectedReferenceBatch && (
@@ -282,14 +297,10 @@ function App() {
                   <DetailedReport key={`detailed-${selectedReferenceBatch}-${analysisVersion}`} apiUrl={API_URL} batch={selectedReferenceBatch} />
                 )}
                 {activeView === "classification" && (
-                  <UnknownBatch key={analysisVersion} apiUrl={API_URL} />
-                )}
-                {activeView === "upload" && (
-                  <UploadPanel
-                    apiUrl={API_URL}
-                    onUploaded={refreshImages}
-                    onAnalysed={refreshAnalysis}
-                  />
+                  <>
+                    <V3UnknownCalls key={`v3-${analysisVersion}`} apiUrl={API_URL} />
+                    <UnknownBatch key={analysisVersion} apiUrl={API_URL} />
+                  </>
                 )}
                 {activeView === "uncertainty" && (
                   <>
@@ -316,10 +327,17 @@ function App() {
                         not counted as separate locations across filters.
                       </span>
                     </div>
+                    {analysisDetector === "BSE" && (
+                      <p className="notice">
+                        These phases are brightness classes: "pore" counts only the BSE-dark (deep) pores, and
+                        grey-floored open pores fall into "graphite". For the four-phase machine-learning segmentation
+                        (pore, graphite, SiOx, binder) see the General report.
+                      </p>
+                    )}
                     <Get4Results
-                      key={`${selectedReferenceBatch}-${analysisDetector}`}
+                      key={`${selectedReferenceBatch}-${analysisDetector}-${analysisVersion}`}
                       report={uncertaintyReport}
-                      batchLabel={`Batch ${selectedReferenceBatch}`}
+                      batchLabel={batchLabel(selectedReferenceBatch)}
                       title="GET4 uncertainty results"
                       loading={uncertaintyState === "loading"}
                       error={uncertaintyState === "error" ? uncertaintyError : ""}
@@ -385,6 +403,7 @@ function App() {
           classifications are inferred; matching needs analysis evidence.
         </p>
       </div>
+      )}
 
       <footer className="footer">
         <span>EM QC / IMAGE PROVENANCE WORKSPACE</span>
