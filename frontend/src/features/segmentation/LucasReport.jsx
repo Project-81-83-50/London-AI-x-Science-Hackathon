@@ -42,7 +42,20 @@ function PhaseTiles({ stats }) {
   );
 }
 
-function CompositionBars({ samples }) {
+export function PhaseLegend() {
+  return (
+    <ul className="kpi-legend" aria-label="Phase legend">
+      {PHASES.map((p) => (
+        <li key={p.key}>
+          <span className="kpi-swatch" style={{ background: p.color }} />
+          {p.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function CompositionBars({ samples }) {
   const { frame, handlers, layer, width } = useTooltip();
   const labelWidth = 92;
   const valueWidth = 110;
@@ -101,56 +114,75 @@ function CompositionBars({ samples }) {
   );
 }
 
-function BatchIdTable({ samples, batch, reference }) {
-  const scored = samples.filter((s) => s.batch_id.loo_predicted);
-  const correct = scored.filter((s) => s.batch_id.correct).length;
+const ANSWER_LABEL = { specific: "", pair: "either", unsure: "unsure" };
+
+function answerText(decision) {
+  if (!decision) return "—";
+  if (decision.answer_type === "unsure") return "Unsure";
+  return decision.answer.replaceAll("_", " ");
+}
+
+// v3's batch decision per location: the imaging-fingerprint and material models combined by agreement.
+export function DecisionTable({ samples, batch, trackRecord }) {
+  const answered = samples.filter((s) => s.decision && s.decision.answer_type !== "unsure");
+  const right = answered.filter((s) => s.decision.correct).length;
+  const overall = trackRecord?.accuracy_when_answering;
   return (
     <div className="kpi-card">
       <div className="kpi-card-heading">
-        <h3>Batch identification (leave-one-out)</h3>
+        <h3>Batch decision (leave-one-location-out)</h3>
         <span className="kpi-card-note">
-          {correct} of {scored.length} samples assigned to Batch {batch} when held out
-          {reference ? ` · model balanced accuracy ${reference.LOO_F}` : ""}
+          Batch {batch}: {answered.length} of {samples.length} locations answered, {right} right
+          {trackRecord ? ` · all batches: answers ${trackRecord.coverage}, ${overall?.correct} right when answering` : ""}
         </span>
       </div>
       <p className="kpi-card-note">
-        Each sample is predicted by a model trained without it. Imaging session alone predicts
-        batch at {reference?.nuisance_only_LOO ?? "0.68"} balanced accuracy, so a correct
-        prediction may reflect the session rather than the material.
+        Each location is decided with models trained without it. An imaging-fingerprint model (noise, banding,
+        grey levels) and a material model (segmentation + DINOv2) must agree; when they point to Batch 1 and
+        Batch 2 differently the answer is “Batch 1 or Batch 2”, otherwise “unsure”. Batches 1 and 2 look alike in
+        this data, and the fingerprint reads how an image was taken, so treat answers as leads.
       </p>
       <div className="kpi-table-scroll">
         <table className="kpi-table">
           <thead>
             <tr>
-              <th scope="col">Sample</th>
+              <th scope="col">Location</th>
               <th scope="col">Session</th>
-              <th scope="col">Predicted</th>
-              <th scope="col">P(Batch {batch})</th>
-              <th scope="col">Result</th>
+              <th scope="col">Answer</th>
               <th scope="col">Confidence</th>
+              <th scope="col">Imaging / material pick</th>
+              <th scope="col">Result</th>
             </tr>
           </thead>
           <tbody>
-            {samples.map((s) => (
-              <tr key={s.sample_id}>
-                <th scope="row">{s.sample_id}</th>
-                <td>{s.session}</td>
-                <td>{s.batch_id.loo_predicted?.replace("_", " ") ?? "—"}</td>
-                <td className="kpi-num">
-                  {s.batch_id.loo_probabilities
-                    ? s.batch_id.loo_probabilities[`Batch_${batch}`].toFixed(2)
-                    : "—"}
-                </td>
-                <td>
-                  <span
-                    className={`kpi-chip ${s.batch_id.correct ? "" : "kpi-chip-variable"}`}
-                  >
-                    {s.batch_id.correct ? "✓ correct" : "✗ wrong batch"}
-                  </span>
-                </td>
-                <td>{s.batch_id.confidence ?? "—"}</td>
-              </tr>
-            ))}
+            {samples.map((s) => {
+              const d = s.decision;
+              const result = !d ? "—" : d.answer_type === "unsure" ? "abstained" : d.correct ? "✓ right" : "✗ wrong";
+              return (
+                <tr key={s.sample_id}>
+                  <th scope="row">
+                    <span>{s.sample_id}</span>
+                    {d?.reasons?.length > 0 && <small>{d.reasons.join("; ")}</small>}
+                  </th>
+                  <td>{s.session}</td>
+                  <td>
+                    {answerText(d)}
+                    {d && ANSWER_LABEL[d.answer_type] === "either" ? " (either)" : ""}
+                  </td>
+                  <td>{d?.confidence ?? "—"}</td>
+                  <td>
+                    {d ? `${d.imaging_side_pick?.replace("_", " ") ?? "—"} / ${d.material_side_pick?.replace("_", " ") ?? "—"}` : "—"}
+                  </td>
+                  <td>
+                    <span
+                      className={`kpi-chip ${d?.correct === false ? "kpi-chip-variable" : d?.answer_type === "unsure" ? "kpi-chip-moderate" : ""}`}
+                    >
+                      {result}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -164,13 +196,13 @@ function LucasReport({ apiUrl, batch }) {
   if (report.status === "loading")
     return (
       <div className="notice" role="status">
-        Loading lucas-sem-analysis results for Batch {batch}…
+        Loading the further analysis for Batch {batch}…
       </div>
     );
   if (report.status === "error")
     return (
       <div className="notice notice-error" role="alert">
-        Could not load lucas-sem-analysis results for Batch {batch} ({report.error}).
+        Could not load the further analysis for Batch {batch} ({report.error}).
       </div>
     );
   const data = report.data;
@@ -179,8 +211,8 @@ function LucasReport({ apiUrl, batch }) {
     <section className="section-block kpi-report" aria-labelledby="lucas-report-title">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">LUCAS-SEM-ANALYSIS / BATCH {data.batch_id}</p>
-          <h2 id="lucas-report-title">Batch {data.batch_id} four-phase segmentation</h2>
+          <p className="eyebrow">FURTHER ANALYSIS / LUCAS-SEM-ANALYSIS V3 / BATCH {data.batch_id}</p>
+          <h2 id="lucas-report-title">Further analysis: four-phase segmentation and batch decision</h2>
         </div>
         <span className="section-count">
           {data.samples.length} SAMPLES · {overlays} OVERLAYS
@@ -189,10 +221,12 @@ function LucasReport({ apiUrl, batch }) {
 
       <div className="kpi-card">
         <p className="kpi-card-note lucas-intro">
-          Label-free segmentation into pore, graphite, SiOx and carbon-binder domain (CBD) from the BSE
-          and InLens images of data/raw/batch_{data.batch_id}. Phase fractions are Lucas&apos;s delivered
-          U-Net results, computed on byte-identical copies of these files. Independent accuracy check:
-          82% of random points agree (CBD precision 0.50, so CBD and pore are the least certain classes).
+          A deeper follow-up to the KPI report. lucas-sem-analysis v3 segments each location&apos;s BSE and
+          InLens images into four phases with a machine-learning model (pore, including open grey-floored
+          pores; graphite; SiOx; carbon-binder domain, CBD), then decides the batch with two independent
+          models. Results are Lucas&apos;s committed v3 outputs for data/raw/batch_{data.batch_id}. Pore,
+          carbon and SiOx agree with an independent annotator 87% of the time; the graphite-vs-binder split
+          is experimental (binder precision about 50%).
         </p>
       </div>
 
@@ -205,14 +239,7 @@ function LucasReport({ apiUrl, batch }) {
       <div className="kpi-card">
         <div className="kpi-card-heading">
           <h3>Composition by sample</h3>
-          <ul className="kpi-legend" aria-label="Phase legend">
-            {PHASES.map((p) => (
-              <li key={p.key}>
-                <span className="kpi-swatch" style={{ background: p.color }} />
-                {p.label}
-              </li>
-            ))}
-          </ul>
+          <PhaseLegend />
         </div>
         <CompositionBars samples={data.samples} />
         <details className="kpi-table-toggle">
@@ -256,7 +283,7 @@ function LucasReport({ apiUrl, batch }) {
         </details>
       </div>
 
-      <BatchIdTable samples={data.samples} batch={data.batch_id} reference={data.batch_id_reference} />
+      <DecisionTable samples={data.samples} batch={data.batch_id} trackRecord={data.decision_track_record} />
 
       <div className="kpi-card">
         <div className="kpi-card-heading">

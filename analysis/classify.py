@@ -6,12 +6,16 @@ Classify the locations in data/raw/unknown as reference batch 1, 2 or 3.
    produced the reference KPIs), giving data/processed/batch_kpis/batch_unknown/.
 2. Duplicate check: every unknown image is compared with every reference image (file hash and
    phase-correlation of edge maps). A same-field match would identify the batch directly.
-3. Classifier, declared once and not tuned on the references: the FEATURES below, standardised on
-   the reference locations, and a Gaussian class model with per-feature pooled within-batch variance
-   and equal batch priors (diagonal LDA). Its probabilities are a softmax of -1/2 the squared
-   standardised distance to each batch mean.
-4. Honesty checks on the references: leave-one-location-out balanced accuracy, per-batch recall and
-   confusion matrix, and a label-permutation test of that accuracy.
+3. Classifier: a Gaussian class model with per-feature pooled within-batch variance and equal batch
+   priors (diagonal LDA) on standardised BSE KPIs. Which KPIs it uses is part of the fitted model,
+   not a hand-picked list: the candidate KPIs are ranked by their between-/within-batch variance
+   ratio (one-way ANOVA F) on the training locations, and the number kept, k from K_GRID, is the one
+   with the best inner leave-one-out balanced accuracy (ties go to the smaller k). Probabilities are
+   a softmax of -1/2 the squared standardised distance to each batch mean.
+4. Honesty checks on the references, with the whole procedure (ranking, choice of k, fit) repeated
+   without the held-out location: nested leave-one-location-out balanced accuracy, per-batch recall,
+   confusion matrix, which KPIs each fold chose, and a label-permutation test of the full procedure
+   (cached in reference_validation.json; recomputed only when the reference KPIs change).
 5. Session hint, kept separate from the material evidence: reference batches imaged at the same
    image height (image height marks the imaging session in this dataset).
 
@@ -38,10 +42,16 @@ ROOT = Path(__file__).resolve().parents[1]
 KPI_DIR = ROOT / "data" / "processed" / "batch_kpis"
 OUT = ROOT / "data" / "processed" / "classification" / "unknown.json"
 BATCHES = ["1", "2", "3"]
-# Pre-declared material features (BSE segmentation KPIs); no acquisition properties.
-FEATURES = ["porosity", "bright_fraction", "bright_area_d50", "pore_ecd_area_d50",
-            "graphite_chord_x", "graphite_orientation", "pore_interface_density", "crack_share"]
-N_PERMUTATIONS = 500
+VALIDATION_CACHE = OUT.parent / "reference_validation.json"
+# Candidate material features: every BSE segmentation KPI (no acquisition properties). The model keeps the
+# K_GRID size that classifies held-out training locations best; see SelectedDLDA.
+FEATURES = list(batch_kpis.KPI_INDEX)
+K_GRID = (1, 2, 3, 4, 6, 8, 12)
+# The previous fixed eight-KPI model, kept only to report how much the feature selection changed.
+PREVIOUS_FEATURES = ["porosity", "bright_fraction", "bright_area_d50", "pore_ecd_area_d50",
+                     "graphite_chord_x", "graphite_orientation", "pore_interface_density", "crack_share"]
+N_PERMUTATIONS = 200
+PROCEDURE = "selected-dlda-v1"  # bump when the procedure changes, to invalidate the validation cache
 
 
 def load_locations(batch, include_all=False):
@@ -86,13 +96,92 @@ def balanced_accuracy(y, pred):
     return float(np.mean([np.mean(pred[y == c] == c) for c in sorted(set(y))]))
 
 
+def anova_rank(X, y):
+    """Feature indices, most batch-separating first (one-way ANOVA F; scale-free)."""
+    classes = sorted(set(y))
+    grand = X.mean(0)
+    between = sum(np.sum(y == c) * (X[y == c].mean(0) - grand) ** 2 for c in classes) / (len(classes) - 1)
+    within = sum(((X[y == c] - X[y == c].mean(0)) ** 2).sum(0) for c in classes) / (len(y) - len(classes))
+    return np.argsort(-(between / (within + 1e-12)), kind="stable")
+
+
+def _predict(X_train, y_train, X_test):
+    m = DiagonalLDA().fit(X_train, y_train)
+    return np.array(m.classes)[np.argmax(m.proba(X_test), 1)]
+
+
+class SelectedDLDA:
+    """Diagonal LDA on the k most batch-separating KPIs, with k chosen by inner leave-one-out."""
+
+    def fit(self, X, y):
+        n = len(y)
+        inner = {k: np.empty_like(y) for k in K_GRID}
+        for j in range(n):
+            keep = np.arange(n) != j
+            order = anova_rank(X[keep], y[keep])
+            for k in K_GRID:
+                cols = order[:k]
+                inner[k][j] = _predict(X[keep][:, cols], y[keep], X[j:j + 1, cols])[0]
+        self.inner_scores = {k: balanced_accuracy(y, inner[k]) for k in K_GRID}
+        self.k = max(K_GRID, key=lambda k: (self.inner_scores[k], -k))
+        self.cols = anova_rank(X, y)[:self.k]
+        self.model = DiagonalLDA().fit(X[:, self.cols], y)
+        self.classes = self.model.classes
+        return self
+
+    def proba(self, X):
+        return self.model.proba(np.atleast_2d(X)[:, self.cols])
+
+
 def leave_one_out(X, y):
-    pred = np.empty_like(y)
+    """Held-out prediction for every location, refitting the whole procedure without it."""
+    pred, chosen = np.empty_like(y), []
     for i in range(len(y)):
         keep = np.arange(len(y)) != i
-        m = DiagonalLDA().fit(X[keep], y[keep])
+        m = SelectedDLDA().fit(X[keep], y[keep])
         pred[i] = m.classes[int(np.argmax(m.proba(X[i])))]
-    return pred
+        chosen.append(tuple(FEATURES[c] for c in m.cols))
+    return pred, chosen
+
+
+def reference_validation(X, y):
+    """Nested LOO and the permutation test of the full procedure; cached, since a permutation test of a
+    nested procedure takes minutes and the references rarely change."""
+    key = hashlib.sha256(np.ascontiguousarray(X).tobytes() + "".join(y).encode() + PROCEDURE.encode()
+                         + str(N_PERMUTATIONS).encode()).hexdigest()
+    if VALIDATION_CACHE.is_file():
+        cached = json.loads(VALIDATION_CACHE.read_text(encoding="utf-8"))
+        if cached.get("key") == key:
+            return cached
+    loo, chosen = leave_one_out(X, y)
+    loo_bacc = balanced_accuracy(y, loo)
+    print(f"nested LOO balanced accuracy {loo_bacc:.3f}; permutation test of the full procedure "
+          f"({N_PERMUTATIONS} label shuffles, a few minutes) ...", flush=True)
+    rng = np.random.default_rng(0)
+    null = []
+    for n, yp in enumerate(rng.permutation(y) for _ in range(N_PERMUTATIONS)):
+        null.append(balanced_accuracy(yp, leave_one_out(X, yp)[0]))
+        if (n + 1) % 50 == 0:
+            print(f"  {n + 1}/{N_PERMUTATIONS}", flush=True)
+    prev = [FEATURES.index(f) for f in PREVIOUS_FEATURES]
+    everyone = np.arange(len(y))
+    prev_pred = np.array([_predict(X[everyone != i][:, prev], y[everyone != i], X[i:i + 1, prev])[0]
+                          for i in everyone])
+    stability = {}
+    for c in chosen:
+        stability[", ".join(c)] = stability.get(", ".join(c), 0) + 1
+    result = {
+        "key": key,
+        "loo": loo.tolist(),
+        "loo_balanced_accuracy": loo_bacc,
+        "permutation_p": float((1 + np.sum(np.array(null) >= loo_bacc)) / (1 + N_PERMUTATIONS)),
+        "null_mean": float(np.mean(null)),
+        "features_chosen_per_fold": dict(sorted(stability.items(), key=lambda kv: -kv[1])),
+        "previous_model_loo_balanced_accuracy": balanced_accuracy(y, prev_pred),
+    }
+    VALIDATION_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    VALIDATION_CACHE.write_text(json.dumps(result, indent=1), encoding="utf-8")
+    return result
 
 
 def image_height(path):
@@ -119,22 +208,24 @@ def main():
     unk_locs, unk_report = load_locations("unknown", include_all=True)
     U = matrix(unk_locs)
 
-    # Honesty checks on the references.
-    loo = leave_one_out(X, y)
-    loo_bacc = balanced_accuracy(y, loo)
-    rng = np.random.default_rng(0)
-    null = np.array([balanced_accuracy(yp, leave_one_out(X, yp))
-                     for yp in (rng.permutation(y) for _ in range(N_PERMUTATIONS))])
-    p_value = float((1 + np.sum(null >= loo_bacc)) / (1 + N_PERMUTATIONS))
+    # Honesty checks on the references (nested: the feature choice is refitted in every fold).
+    validation = reference_validation(X, y)
+    loo = np.array(validation["loo"])
+    loo_bacc, p_value = validation["loo_balanced_accuracy"], validation["permutation_p"]
     confusion = [[int(np.sum((y == t) & (loo == p))) for p in BATCHES] for t in BATCHES]
-    print(f"reference LOO balanced accuracy {loo_bacc:.2f} (chance 0.33, permutation p = {p_value:.3f})")
+    print(f"reference nested LOO balanced accuracy {loo_bacc:.2f} (chance 0.33, permutation p = {p_value:.3f}; "
+          f"previous fixed eight-KPI model {validation['previous_model_loo_balanced_accuracy']:.2f})")
 
-    model = DiagonalLDA().fit(X, y)
+    selected = SelectedDLDA().fit(X, y)
+    cols = selected.cols
+    used = [FEATURES[c] for c in cols]
+    model = selected.model
     # Unmeasurable KPIs take the reference mean: neutral evidence that favours no batch.
-    missing = [[FEATURES[k] for k in np.nonzero(np.isnan(row))[0]] for row in U]
-    U = np.where(np.isnan(U), model.mu, U)
-    probs = model.proba(U)
-    Zr, Zu = model.z(X), model.z(U)
+    missing = [[FEATURES[c] for c in cols if np.isnan(row[c])] for row in U]
+    U = np.where(np.isnan(U), X.mean(0), U)
+    probs = selected.proba(U)
+    Xs, Us = X[:, cols], U[:, cols]
+    Zr, Zu = model.z(Xs), model.z(Us)
 
     # Duplicate check and session hint.
     ref_files = sorted(p for b in BATCHES for p in batch_dir(b).glob("*.tif"))
@@ -158,10 +249,10 @@ def main():
             tier = "low"  # no BSE image: measured from a detector the model was not trained on
         mp, mr = model.means[order[0]], model.means[order[1]]
         contrib = 0.5 * ((Zu[i] - mr) ** 2 - (Zu[i] - mp) ** 2) / model.var
-        drivers = [{"feature": FEATURES[k], "name": batch_kpis.KPI_INDEX[FEATURES[k]][1],
-                    "unit": batch_kpis.KPI_INDEX[FEATURES[k]][2], "scale": batch_kpis.KPI_INDEX[FEATURES[k]][3],
-                    "value": float(U[i, k]),
-                    "batch_means": {c: float(X[y == c, k].mean()) for c in BATCHES},
+        drivers = [{"feature": used[k], "name": batch_kpis.KPI_INDEX[used[k]][1],
+                    "unit": batch_kpis.KPI_INDEX[used[k]][2], "scale": batch_kpis.KPI_INDEX[used[k]][3],
+                    "value": float(Us[i, k]),
+                    "batch_means": {c: float(Xs[y == c, k].mean()) for c in BATCHES},
                     "support": float(contrib[k])}
                    for k in np.argsort(-np.abs(contrib))[:4]]
         dist = np.sqrt((((Zr - Zu[i]) ** 2) / model.var).sum(1))
@@ -236,7 +327,7 @@ def main():
                 "batches": session_batches,
                 "agrees_with_prediction": session_batches == [decided] if session_batches else None,
             },
-            "kpis": {f: float(U[i, k]) for k, f in enumerate(FEATURES)},
+            "kpis": {f: float(Us[i, k]) for k, f in enumerate(used)},
             "unmeasured_kpis": missing[i],
         })
         print(f"{loc['location_id']}: batch {decided} ({source}; model batch {pred}, p={p[order[0]]:.2f}, {tier}); "
@@ -246,10 +337,14 @@ def main():
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source_folder": "data/raw/unknown",
         "method": {
-            "features": [{"id": f, "name": batch_kpis.KPI_INDEX[f][1]} for f in FEATURES],
-            "model": "Standardised BSE segmentation KPIs; Gaussian class model with shared diagonal "
-                     "variance and equal batch priors (diagonal LDA). One pre-declared configuration, "
-                     "not tuned on the references.",
+            "features": [{"id": f, "name": batch_kpis.KPI_INDEX[f][1]} for f in used],
+            "n_candidate_features": len(FEATURES),
+            "k_grid": list(K_GRID),
+            "inner_scores": {str(k): round(v, 3) for k, v in selected.inner_scores.items()},
+            "model": f"Diagonal LDA (shared diagonal variance, equal batch priors) on the {selected.k} of "
+                     f"{len(FEATURES)} standardised BSE KPIs that best separate the reference batches (ANOVA F); "
+                     "the number kept is chosen by inner leave-one-out, and the whole procedure is "
+                     "re-run inside every validation fold.",
             "decision_rule": "An exact copy of, or the same field as, a reference image decides the batch "
                              "(confidence high); otherwise the material-KPI model's top batch is used.",
             "confidence_rule": "high: top probability ≥ 0.75 and margin ≥ 0.40 (only if reference "
@@ -266,6 +361,11 @@ def main():
             "confusion_rows_true_cols_predicted": confusion,
             "permutation_p": round(p_value, 4),
             "n_permutations": N_PERMUTATIONS,
+            "permutation_null_mean": round(validation["null_mean"], 3),
+            "validation": "nested leave-one-location-out (feature ranking, choice of k and fit redone per fold)",
+            "features_chosen_per_fold": validation["features_chosen_per_fold"],
+            "previous_model": {"features": PREVIOUS_FEATURES,
+                               "loo_balanced_accuracy": round(validation["previous_model_loo_balanced_accuracy"], 3)},
         },
         "locations": results,
         "caveats": [

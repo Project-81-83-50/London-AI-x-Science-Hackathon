@@ -96,9 +96,64 @@ When a reference batch is selected in the frontend, its website-ready report is 
 
 Each batch is a separate battery, so reports do not compare one batch against another or use a cross-batch baseline. No accept/watch/reject verdict is assigned unless approved KPI limits are defined. Different detector views of one location are linked as related observations, not pooled as independent locations. BSE uses GET4's provisional pore/graphite/bright intensity segmentation; ETD, InLens, and other recognized detectors report low/mid/high intensity classes only, because the BSE material-phase labels are not validated for those filters. Inspect each segmentation plot before interpreting any fractions as material properties. The reports estimate segmentation/sampling uncertainty within each detector group; they do not prove a change in battery properties or match images to source batches.
 
-## Batch KPI reports
+## General and detailed reports (lucas-sem-analysis v3)
 
-`analysis/kpis.py` analyses each reference batch independently, without using GET4, and writes the report shown in the frontend when a reference batch is selected. Install its packages once, then run it from the repository root:
+For batches 1–3, the frontend's **General report** and **Detailed report** tabs are built on lucas-sem-analysis v3's machine-learning four-phase segmentation, not on the intensity classes of `analysis/kpis.py`. `analysis/v3_report.py` reads Lucas's committed v3 outputs, so it needs neither the v3 model weights nor a GPU, and writes one file per batch to `data/processed/v3_report/batch_N.json` (about 30 seconds):
+
+```powershell
+.\.venv\Scripts\python.exe -m analysis.v3_report
+```
+
+- **General report:** the batch at a glance.
+  - Composition as three phases: pore / carbon / SiOx. This split agrees with an independent annotator 87% of the time; binder precision is only about 0.5.
+  - A chart placing the batch against the other two on seven segmentation metrics.
+  - Plain-language key findings, each marked *holds within sessions* or *may be session*.
+  - Segmentation accuracy, v3's batch-decision record for the batch, and caveats.
+- **Detailed report:**
+  - **Every location:** three-phase fractions with v3's standard errors, four phases, deep/open pores, SiOx density, size and spacing, segmentation stability and v3's decision.
+  - **Every metric:** batch means ± SD, Kruskal-Wallis p with Benjamini-Hochberg q, a within-session permutation p, Holm-corrected pairwise p and Cliff's delta.
+  - **SiOx size distribution:** from v3's 4,587 measured particles.
+  - **Batch-decision table**, and v3's 35 threshold-based image KPIs as a supplement, with Lucas's session-sensitivity flags.
+
+A difference "holds within sessions" when it survives a test that shuffles batch labels only inside imaging sessions (image-height groups). On the current data only the pore fraction does: batch 1 has 14.3% pores, against 17.8% for batch 2 and 18.2% for batch 3. The route is `GET /batches/{batch_id}/v3-report`.
+
+### The unknown batch
+
+The unknown batch gets the same two reports, laid out like a reference batch's. Its locations are the report's own batch ("U" in the charts), shown against batches 1–3. A report is produced even when only one image has been uploaded. v3's delivered U-Net weights are a release asset that isn't in this repository, so `analysis/v3_unknown.py` segments the unknown images with v3's LightGBM **teacher** instead. Lucas's CPU pipeline rebuilds the teacher from his committed labels, with no API calls. Train it once, which takes about an hour on an 8-core laptop:
+
+```powershell
+cd lucas-sem-analysis-v3
+$env:SEM_WORKERS = 4
+..\.venv\Scripts\python.exe run_cpu_pipeline.py      # writes models/teacher_cpu.txt and the reference overlays
+cd ..
+.\.venv\Scripts\python.exe -m analysis.v3_unknown                  # segment + measure -> data/processed/v3_unknown/
+.\.venv\Scripts\python.exe -m analysis.v3_report --unknown-only    # -> data/processed/v3_report/batch_unknown.json
+```
+
+`analysis/v3_unknown.py` runs v3's own steps on each unknown BSE + InLens pair:
+
+1. normalisation, border and Cu-foil exclusion;
+2. 27 features per detector;
+3. the teacher;
+4. the SiOx physics constraint and clean-up;
+5. SiOx particle instances.
+
+The detectors come from the pixels, via `analysis/fields.py`. A location with only one usable image (BSE, InLens or ETD/SE) is segmented by a **one-detector model** distilled from the teacher:
+
+- It is trained on the teacher's confident pixels of the reference locations, with that detector's features only.
+- It is first fitted on v3's student training split and scored against the teacher on the 6 held-out locations (pixel agreement and phase-fraction differences), then refitted on all 31.
+- The three models are trained once, on the first run (a few minutes), into `data/processed/v3_unknown/models/`.
+- Their held-out scores are shown in both reports.
+
+Without BSE, the deep/open pore split, which is defined on BSE, is not measured.
+
+The teacher's fractions differ from the U-Net's by up to about 5 percentage points of pore. So for a like-for-like comparison, the 31 reference locations are re-measured from the **same teacher's** label maps, not taken from the U-Net numbers in the reference reports. Each unknown location is then placed against those reference batches, metric by metric: the closest batch mean, the distance to each batch in pooled SDs, and which batch ranges it falls inside. The reports describe the material; the batch calls stay in the Classification tab.
+
+Once the teacher exists, the upload / delete analysis job runs both commands automatically after the classification. Routes: `GET /batches/unknown/v3-report` and `GET /batches/unknown/v3-report/overlays/{location_id}`.
+
+## In-house KPIs (analysis.kpis), used by the classifier
+
+`analysis/kpis.py` measures every batch independently, without using GET4, by its own intensity-class segmentation. Its KPIs feed the unknown-batch classifier (Classification tab); its report is no longer shown as a tab, but `GET /batches/{batch_id}/kpi-report` still serves it. Install its packages once, then run it from the repository root:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r analysis\requirements.txt
@@ -124,24 +179,63 @@ How it works:
 
 The phases are intensity classes and have not been validated against labelled or EDS data, and no pass/fail limits are defined.
 
-## lucas-sem-analysis four-phase segmentation
+## Further analysis: lucas-sem-analysis v3
 
-`lucas-sem-analysis/` segments each sample into pore, graphite, SiOx and carbon-binder domain (CBD) and attempts batch identification; its own README and HANDOFF explain the method. It reads the shared `data/raw/batch_N` folders directly (override with `SEM_RAW_DIR`). Its committed results were computed on files byte-identical to the current `data/raw`: all 93 SHA-256 hashes match `lucas-sem-analysis/data/manifest.csv`. The frontend shows them under each selected reference batch, as phase tiles, per-sample composition, leave-one-out batch identification and segmentation overlays.
+The General and Detailed reports (above) show the results of `lucas-sem-analysis-v3/`, the newest version of Lucas's project; its own README and HANDOFF explain the method. The older versions, `lucas-sem-analysis/` (v1) and `lucas-sem-analysis-v2/`, are kept unchanged for reference, but the API reads only v3 (`LUCAS_DIR` in `backend/app/paths.py`).
 
-The overlays need label maps, which are not in Git. The delivered U-Net needs a GPU and model weights that were never published, so on a CPU-only machine rebuild them with the LightGBM teacher. Install its extra package once, then run the CPU pipeline:
+v3 segments each location's BSE and InLens images into four phases: pore, graphite, SiOx and carbon-binder domain (CBD). It then decides the batch with two independent models, an imaging fingerprint and a material model. When they agree it gives one batch; when they split between batches 1 and 2 it answers "Batch 1 or Batch 2"; otherwise it answers "unsure". Tested by holding out each of the 31 reference locations in turn, it answered 26 of them and was right on 22 (85%).
+
+v3 reads the shared `data/raw/batch_N` folders. Its committed results were computed on byte-identical files: all 93 SHA-256 hashes match `lucas-sem-analysis-v3/data/manifest.csv`. The frontend shows:
+
+- phase tiles and per-location composition,
+- the decision table (answer, confidence, each model's pick, right / wrong / abstained),
+- segmentation overlays, when present.
+
+The overlays need label maps, which are not in Git. To rebuild them on a CPU-only machine, install the extra package once and run v3's CPU pipeline:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install lightgbm==4.7.0
-cd lucas-sem-analysis
+cd lucas-sem-analysis-v3
 $env:SEM_WORKERS = 3     # fewer parallel processes for machines with < 16 GB RAM
 ..\.venv\Scripts\python.exe run_cpu_pipeline.py
 ```
 
-The run uses the committed AI labels, so it makes no API calls, and it takes roughly an hour on an 8-core laptop. It writes `outputs/segmentation/` and `outputs/metrics/teacher_cpu_fractions.csv`. The committed U-Net results (`phase_fractions.csv`, `batch_stats.csv`, `siox_summary.csv`, `batchid/*.json`) are left unchanged, and the frontend shows those numbers. Each overlay card also lists the teacher's fractions, so you can see how closely the overlay model agrees. The API routes are `GET /batches/{batch_id}/lucas-report` and `GET /batches/{batch_id}/lucas-report/overlays/{sample_id}`.
+The CPU pipeline makes no API calls, and it writes `outputs/segmentation/`. Lucas's paid stages (`src/ai_labels.py`, `src/ai_validate.py`, `src/triangle_test.py`) call the Anthropic API, so don't re-run them unless you mean to. The API routes are `GET /batches/{batch_id}/lucas-report` and `GET /batches/{batch_id}/lucas-report/overlays/{sample_id}`.
+
+## Batch match (teammate's classifier, newest GET4)
+
+`batch match - just code/` holds a teammate's classifier, `batch_classifier.py`, together with the newest version of GET4 (`GET4.py`), which the classifier uses as a library. It is used unchanged. `analysis/batch_match.py` connects it to this project: it reads the references from `data/raw/batch_N` and the unknown images from `data/raw/unknown`, and keeps its caches and model in `data/processed/batch_match/`.
+
+The classifier decides each unknown image in this order:
+
+1. It refuses an image identical to a training image.
+2. It matches a known location.
+3. It applies a GET4 material-range rule.
+4. It uses fingerprint and texture models.
+
+It answers "unsure" below its 90%-accuracy thresholds. Train it once, which takes roughly 40 minutes because GET4 measures every reference BSE image, then use it:
+
+```powershell
+.\.venv\Scripts\python.exe -m analysis.batch_match train      # writes data/processed/batch_match/batch_model.pkl
+.\.venv\Scripts\python.exe -m analysis.batch_match evaluate   # track record -> data/processed/batch_match/evaluation_report.json
+.\.venv\Scripts\python.exe -m analysis.batch_match predict    # writes data/processed/batch_match/unknown.json
+```
+
+Once the model exists, the unknown-batch analysis job runs `predict` automatically after the KPI classification. The frontend shows the result as a **second opinion** under each location in the Unknown → Classification tab, served by `GET /unknown/batch-match`. If batch match fails, the failure is logged and the KPI classification still stands.
+
+`evaluate` runs the teammate's own nested leave-one-location-out tests (about 5 minutes each): each reference location is hidden, the models and answer thresholds are refitted without it, and it is then predicted. The tests run twice, once in the default mode and once in the always-answer mode. Unlike the teammate's script, the report keeps every held-out answer with its confidence. It records:
+
+- how often the classifier answers rather than saying "unsure",
+- how often its answers are right, with a 95% Wilson interval,
+- right, wrong and unsure counts per batch.
+
+The Classification tab shows this track record next to the KPI model's accuracy, in a confidence-against-outcome chart with one dot per held-out location. Each unknown location's answer then shows its confidence and how often held-out locations at that confidence or higher were right. Known-location matches are not part of the test: they are exact field matches, and are treated as certain. The route is `GET /unknown/batch-match/evaluation`.
+
+The older GET4 in `analysis/get4.py` still produces the per-batch GET4 tab (see above); the newest GET4 is used only inside batch match.
 
 ## Unknown batch classification
 
-In the frontend, **Unknown** sits in the batch picker next to batches 1–3. Its tabs are **Images**, **KPI report**, **Classification** (each location's batch call with evidence) and **Upload**. In the Upload tab, drop or choose `.tif` files named `img_<location>_<BSE|ETD|Inlens|SE>.tif`. The API checks each file and refuses it with a clear message if any of these fail:
+In the frontend, **Unknown** sits in the batch picker next to batches 1–3. Its tabs are **Images**, **General report** and **Detailed report** (v3 segmentation, see above), **Classification** (each location's batch call with evidence) and **Upload**. In the Upload tab, drop or choose `.tif` files named `img_<location>_<BSE|ETD|Inlens|SE>.tif`. The API checks each file and refuses it with a clear message if any of these fail:
 
 - the name must follow that pattern exactly,
 - the file must start with a real TIFF header and be under 300 MB,
@@ -156,7 +250,7 @@ Accepted files are saved to `data/raw/unknown/`. The analysis below then re-runs
 
 Uploads and deletions are refused while an analysis is running.
 
-The Upload tab also lists every image in the unknown batch, grouped by location, with each location's current batch call; each uploaded file shows its result once the analysis finishes. To delete images, tick them and press **Delete selected**, then confirm. The analysis re-runs automatically. If the last image is deleted, the unknown batch's location grouping, KPI report and classification are removed too, so no stale result remains.
+The Upload tab also lists every image in the unknown batch, grouped by location, with each location's current batch call; each uploaded file shows its result once the analysis finishes. To delete images, tick them and press **Delete selected**, then confirm. The analysis re-runs automatically. If the last image is deleted, the unknown batch's location grouping, KPI report, classification, batch-match result and v3 reports are removed too, so no stale result remains.
 
 Every location is classified, including one uploaded without a BSE image. Such a location is measured from its InLens or ETD image, and its call is marked low confidence because the model was trained on BSE measurements. Any KPI that cannot be measured takes the reference average, which favours no batch.
 
@@ -172,8 +266,8 @@ This takes about a minute for three locations, and writes `data/processed/classi
 
 1. **Measure:** the unknown images are grouped into locations, and their detectors are checked from the pixels, by `analysis/fields.py`. Each location's BSE image is then measured by the same `analysis/kpis.py` code as the references.
 2. **Check for duplicates:** every unknown image is compared with every reference image, by file hash and by image content.
-3. **Classify:** each location gets a probability for batch 1, 2 and 3 from one pre-declared model, a diagonal LDA on eight standardised BSE KPIs. The output lists the features driving each call and the most similar reference locations.
-4. **Test the model on the references:** each reference location is held out in turn and predicted. The balanced accuracy, per-batch recall and a 500-permutation test are reported alongside the predictions, so every call can be read against how often the model is right.
+3. **Classify:** each location gets a probability for batch 1, 2 and 3 from a diagonal LDA. The model ranks all 25 BSE KPIs by how well they separate the reference batches (ANOVA F) and keeps the best *k*. It chooses *k* from 1, 2, 3, 4, 6, 8 or 12 by an inner leave-one-out test, preferring the smaller *k* on ties. On the current references it keeps one KPI, pore–solid interface density. That KPI orders the batches 1 < 2 < 3 even within imaging sessions shared by two batches, so it reflects the material, not the imaging. The output lists the features driving each call and the most similar reference locations.
+4. **Test the model on the references:** each reference location is held out in turn, and the *whole* procedure is re-run without it: the KPI ranking, the choice of *k* and the fit. This nested test is needed because choosing features on all 31 locations and then testing on them would overstate the accuracy. A 200-shuffle permutation test repeats the full procedure too. Together with per-batch recall and the KPIs each fold chose, these results are cached in `data/processed/classification/reference_validation.json`. They are recomputed (about 10 minutes) only when the reference KPIs change, so uploads stay fast. The nested balanced accuracy is 58%, up from 48% for the previous fixed eight-KPI model; wider searches over model types scored lower in the same nested test. Chance is 33%.
 5. **Show a session hint:** the reference batches imaged at the same image height are listed separately, because image height marks the imaging session. The hint is not used by the model.
 
 Images in the unknown set are also available through the image routes as batch `unknown`, for example `GET /batches/unknown/images` and `GET /batches/unknown/kpi-report`.
@@ -188,7 +282,10 @@ Run every analysis module from the repository root as `python -m analysis.<modul
 │   ├── fields.py              #   group views into locations, identify each view's detector
 │   ├── kpis.py                #   per-location KPIs and batch reports
 │   ├── classify.py            #   classify the unknown batch as batch 1, 2 or 3
-│   ├── get4.py                #   GET4 segmentation-uncertainty analysis
+│   ├── v3_report.py           #   general + detailed batch reports from lucas-sem-analysis v3
+│   ├── v3_unknown.py          #   segment the unknown batch with v3's teacher, measure like the references
+│   ├── get4.py                #   GET4 segmentation-uncertainty analysis (GET4 tab)
+│   ├── batch_match.py         #   adapter for the teammate's batch-match classifier
 │   └── requirements.txt
 ├── backend/
 │   ├── app/
@@ -198,9 +295,9 @@ Run every analysis module from the repository root as `python -m analysis.<modul
 │   │   ├── routers/           #   one module per frontend feature
 │   │   │   ├── images.py      #     image groups, cached previews, TIFF downloads
 │   │   │   ├── kpi.py         #     KPI reports, overlays, summary
-│   │   │   ├── lucas.py       #     lucas-sem-analysis segmentation results
+│   │   │   ├── lucas.py       #     further analysis: lucas-sem-analysis v3 results
 │   │   │   ├── get4.py        #     GET4 uncertainty reports
-│   │   │   ├── unknown.py     #     unknown-batch classification, uploads, analysis jobs
+│   │   │   ├── unknown.py     #     unknown-batch classification, batch match, uploads, analysis jobs
 │   │   │   └── mock.py        #     sample analysis records (data-readiness line)
 │   │   ├── schemas.py  mock/  requirements.txt
 │   └── modal_app.py           #   Modal deployment
@@ -212,11 +309,14 @@ Run every analysis module from the repository root as `python -m analysis.<modul
 │   ├── lib/                   #   tabPanel (ARIA helper for Tabs)
 │   └── features/              #   one folder per page section
 │       ├── reference/         #     BatchPicker, ImageGallery
-│       ├── kpi/               #     KpiReport
-│       ├── segmentation/      #     LucasReport
+│       ├── kpi/               #     KpiReport (no longer a tab; its CSS is shared)
+│       ├── v3report/          #     General / Detailed reports (reference batches and unknown)
+│       ├── segmentation/      #     LucasReport (composition chart, decision table)
 │       ├── uncertainty/       #     Get4Results
 │       └── unknown/           #     UnknownBatch
-├── lucas-sem-analysis/        # four-phase segmentation project (own README); reads data/raw
+├── lucas-sem-analysis-v3/     # further analysis: newest segmentation + batch decision (read by the API)
+├── lucas-sem-analysis/  lucas-sem-analysis-v2/   # older versions, kept for reference
+├── batch match - just code/   # teammate's batch classifier + newest GET4 (used unchanged)
 └── data/                      # Git-ignored: raw/ (TIFFs) and processed/ (generated outputs)
 ```
 

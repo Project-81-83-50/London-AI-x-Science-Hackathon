@@ -1,9 +1,11 @@
 // Fetch JSON from the API: { status: "loading" | "ready" | "error", data, error }; aborts on unmount.
+// A null url fetches nothing (status stays "idle"), for data that does not apply.
 import { useEffect, useState } from "react";
 
 export function useJson(url) {
-  const [state, setState] = useState({ status: "loading", data: null, error: "" });
+  const [state, setState] = useState({ status: url ? "loading" : "idle", data: null, error: "" });
   useEffect(() => {
+    if (!url) return undefined;
     const controller = new AbortController();
     fetch(url, { signal: controller.signal })
       .then(async (response) => {

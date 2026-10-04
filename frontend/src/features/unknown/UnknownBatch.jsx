@@ -3,6 +3,8 @@ import { useJson } from "../../hooks/useJson";
 import { useTooltip } from "../../hooks/useTooltip";
 import Tabs from "../../components/Tabs";
 import { tabPanelProps } from "../../lib/tabPanel";
+import TrackRecord from "./BatchMatchTrackRecord";
+import { answerReliability } from "../../lib/trackRecord";
 import "../kpi/KpiReport.css";
 import "./UnknownBatch.css";
 
@@ -63,7 +65,58 @@ function ProbabilityBars({ probabilities, predicted }) {
   );
 }
 
-function LocationResult({ result, images, apiUrl }) {
+const HOW_LABEL = {
+  "known location": "known location (certain)",
+  material: "material range rule",
+  model: "fingerprint + texture models",
+  refused: "refused: identical to a training image",
+};
+
+// Second opinion from the teammate's batch-match classifier (analysis.batch_match).
+function BatchMatch({ match, status, evaluation }) {
+  if (status === "missing")
+    return (
+      <p className="kpi-card-note">
+        Not available yet: train it once with <code>python -m analysis.batch_match train</code>, then re-run the
+        analysis from the Upload tab.
+      </p>
+    );
+  if (!match) return <p className="kpi-card-note">No batch-match result for this location yet.</p>;
+  const answer = match.answer ? match.answer.replaceAll("_", " ") : match.how === "refused" ? "Not predicted" : "—";
+  return (
+    <div className="batch-match">
+      <p>
+        <strong>{answer}</strong> · {HOW_LABEL[match.how] ?? match.how}
+      </p>
+      <p className="kpi-card-note">{match.detail}</p>
+      {answerReliability(match, evaluation) && (
+        <p className="batch-match-reliability">{answerReliability(match, evaluation)}</p>
+      )}
+      {match.probabilities && (
+        <ProbabilityBars
+          probabilities={Object.fromEntries(
+            Object.entries(match.probabilities).map(([b, p]) => [b.replace("Batch_", ""), p]),
+          )}
+          predicted={Object.entries(match.probabilities)
+            .sort((a, b) => b[1] - a[1])[0][0]
+            .replace("Batch_", "")}
+        />
+      )}
+      {match.images?.length > 1 && (
+        <ul className="batch-match-images">
+          {match.images.map((img) => (
+            <li key={img.image}>
+              <code>{img.image.replace(/^img_|\.tif$/g, "")}</code>: {img.answer ? img.answer.replaceAll("_", " ") : "—"}
+              {" "}({HOW_LABEL[img.how] ?? img.how})
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function LocationResult({ result, images, apiUrl, match, matchStatus, evaluation }) {
   const predicted = result.predicted_batch;
   // Probabilities and drivers belong to the material-KPI model, whose call can differ from the final one
   // when the location matches a reference image exactly.
@@ -156,6 +209,11 @@ function LocationResult({ result, images, apiUrl }) {
         </section>
       </div>
 
+      <section className="unknown-second-opinion">
+        <h4>Second opinion: batch match (teammate&apos;s classifier)</h4>
+        <BatchMatch match={match} status={matchStatus} evaluation={evaluation} />
+      </section>
+
       <div className="unknown-notes">
         <p>
           <strong>Duplicate check:</strong>{" "}
@@ -188,6 +246,8 @@ function LocationResult({ result, images, apiUrl }) {
 function UnknownBatch({ apiUrl }) {
   const classification = useJson(`${apiUrl}/unknown/classification`);
   const images = useJson(`${apiUrl}/batches/unknown/images`);
+  const batchMatch = useJson(`${apiUrl}/unknown/batch-match`);
+  const evaluation = useJson(`${apiUrl}/unknown/batch-match/evaluation`);
   const [locationId, setLocationId] = useState(null);
 
   let body;
@@ -203,6 +263,12 @@ function UnknownBatch({ apiUrl }) {
   } else {
     const data = classification.data;
     const v = data.reference_validation;
+    // Batch-match answers per location, with that location's per-image answers attached.
+    const matchFor = (id) => {
+      const loc = batchMatch.data?.locations?.find((l) => l.location_id === id);
+      if (!loc) return null;
+      return { ...loc, images: (batchMatch.data.images ?? []).filter((i) => i.location_id === id) };
+    };
     const groups = Object.fromEntries((images.data ?? []).map((g) => [g.specimen_id, g.images]));
     const counts = BATCHES.map((b) => data.locations.filter((l) => l.predicted_batch === b).length);
     const active = data.locations.find((l) => l.location_id === locationId) ?? data.locations[0];
@@ -219,18 +285,13 @@ function UnknownBatch({ apiUrl }) {
             </article>
           ))}
         </div>
-        <div className="kpi-card">
-          <h3>How reliable is this?</h3>
-          <p className="kpi-card-note unknown-reliability">
-            The classifier uses {data.method.features.length} material KPIs measured from each
-            location&apos;s BSE image ({data.method.features.map((f) => f.name.toLowerCase()).join(", ")}).
-            When each of the {Object.values(v.n_locations).reduce((a, b) => a + b, 0)} reference locations
-            is held out and predicted, it is right {Math.round(v.loo_balanced_accuracy * 100)}% of the time
-            (balanced across batches; chance is {Math.round(v.chance * 100)}%, permutation p ={" "}
-            {v.permutation_p}). Recall by batch: {BATCHES.map((b) => `batch ${b} ${Math.round(v.per_batch_recall[b] * 100)}%`).join(", ")}.
-            Treat each call as a lead, not a verdict.
-          </p>
-        </div>
+        <TrackRecord
+          kpiValidation={v}
+          method={data.method}
+          evaluation={evaluation.data}
+          evaluationStatus={evaluation.status}
+          threshold={batchMatch.data?.thresholds?.location}
+        />
         <Tabs
           tabs={data.locations.map((l) => ({
             id: l.location_id,
@@ -247,6 +308,9 @@ function UnknownBatch({ apiUrl }) {
             key={active.location_id}
             result={active}
             images={groups[active.location_id] ?? []}
+            match={matchFor(active.location_id)}
+            matchStatus={batchMatch.status === "error" ? "missing" : batchMatch.status}
+            evaluation={evaluation.data}
             apiUrl={apiUrl}
           />
         </div>

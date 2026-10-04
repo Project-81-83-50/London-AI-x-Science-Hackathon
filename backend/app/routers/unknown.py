@@ -14,7 +14,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from ..batches import read_kpi_json
-from ..paths import (CLASSIFICATION_PATH, FIELD_DATA_DIR, IMAGE_NAME_PATTERN, KPI_DATA_DIR, PREVIEW_CACHE_DIR,
+from ..paths import (BATCH_MATCH_PATH, CLASSIFICATION_PATH, FIELD_DATA_DIR, V3_REPORT_DIR, V3_TEACHER_PATH,
+                     V3_UNKNOWN_DIR, IMAGE_NAME_PATTERN, KPI_DATA_DIR, PREVIEW_CACHE_DIR,
                      RAW_DATA_DIR, REPO_ROOT, UNKNOWN_BATCH)
 
 router = APIRouter()
@@ -54,6 +55,24 @@ def get_unknown_classification():
     """Batch 1/2/3 classification of the locations in data/raw/unknown (analysis.classify)."""
     return read_kpi_json(CLASSIFICATION_PATH, "No classification of the unknown batch found; run "
                          "python -m analysis.classify")
+
+
+@router.get("/unknown/batch-match")
+def get_unknown_batch_match():
+    """The teammate's batch-match classifier on the unknown images (analysis.batch_match predict)."""
+    if not BATCH_MATCH_PATH.is_file():
+        raise HTTPException(404, "No batch-match result for the unknown batch yet; run "
+                                 "python -m analysis.batch_match train once, then re-run the analysis")
+    return read_kpi_json(BATCH_MATCH_PATH, "No batch-match result")
+
+
+@router.get("/unknown/batch-match/evaluation")
+def get_batch_match_evaluation():
+    """How often batch match is right on held-out reference locations (analysis.batch_match evaluate)."""
+    path = BATCH_MATCH_PATH.parent / "evaluation_report.json"
+    if not path.is_file():
+        raise HTTPException(404, "No batch-match evaluation yet; run python -m analysis.batch_match evaluate")
+    return read_kpi_json(path, "No batch-match evaluation")
 
 
 @router.put("/batches/unknown/images/{image_name}")
@@ -120,21 +139,48 @@ def delete_unknown_image(image_name: str):
     remaining = sorted(p.name for p in UNKNOWN_DIR.glob("*.tif") if IMAGE_NAME_PATTERN.fullmatch(p.name))
     if not remaining:
         CLASSIFICATION_PATH.unlink(missing_ok=True)
+        BATCH_MATCH_PATH.unlink(missing_ok=True)
+        (V3_REPORT_DIR / f"batch_{UNKNOWN_BATCH}.json").unlink(missing_ok=True)
+        shutil.rmtree(V3_UNKNOWN_DIR, ignore_errors=True)
         (FIELD_DATA_DIR / f"batch_{UNKNOWN_BATCH}.json").unlink(missing_ok=True)
         shutil.rmtree(KPI_DATA_DIR / f"batch_{UNKNOWN_BATCH}", ignore_errors=True)
     return {"deleted": image_name, "remaining": len(remaining)}
 
 
+BATCH_MATCH_MODEL = BATCH_MATCH_PATH.parent / "batch_model.pkl"
+
+
 def _run_analysis():
+    """KPI classification first; then, when their models exist, the teammate's batch-match classifier
+    (python -m analysis.batch_match train) and v3's segmentation of the unknown images with the General and
+    Detailed reports (lucas-sem-analysis-v3/run_cpu_pipeline.py). A failure in those optional steps is logged
+    but does not fail the job."""
     ANALYSIS_LOG.parent.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
     try:
         with open(ANALYSIS_LOG, "w", encoding="utf-8") as log:
-            result = subprocess.run(
-                [sys.executable, "-m", "analysis.classify", "--rebuild"],
-                cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT,
-                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
-            )
-        code = result.returncode
+            code = subprocess.run([sys.executable, "-m", "analysis.classify", "--rebuild"],
+                                  cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT, env=env).returncode
+            if code == 0 and BATCH_MATCH_MODEL.is_file():
+                log.write("batch match: classifying the unknown images with the teammate's classifier\n")
+                log.flush()
+                matched = subprocess.run([sys.executable, "-m", "analysis.batch_match", "predict"],
+                                         cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT, env=env).returncode
+                if matched != 0:
+                    log.write(f"batch match failed (exit {matched}); the KPI classification is still valid\n")
+            elif code == 0:
+                log.write("batch match skipped: run python -m analysis.batch_match train once to enable it\n")
+            if code == 0 and V3_TEACHER_PATH.is_file():
+                log.write("v3: segmenting the unknown images with lucas-sem-analysis v3's teacher\n")
+                log.flush()
+                for step in (["analysis.v3_unknown"], ["analysis.v3_report", "--unknown-only"]):
+                    done = subprocess.run([sys.executable, "-m", *step], cwd=REPO_ROOT, stdout=log,
+                                          stderr=subprocess.STDOUT, env=env).returncode
+                    if done != 0:
+                        log.write(f"v3 step {step[0]} failed (exit {done}); the KPI classification is still valid\n")
+                        break
+            elif code == 0:
+                log.write("v3 reports skipped: run python run_cpu_pipeline.py in lucas-sem-analysis-v3 once\n")
     except OSError as error:
         ANALYSIS_LOG.write_text(f"could not start the analysis: {error}\n", encoding="utf-8")
         code = -1

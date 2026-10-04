@@ -6,3 +6,4 @@ tifffile
 imagecodecs
 pillow
 matplotlib
+scikit-learn

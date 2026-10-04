@@ -4,8 +4,8 @@ import BatchPicker from "./features/reference/BatchPicker";
 import ImageGallery from "./features/reference/ImageGallery";
 import PointNetwork from "./components/PointNetwork";
 import Get4Results from "./features/uncertainty/Get4Results";
-import KpiReport from "./features/kpi/KpiReport";
-import LucasReport from "./features/segmentation/LucasReport";
+import GeneralReport from "./features/v3report/GeneralReport";
+import DetailedReport from "./features/v3report/DetailedReport";
 import Tabs from "./components/Tabs";
 import { tabPanelProps } from "./lib/tabPanel";
 import TopBar from "./components/TopBar";
@@ -22,15 +22,16 @@ const allBatches = ["1", "2", "3", UNKNOWN_BATCH];
 const supportedDetectors = ["BSE", "ETD", "INLENS", "SE", "TLD", "CBS"];
 const referenceViews = [
   { id: "images", label: "Images" },
-  { id: "kpi", label: "KPI report" },
-  { id: "segmentation", label: "Segmentation" },
+  { id: "general", label: "General report" },
+  { id: "detailed", label: "Detailed report" },
   { id: "uncertainty", label: "Uncertainty (GET4)" },
 ];
-// Segmentation and GET4 exist only for the reference batches; the unknown set adds its classification
-// and an upload tab instead.
+// Both sets of reports are built on lucas-sem-analysis v3's segmentation; the unknown set is segmented by v3's
+// CPU-trained teacher (analysis.v3_unknown) and adds classification and upload.
 const unknownViews = [
   { id: "images", label: "Images" },
-  { id: "kpi", label: "KPI report" },
+  { id: "general", label: "General report" },
+  { id: "detailed", label: "Detailed report" },
   { id: "classification", label: "Classification" },
   { id: "upload", label: "Upload" },
 ];
@@ -274,19 +275,11 @@ function App() {
                     imageCount={referenceImageCount}
                   />
                 )}
-                {activeView === "kpi" && (
-                  <KpiReport
-                    key={`${selectedReferenceBatch}-${analysisVersion}`}
-                    apiUrl={API_URL}
-                    batch={selectedReferenceBatch}
-                  />
+                {activeView === "general" && (
+                  <GeneralReport key={`general-${selectedReferenceBatch}-${analysisVersion}`} apiUrl={API_URL} batch={selectedReferenceBatch} />
                 )}
-                {activeView === "segmentation" && (
-                  <LucasReport
-                    key={`lucas-${selectedReferenceBatch}`}
-                    apiUrl={API_URL}
-                    batch={selectedReferenceBatch}
-                  />
+                {activeView === "detailed" && (
+                  <DetailedReport key={`detailed-${selectedReferenceBatch}-${analysisVersion}`} apiUrl={API_URL} batch={selectedReferenceBatch} />
                 )}
                 {activeView === "classification" && (
                   <UnknownBatch key={analysisVersion} apiUrl={API_URL} />
