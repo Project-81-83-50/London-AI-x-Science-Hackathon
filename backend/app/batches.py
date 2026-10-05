@@ -35,8 +35,11 @@ def find_batch_image(batch_id: str, image_name: str) -> Path:
 def read_kpi_json(path: Path, missing: str) -> dict:
     """Read an analysis.kpis / analysis.classify output, mapping absent or corrupt files to HTTP errors."""
     if not path.is_file():
-        raise HTTPException(404, f"{missing}; run python -m analysis.kpis (or python -m analysis.classify "
-                                 "for the unknown set) to generate it")
+        raise HTTPException(
+            404,
+            f"{missing}; run python -m analysis.kpis (or python -m analysis.classify "
+            "for the unknown set) to generate it",
+        )
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:

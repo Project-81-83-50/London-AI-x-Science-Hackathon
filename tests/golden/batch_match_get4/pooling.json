@@ -1,0 +1,182 @@
+{
+ "detector_of": [
+  "bse",
+  "inlens",
+  "etd",
+  "se",
+  null
+ ],
+ "how_sure": [
+  "very likely",
+  "uncertain",
+  "uncertain",
+  "uncertain"
+ ],
+ "next_measurement": {
+  "four_images": {
+   "bits_bigger_fields": 0.05773571200264433,
+   "bits_more_fields": 0.4999999999999999
+  },
+  "homogeneous": {
+   "bits_bigger_fields": 0.4999999999999999,
+   "bits_more_fields": 0.4999999999999999
+  },
+  "one_image": {
+   "bits_bigger_fields": 0.5000000000000001,
+   "bits_more_fields": 0.5000000000000001
+  },
+  "one_image_prior": {
+   "bits_bigger_fields": 0.1315172029168971,
+   "bits_more_fields": 0.4999999999999999
+  },
+  "two_images_no_prior": {
+   "bits_bigger_fields": 0.03125655211819997,
+   "bits_more_fields": 0.5000000000000001
+  },
+  "two_images_prior": {
+   "bits_bigger_fields": 0.08737040209627694,
+   "bits_more_fields": 0.5000000000000001
+  }
+ },
+ "parse_tolerances": [
+  {
+   "bright phase": 0.01,
+   "pore": 0.02
+  },
+  {}
+ ],
+ "random_effects": {
+  "four_images": {
+   "I2": 0.8501382372654154,
+   "bits": 3.9781826198036674,
+   "budget": {
+    "area": 3.361990878073166e-05,
+    "between images": 0.00019962603999874962,
+    "regularity": 2.4874165100126497e-06
+   },
+   "ci95": [
+    0.260668102314254,
+    0.3583921863840583
+   ],
+   "n_images": 4,
+   "phi": 0.30953014434915616,
+   "prediction_interval_new_field": [
+    0.1712517961746615,
+    0.44780849252365085
+   ],
+   "se": 0.015353610822522953,
+   "se_ci": 0.015353610822522953,
+   "tau": 0.028233191789406985,
+   "tau2": 0.0007971131186174379,
+   "tau2_source": "estimated"
+  },
+  "homogeneous": {
+   "I2": 0.0,
+   "bits": 5.389241854954662,
+   "budget": {
+    "area": 3.3333333333333335e-05,
+    "between images": 0.0,
+    "regularity": 0.0
+   },
+   "ci95": [
+    0.2751586228824967,
+    0.32484137711750327
+   ],
+   "n_images": 3,
+   "phi": 0.3,
+   "prediction_interval_new_field": [
+    0.2266406927519104,
+    0.3733593072480896
+   ],
+   "se": 0.005773502691896258,
+   "se_ci": 0.005773502691896258,
+   "tau": 0.0,
+   "tau2": 0.0,
+   "tau2_source": "estimated"
+  },
+  "one_image": {
+   "I2": 0.0,
+   "bits": 4.596760604594084,
+   "budget": {
+    "area": 0.0001,
+    "between images": 0.0,
+    "regularity": 0.0
+   },
+   "ci95": [
+    0.28040036,
+    0.31959963999999996
+   ],
+   "n_images": 1,
+   "phi": 0.3,
+   "prediction_interval_new_field": null,
+   "se": 0.01,
+   "se_ci": 0.01,
+   "tau": 0.0,
+   "tau2": 0.0,
+   "tau2_source": "NOT ESTIMABLE from one image"
+  },
+  "one_image_prior": {
+   "I2": 0.0,
+   "bits": 3.8042793542335054,
+   "budget": {
+    "area": 0.0001,
+    "between images": 0.0002,
+    "regularity": 0.0
+   },
+   "ci95": [
+    0.2660524277099407,
+    0.3339475722900593
+   ],
+   "n_images": 1,
+   "phi": 0.3,
+   "prediction_interval_new_field": null,
+   "se": 0.017320508075688773,
+   "se_ci": 0.017320508075688773,
+   "tau": 0.01414213562373095,
+   "tau2": 0.0002,
+   "tau2_source": "from baseline (single image)"
+  },
+  "two_images_no_prior": {
+   "I2": 0.9138888888888889,
+   "bits": 3.012471898787374,
+   "budget": {
+    "area": 7.354224537037039e-05,
+    "between images": 0.0008232679205246917,
+    "regularity": 2.3495563271604945e-06
+   },
+   "ci95": [
+    0.0,
+    0.7100914881734537
+   ],
+   "n_images": 2,
+   "phi": 0.3290833333333334,
+   "prediction_interval_new_field": null,
+   "se": 0.02998599210001601,
+   "se_ci": 0.02998599210001601,
+   "tau": 0.0405585995813465,
+   "tau2": 0.0016450000000000002,
+   "tau2_source": "estimated"
+  },
+  "two_images_prior": {
+   "I2": 0.0,
+   "bits": 3.74611729524989,
+   "budget": {
+    "area": 7.133034205465882e-05,
+    "between images": 0.0002517627177903385,
+    "regularity": 2.097779849659111e-06
+   },
+   "ci95": [
+    0.07544854588799632,
+    0.5337117594555151
+   ],
+   "n_images": 2,
+   "phi": 0.3045801526717557,
+   "prediction_interval_new_field": null,
+   "se": 0.0180330485413492,
+   "se_ci": 0.0180330485413492,
+   "tau": 0.022360679774997897,
+   "tau2": 0.0005,
+   "tau2_source": "from baseline (too few images to estimate)"
+  }
+ }
+}

@@ -1,13 +1,7 @@
 .app-shell {
   min-height: 100vh;
   color: var(--ink);
-  background:
-    radial-gradient(
-      ellipse at 9% 0%,
-      rgba(var(--tint-rgb), 0.32),
-      transparent 32rem
-    ),
-    var(--canvas);
+  background: radial-gradient(ellipse at 9% 0%, rgba(var(--tint-rgb), 0.32), transparent 32rem), var(--canvas);
   text-align: left;
 }
 
@@ -132,7 +126,8 @@
   max-width: 780px;
   margin: 0;
   color: var(--accent-strong);
-  font: 600 clamp(28px, 3.4vw, 38px)/1.08 "Manrope",
+  font:
+    600 clamp(28px, 3.4vw, 38px)/1.08 "Manrope",
     sans-serif;
   letter-spacing: -0.065em;
 }
@@ -222,7 +217,8 @@
   border-radius: 999px;
   color: var(--on-accent);
   background: var(--accent);
-  font: 600 12px "IBM Plex Mono",
+  font:
+    600 12px "IBM Plex Mono",
     monospace;
 }
 
@@ -300,9 +296,7 @@
   aspect-ratio: 1.35;
   place-items: center;
   overflow: hidden;
-  background:
-    linear-gradient(135deg, rgba(var(--accent-rgb), 0.025), rgba(var(--accent-rgb), 0.1)),
-    var(--line);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.025), rgba(var(--accent-rgb), 0.1)), var(--line);
 }
 
 .microscopy-preview-link img {
@@ -418,42 +412,6 @@
     monospace;
 }
 
-.api-record-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 0;
-  margin: 12px 0 0;
-  list-style: none;
-}
-
-.api-record-list li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 9px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(var(--surface-rgb), 0.75);
-  font-size: 11.5px;
-}
-
-.api-record-list code {
-  padding: 0;
-  color: var(--accent-strong);
-  background: transparent;
-  font-size: inherit;
-}
-
-.api-record-list span,
-.api-empty {
-  color: var(--faint);
-}
-
-.api-empty {
-  margin-top: 6px;
-}
-
 .integrity-note {
   margin-top: 13px;
   color: var(--faint);
@@ -503,7 +461,6 @@
     min-height: 0;
     padding: 15px 17px;
   }
-
 }
 
 @media (max-width: 640px) {
@@ -629,12 +586,16 @@
 }
 
 .batch-pick strong {
-  font: 700 16px/1.2 "Manrope", sans-serif;
+  font:
+    700 16px/1.2 "Manrope",
+    sans-serif;
 }
 
 .batch-pick small {
   color: var(--muted);
-  font: 12px/1.3 "IBM Plex Mono", monospace;
+  font:
+    12px/1.3 "IBM Plex Mono",
+    monospace;
 }
 
 .batch-pick:hover {
@@ -668,7 +629,9 @@
   border-radius: 7px;
   color: var(--accent);
   background: transparent;
-  font: 600 13px/1.3 "Manrope", sans-serif;
+  font:
+    600 13px/1.3 "Manrope",
+    sans-serif;
   cursor: pointer;
 }
 

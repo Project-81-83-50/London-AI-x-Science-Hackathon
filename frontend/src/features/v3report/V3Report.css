@@ -1,4 +1,4 @@
-/* General and Detailed reports (lucas-sem-analysis v3). Builds on KpiReport.css. */
+/* General and Detailed reports (SEM pipeline v3). Builds on styles/report.css. */
 .v3-intro {
   margin: 0 0 12px;
   max-width: 900px;
@@ -33,12 +33,16 @@
 
 .v3-dot-label {
   fill: var(--ink-2);
-  font: 600 11px "IBM Plex Mono", monospace;
+  font:
+    600 11px "IBM Plex Mono",
+    monospace;
 }
 
 .v3-row-flag {
   fill: var(--muted);
-  font: 500 11px "IBM Plex Mono", monospace;
+  font:
+    500 11px "IBM Plex Mono",
+    monospace;
 }
 
 .v3-grid {
@@ -135,7 +139,9 @@
 .v3-group-row th {
   padding-top: 14px;
   color: var(--accent-strong);
-  font: 600 11.5px "IBM Plex Mono", monospace;
+  font:
+    600 11.5px "IBM Plex Mono",
+    monospace;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }

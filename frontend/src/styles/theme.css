@@ -2,7 +2,7 @@
    Scheme: dark mode, black and red-orange - near-black surfaces, off-white text, a red-orange accent.
    Every text pairing meets WCAG AA (4.5:1). Chart data colours are not here: the phase charts use
    ordinal orange ramps validated against the dark surface, defined with the charts
-   (KpiReport.jsx, LucasReport.jsx). */
+   (e.g. features/v3report/SegmentationCharts.jsx). */
 :root {
   color-scheme: dark;
 

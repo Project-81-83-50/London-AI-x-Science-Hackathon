@@ -3,12 +3,12 @@ import { useJson } from "../../hooks/useJson";
 import { useTooltip } from "../../hooks/useTooltip";
 import Tabs from "../../components/Tabs";
 import { tabPanelProps } from "../../lib/tabPanel";
-import TrackRecord from "./BatchMatchTrackRecord";
-import "../kpi/KpiReport.css";
+import KpiTrackRecord from "./KpiTrackRecord";
+import "../../styles/report.css";
 import "./UnknownBatch.css";
 
 const BATCHES = ["1", "2", "3"];
-const DIGITS = { "%": 1, pp: 1, "µm": 2, ratio: 2, "per 100 µm²": 1, "µm / µm²": 3 };
+const DIGITS = { "%": 1, pp: 1, µm: 2, ratio: 2, "per 100 µm²": 1, "µm / µm²": 3 };
 
 function formatKpi(value, driver) {
   if (!Number.isFinite(value)) return "—";
@@ -64,6 +64,7 @@ function ProbabilityBars({ probabilities, predicted }) {
   );
 }
 
+// One unknown location: its predicted batch, probabilities, driving KPIs, images and segmentation overlay.
 function LocationResult({ result, images, apiUrl }) {
   const predicted = result.predicted_batch;
   // Probabilities and drivers belong to the material-KPI model, whose call can differ from the final one
@@ -101,7 +102,11 @@ function LocationResult({ result, images, apiUrl }) {
           );
         })}
         <figure>
-          <a href={`${apiUrl}/batches/unknown/kpi-report/overlays/${encodeURIComponent(result.location_id)}`} target="_blank" rel="noreferrer">
+          <a
+            href={`${apiUrl}/batches/unknown/kpi-report/overlays/${encodeURIComponent(result.location_id)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
             <img
               src={`${apiUrl}/batches/unknown/kpi-report/overlays/${encodeURIComponent(result.location_id)}`}
               alt={`BSE segmentation of ${result.location_id}: pores blue, bright phase orange`}
@@ -135,28 +140,18 @@ function LocationResult({ result, images, apiUrl }) {
                 <tr key={d.feature}>
                   <th scope="row">{d.name}</th>
                   <td className="kpi-num">{formatKpi(d.value, d)}</td>
-                  <td className="kpi-num">
-                    {BATCHES.map((b) => formatKpi(d.batch_means[b], d)).join(" / ")}
-                  </td>
-                  <td>
-                    {d.support >= 0
-                      ? `Batch ${modelPredicted}`
-                      : `Batch ${result.runner_up}`}
-                  </td>
+                  <td className="kpi-num">{BATCHES.map((b) => formatKpi(d.batch_means[b], d)).join(" / ")}</td>
+                  <td>{d.support >= 0 ? `Batch ${modelPredicted}` : `Batch ${result.runner_up}`}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <p className="kpi-card-note">
             Most similar reference locations:{" "}
-            {result.nearest_reference_locations
-              .map((n) => `${n.location_id} (batch ${n.batch})`)
-              .join(", ")}
-            .
+            {result.nearest_reference_locations.map((n) => `${n.location_id} (batch ${n.batch})`).join(", ")}.
           </p>
         </section>
       </div>
-
 
       <div className="unknown-notes">
         <p>
@@ -187,6 +182,8 @@ function LocationResult({ result, images, apiUrl }) {
   );
 }
 
+// Classification tab of the unknown batch: the KPI classifier's batch 1/2/3 call for each location, with its
+// evidence and the model's track record (GET /unknown/classification).
 function UnknownBatch({ apiUrl }) {
   const classification = useJson(`${apiUrl}/unknown/classification`);
   const images = useJson(`${apiUrl}/batches/unknown/images`);
@@ -194,12 +191,16 @@ function UnknownBatch({ apiUrl }) {
 
   let body;
   if (classification.status === "loading" || images.status === "loading") {
-    body = <div className="notice" role="status">Loading the unknown batch…</div>;
+    body = (
+      <div className="notice" role="status">
+        Loading the unknown batch…
+      </div>
+    );
   } else if (classification.status === "error") {
     body = (
       <div className="notice notice-error" role="alert">
-        No classification available ({classification.error}). Put the images in data/raw/unknown and
-        run <code>python -m analysis.classify</code>.
+        No classification available ({classification.error}). Put the images in data/raw/unknown and run{" "}
+        <code>python -m analysis.classify</code>.
       </div>
     );
   } else {
@@ -216,12 +217,15 @@ function UnknownBatch({ apiUrl }) {
               <span className="kpi-tile-label">Classified as Batch {b}</span>
               <strong className="kpi-tile-value">{counts[i]}</strong>
               <span className="kpi-tile-meta">
-                {data.locations.filter((l) => l.predicted_batch === b).map((l) => l.location_id).join(", ") || "none"}
+                {data.locations
+                  .filter((l) => l.predicted_batch === b)
+                  .map((l) => l.location_id)
+                  .join(", ") || "none"}
               </span>
             </article>
           ))}
         </div>
-        <TrackRecord kpiValidation={v} method={data.method} />
+        <KpiTrackRecord kpiValidation={v} method={data.method} />
         <Tabs
           tabs={data.locations.map((l) => ({
             id: l.location_id,

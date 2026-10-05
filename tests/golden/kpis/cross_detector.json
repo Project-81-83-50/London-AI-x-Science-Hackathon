@@ -1,0 +1,21 @@
+{
+ "alignment": {
+  "ETD": [
+   -3,
+   2
+  ],
+  "InLens": [
+   -3,
+   2
+  ]
+ },
+ "kpis": {
+  "bright_lit_inlens": 0.4602721316983034,
+  "etd_dark_solid": 9.336777566835766e-05,
+  "inlens_lit_outside_bright": 0.00035790980672870435,
+  "pore_agreement_etd": 0.8324194084413427,
+  "pores_filled_inlens": 0.005125649604897843,
+  "porosity_bse_minus_etd": 0.06258753228968908,
+  "porosity_confirmed_etd": 0.15590862407021255
+ }
+}

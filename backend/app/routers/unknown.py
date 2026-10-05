@@ -2,44 +2,63 @@
 uploading and deleting images in data/raw/unknown, and re-running the analysis as a background job."""
 
 import hashlib
+import logging
 import os
 import re
 import shutil
 import subprocess
 import sys
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, TextIO
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from ..batches import read_kpi_json
-from ..paths import (BATCH_MATCH_PATH, CLASSIFICATION_PATH, FIELD_DATA_DIR, GET4_DATA_DIR, V3_REPORT_DIR, V3_TEACHER_PATH,
-                     V3_UNKNOWN_DIR, IMAGE_NAME_PATTERN, KPI_DATA_DIR, PREVIEW_CACHE_DIR,
-                     RAW_DATA_DIR, REPO_ROOT, UNKNOWN_BATCH)
+from ..paths import (
+    BATCH_MATCH_PATH,
+    CLASSIFICATION_PATH,
+    FIELD_DATA_DIR,
+    GET4_DATA_DIR,
+    IMAGE_NAME_PATTERN,
+    KPI_DATA_DIR,
+    PREVIEW_CACHE_DIR,
+    REPO_ROOT,
+    UNKNOWN_BATCH,
+    UNKNOWN_IMAGE_DIR,
+    V3_REPORT_DIR,
+    V3_TEACHER_PATH,
+    V3_UNKNOWN_DIR,
+)
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
-UNKNOWN_DIR = RAW_DATA_DIR / UNKNOWN_BATCH
+UNKNOWN_DIR = UNKNOWN_IMAGE_DIR
 # Stricter than the listing pattern: one alphanumeric location code, a known filter, .tif only.
 UPLOAD_NAME = re.compile(r"^img_[A-Za-z0-9]+_(BSE|ETD|Inlens|SE)\.tif$")
 TIFF_MAGIC = (b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+")  # classic and BigTIFF, both byte orders
 MAX_UPLOAD_BYTES = 300 * 1024 * 1024
 ANALYSIS_LOG = CLASSIFICATION_PATH.parent / "analysis_run.log"
+BATCH_MATCH_MODEL = BATCH_MATCH_PATH.parent / "batch_model.pkl"
 
 _job_lock = threading.Lock()
-_job = {"state": "idle", "started": None, "finished": None, "returncode": None}
+# State of the background analysis job; one job at a time, guarded by _job_lock.
+_job: dict[str, Any] = {"state": "idle", "started": None, "finished": None, "returncode": None}
 
 
-def _now():
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+def _now() -> str:
+    """Current UTC time as an ISO 8601 string (seconds precision)."""
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _analysis_running() -> bool:
+    """True while a background analysis job is running."""
     return _job["state"] == "running"
 
 
-def _identical_unknown_image(sha256: str, size: int, exclude) -> str | None:
+def _identical_unknown_image(sha256: str, size: int, exclude: Path) -> str | None:
     """Name of an unknown-batch image with exactly these bytes (only same-size files are hashed).
     Copies of reference images are allowed: the classifier reports them as exact matches."""
     for path in UNKNOWN_DIR.glob("*.tif"):
@@ -51,23 +70,27 @@ def _identical_unknown_image(sha256: str, size: int, exclude) -> str | None:
 
 
 @router.get("/unknown/classification")
-def get_unknown_classification():
+def get_unknown_classification() -> dict:
     """Batch 1/2/3 classification of the locations in data/raw/unknown (analysis.classify)."""
-    return read_kpi_json(CLASSIFICATION_PATH, "No classification of the unknown batch found; run "
-                         "python -m analysis.classify")
+    return read_kpi_json(
+        CLASSIFICATION_PATH, "No classification of the unknown batch found; run python -m analysis.classify"
+    )
 
 
 @router.get("/unknown/batch-match")
-def get_unknown_batch_match():
-    """The teammate's batch-match classifier on the unknown images (analysis.batch_match predict)."""
+def get_unknown_batch_match() -> dict:
+    """The batch-match classifier (batch_match/) on the unknown images (analysis.batch_match predict)."""
     if not BATCH_MATCH_PATH.is_file():
-        raise HTTPException(404, "No batch-match result for the unknown batch yet; run "
-                                 "python -m analysis.batch_match train once, then re-run the analysis")
+        raise HTTPException(
+            404,
+            "No batch-match result for the unknown batch yet; run "
+            "python -m analysis.batch_match train once, then re-run the analysis",
+        )
     return read_kpi_json(BATCH_MATCH_PATH, "No batch-match result")
 
 
 @router.get("/unknown/batch-match/evaluation")
-def get_batch_match_evaluation():
+def get_batch_match_evaluation() -> dict:
     """How often batch match is right on held-out reference locations (analysis.batch_match evaluate)."""
     path = BATCH_MATCH_PATH.parent / "evaluation_report.json"
     if not path.is_file():
@@ -76,7 +99,9 @@ def get_batch_match_evaluation():
 
 
 @router.put("/batches/unknown/images/{image_name}")
-async def upload_unknown_image(image_name: str, request: Request, overwrite: bool = Query(default=False)):
+async def upload_unknown_image(
+    image_name: str, request: Request, overwrite: bool = Query(default=False)
+) -> dict[str, Any]:
     """Save one TIFF (raw request body) into data/raw/unknown.
 
     The name must be img_<location>_<BSE|ETD|Inlens|SE>.tif; the body must start with a TIFF header and
@@ -90,7 +115,7 @@ async def upload_unknown_image(image_name: str, request: Request, overwrite: boo
     target = UNKNOWN_DIR / image_name
     replaced = target.exists()
     if replaced and not overwrite:
-        raise HTTPException(409, f"{image_name} already exists; tick 'replace existing files' to overwrite it")
+        raise HTTPException(409, f"{image_name} already exists; upload with overwrite=true to replace it")
 
     temporary = UNKNOWN_DIR / f".{image_name}.uploading"
     size = 0
@@ -120,12 +145,12 @@ async def upload_unknown_image(image_name: str, request: Request, overwrite: boo
 
 
 @router.delete("/batches/unknown/images/{image_name}")
-def delete_unknown_image(image_name: str):
+def delete_unknown_image(image_name: str) -> dict[str, Any]:
     """Delete one image from data/raw/unknown, with its cached preview.
 
     When the last image goes, the unknown batch's generated results (location manifest, KPI report,
     classification) are removed too, so no stale classification is shown. Otherwise re-run the analysis
-    (POST /unknown/analysis) to update them; the frontend does this automatically."""
+    (POST /unknown/analysis) to update them."""
     if not IMAGE_NAME_PATTERN.fullmatch(image_name) or Path(image_name).name != image_name:
         raise HTTPException(422, f"{image_name} is not an image name")
     if _analysis_running():
@@ -148,78 +173,118 @@ def delete_unknown_image(image_name: str):
     return {"deleted": image_name, "remaining": len(remaining)}
 
 
-BATCH_MATCH_MODEL = BATCH_MATCH_PATH.parent / "batch_model.pkl"
-
-
-def _run_get4(log, env) -> None:
+def _run_get4(log: TextIO, env: dict[str, str]) -> None:
     """GET4's per-detector uncertainty and analysis reports for the unknown batch (Uncertainty (GET4) tab).
     The old output is removed first, so a detector whose images were deleted leaves no stale report."""
     log.write("GET4: measuring segmentation uncertainty of the unknown images\n")
     log.flush()
     shutil.rmtree(GET4_DATA_DIR / UNKNOWN_BATCH, ignore_errors=True)
-    done = subprocess.run([sys.executable, "-m", "analysis.get4", "--project", "--fast", "--batch", UNKNOWN_BATCH,
-                           "--out", str(GET4_DATA_DIR)], cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT,
-                          env=env).returncode
+    done = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "analysis.get4",
+            "--project",
+            "--fast",
+            "--batch",
+            UNKNOWN_BATCH,
+            "--out",
+            str(GET4_DATA_DIR),
+        ],
+        cwd=REPO_ROOT,
+        stdout=log,
+        stderr=subprocess.STDOUT,
+        env=env,
+    ).returncode
     if done != 0:
+        logger.warning("Unknown-batch analysis: GET4 failed (exit %s); see %s", done, ANALYSIS_LOG)
         log.write(f"GET4 failed (exit {done}); the KPI classification is still valid\n")
 
 
-def _run_analysis():
-    """KPI classification first; then GET4's uncertainty reports; then, when their models exist, the teammate's
+def _run_analysis() -> None:
+    """KPI classification first; then GET4's uncertainty reports; then, when their models exist, the
     batch-match classifier (python -m analysis.batch_match train) and v3's segmentation of the unknown images with
-    the General and Detailed reports (lucas-sem-analysis-v3/run_cpu_pipeline.py). A failure in those later steps
+    the General and Detailed reports (sem_pipeline/run_cpu_pipeline.py). A failure in those later steps
     is logged but does not fail the job."""
     ANALYSIS_LOG.parent.mkdir(parents=True, exist_ok=True)
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
     try:
         with open(ANALYSIS_LOG, "w", encoding="utf-8") as log:
-            code = subprocess.run([sys.executable, "-m", "analysis.classify", "--rebuild"],
-                                  cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT, env=env).returncode
+            code = subprocess.run(
+                [sys.executable, "-m", "analysis.classify", "--rebuild"],
+                cwd=REPO_ROOT,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                env=env,
+            ).returncode
             if code == 0:
                 _run_get4(log, env)
             if code == 0 and BATCH_MATCH_MODEL.is_file():
-                log.write("batch match: classifying the unknown images with the teammate's classifier\n")
+                log.write("batch match: classifying the unknown images with the batch-match classifier\n")
                 log.flush()
-                matched = subprocess.run([sys.executable, "-m", "analysis.batch_match", "predict"],
-                                         cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT, env=env).returncode
+                matched = subprocess.run(
+                    [sys.executable, "-m", "analysis.batch_match", "predict"],
+                    cwd=REPO_ROOT,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    env=env,
+                ).returncode
                 if matched != 0:
+                    logger.warning(
+                        "Unknown-batch analysis: batch match failed (exit %s); see %s", matched, ANALYSIS_LOG
+                    )
                     log.write(f"batch match failed (exit {matched}); the KPI classification is still valid\n")
             elif code == 0:
                 log.write("batch match skipped: run python -m analysis.batch_match train once to enable it\n")
             if code == 0 and V3_TEACHER_PATH.is_file():
-                log.write("v3: segmenting the unknown images with lucas-sem-analysis v3's teacher\n")
+                log.write("v3: segmenting the unknown images with the SEM pipeline (v3) teacher\n")
                 log.flush()
                 for step in (["analysis.v3_unknown"], ["analysis.v3_report", "--unknown-only"]):
-                    done = subprocess.run([sys.executable, "-m", *step], cwd=REPO_ROOT, stdout=log,
-                                          stderr=subprocess.STDOUT, env=env).returncode
+                    done = subprocess.run(
+                        [sys.executable, "-m", *step], cwd=REPO_ROOT, stdout=log, stderr=subprocess.STDOUT, env=env
+                    ).returncode
                     if done != 0:
+                        logger.warning(
+                            "Unknown-batch analysis: v3 step %s failed (exit %s); see %s",
+                            step[0],
+                            done,
+                            ANALYSIS_LOG,
+                        )
                         log.write(f"v3 step {step[0]} failed (exit {done}); the KPI classification is still valid\n")
                         break
             elif code == 0:
-                log.write("v3 reports skipped: run python run_cpu_pipeline.py in lucas-sem-analysis-v3 once\n")
+                log.write("v3 reports skipped: run python run_cpu_pipeline.py in sem_pipeline once\n")
     except OSError as error:
+        logger.exception("Unknown-batch analysis could not start")
         ANALYSIS_LOG.write_text(f"could not start the analysis: {error}\n", encoding="utf-8")
         code = -1
+    if code == 0:
+        logger.info("Unknown-batch analysis finished")
+    else:
+        logger.error("Unknown-batch analysis failed (exit %s); see %s", code, ANALYSIS_LOG)
     with _job_lock:
         _job.update(state="done" if code == 0 else "failed", finished=_now(), returncode=code)
 
 
 @router.post("/unknown/analysis")
-def start_unknown_analysis():
+def start_unknown_analysis() -> dict[str, Any]:
     """Re-measure and re-classify the unknown batch (python -m analysis.classify --rebuild) in the background."""
-    images = [p for p in UNKNOWN_DIR.glob("*.tif") if IMAGE_NAME_PATTERN.fullmatch(p.name)] if UNKNOWN_DIR.is_dir() else []
+    images = (
+        [p for p in UNKNOWN_DIR.glob("*.tif") if IMAGE_NAME_PATTERN.fullmatch(p.name)] if UNKNOWN_DIR.is_dir() else []
+    )
     if not images:
         raise HTTPException(422, "data/raw/unknown has no images to analyse; upload some first")
     with _job_lock:
         if _analysis_running():
             raise HTTPException(409, "An analysis of the unknown batch is already running")
         _job.update(state="running", started=_now(), finished=None, returncode=None)
+    logger.info("Unknown-batch analysis started on %d images", len(images))
     threading.Thread(target=_run_analysis, daemon=True).start()
     return get_unknown_analysis()
 
 
 @router.get("/unknown/analysis")
-def get_unknown_analysis():
+def get_unknown_analysis() -> dict[str, Any]:
     """State of the latest unknown-batch analysis job, with the last lines of its log as progress."""
     lines = []
     if ANALYSIS_LOG.is_file():

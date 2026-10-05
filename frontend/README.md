@@ -1,32 +1,55 @@
-# React + Vite
+# Frontend
 
-## This project
+React 19 + Vite single-page app for the EM batch-QC workspace. It has three pages, switched by the URL hash:
 
-The page in `src/App.jsx` presents the microscopy workflow. Pick a reference batch (1–3) to browse its views in tabs: Images, KPI report, Segmentation and Uncertainty (GET4). Below that, the Unknown batch section shows each unknown location's batch 1, 2 or 3 classification with its evidence. Data comes from the API at `VITE_API_URL` (set in `.env`); TIFF previews and downloads are served from `data/raw/`, which is not tracked in Git. Code layout:
+- **Batches** (default): pick reference batch 1–3 to browse its images, the General and Detailed reports (SEM pipeline v3
+  four-phase segmentation) and the GET4 uncertainty results; pick **Unknown** to see each unknown location's batch call
+  with its evidence.
+- **Demo** (`#demo`): upload the BSE + InLens (+ ETD) images of one location and run the SEM pipeline (v3) on them.
+- **Pipeline** (`#pipeline/<run>`): every step's output for one run, plus the multi-agent report.
 
-- `src/main.jsx` mounts the app.
-- `src/styles/` holds `theme.css` (every colour token), `index.css` (global defaults) and `App.css` (page layout).
-- `src/components/` holds shared UI (`TopBar`, `Tabs`, `PointNetwork`).
-- `src/hooks/` holds `useJson` and `useTooltip`, and `src/lib/` holds small helpers.
-- `src/features/` has one folder per page section: `reference/` (BatchPicker, ImageGallery), `kpi/`, `segmentation/`, `uncertainty/` and `unknown/`.
+All data comes from the FastAPI backend in `../backend`; see the repository-root README for backend setup and the data
+it needs.
 
-See the repository-root README for backend setup and the full project map.
+## Scripts
 
-The commands for this project's frontend are `npm run dev`, `npm run build`, and `npm run lint`.
+Run from this folder after `npm install`:
 
-## Vite starter reference
+| Command                | What it does                                          |
+| ---------------------- | ----------------------------------------------------- |
+| `npm run dev`          | Start the Vite dev server (http://localhost:5173).    |
+| `npm run build`        | Production build into `dist/`.                        |
+| `npm run preview`      | Serve the production build locally.                   |
+| `npm run lint`         | Lint with Oxlint (`.oxlintrc.json`).                  |
+| `npm run format`       | Format every file with Prettier (`.prettierrc.json`). |
+| `npm run format:check` | Check formatting without writing (for CI).            |
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+## Configuration
 
-Currently, two official plugins are available:
+| Variable       | Default                 | Purpose              |
+| -------------- | ----------------------- | -------------------- |
+| `VITE_API_URL` | `http://localhost:8000` | Base URL of the API. |
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Set it in `frontend/.env` (ignored by Git), e.g. `VITE_API_URL=http://127.0.0.1:8002`, which is what
+`scripts/start_website.bat` writes. Vite reads it at start-up, so restart `npm run dev` after changing it.
 
-## React Compiler
+## Folder structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```text
+src/
+├── main.jsx                 # entry point: global styles and the React root
+├── App.jsx                  # hash routing and the Batches page
+├── components/              # shared UI: TopBar, Tabs, PointNetwork (animated background)
+├── hooks/                   # useJson (fetch JSON with loading/error state), useTooltip (chart tooltips)
+├── lib/                     # small helpers: api.js, batchLabel.js, tabPanel.js, v3format.js
+├── styles/                  # theme.css (design tokens), index.css (globals), App.css (layout),
+│                            #   report.css (cards, tiles, tables and charts shared by the reports)
+└── features/                # one folder per page section
+    ├── reference/           #   BatchPicker, ImageGallery (Images tab)
+    ├── v3report/            #   GeneralReport, DetailedReport, SegmentationCharts
+    ├── uncertainty/         #   Get4Results (Uncertainty (GET4) tab)
+    ├── unknown/             #   UnknownBatch, KpiTrackRecord (unknown batch: Classification tab)
+    └── v3live/              #   DemoPage, PipelinePage, V3UnknownCalls, V3Widgets, pipelineSteps
+```
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Colours live in `src/styles/theme.css`; chart colour ramps are defined next to the charts that use them.

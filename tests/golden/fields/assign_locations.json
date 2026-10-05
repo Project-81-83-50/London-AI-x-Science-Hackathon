@@ -1,0 +1,78 @@
+{
+ "confidence": [
+  "single view",
+  "strong",
+  "weak"
+ ],
+ "fields": [
+  {
+   "location": "b2",
+   "location_alternatives": [],
+   "location_recovered": true,
+   "views": [
+    {
+     "detector": "BSE",
+     "display_name": "b2_BSE",
+     "filename": "img_a1_BSE.tif",
+     "filename_code": "a1",
+     "filename_detector": "BSE",
+     "label_matches_image": false
+    },
+    {
+     "detector": "ETD",
+     "display_name": "b2_ETD",
+     "filename": "img_a1_ETD.tif",
+     "filename_code": "a1",
+     "filename_detector": "ETD",
+     "label_matches_image": false
+    },
+    {
+     "detector": "InLens",
+     "display_name": "b2_Inlens",
+     "filename": "img_b2_Inlens.tif",
+     "filename_code": "b2",
+     "filename_detector": "INLENS",
+     "label_matches_image": true
+    }
+   ]
+  },
+  {
+   "location": "a1",
+   "location_alternatives": [],
+   "location_recovered": true,
+   "views": [
+    {
+     "detector": "BSE",
+     "display_name": "a1_BSE",
+     "filename": "img_b2_BSE.tif",
+     "filename_code": "b2",
+     "filename_detector": "BSE",
+     "label_matches_image": false
+    },
+    {
+     "detector": "ETD",
+     "display_name": "a1_ETD",
+     "filename": "img_b2_SE.tif",
+     "filename_code": "b2",
+     "filename_detector": "SE",
+     "label_matches_image": false
+    }
+   ]
+  },
+  {
+   "location": "c3",
+   "location_alternatives": [],
+   "location_recovered": true,
+   "views": [
+    {
+     "detector": "BSE",
+     "display_name": "c3_BSE",
+     "filename": "img_c3_BSE.tif",
+     "filename_code": "c3",
+     "filename_detector": "BSE",
+     "label_matches_image": true
+    }
+   ]
+  }
+ ]
+}

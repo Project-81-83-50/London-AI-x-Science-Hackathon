@@ -7,8 +7,7 @@ const DETECTOR_DESCRIPTIONS = {
 
 function getMeasurements(report) {
   if (report?.measurements?.phases) return report.measurements.phases;
-  if (report?.measurements?.intensity_classes)
-    return report.measurements.intensity_classes;
+  if (report?.measurements?.intensity_classes) return report.measurements.intensity_classes;
   if (report?.phases) return report.phases;
   if (report?.intensity_classes) return report.intensity_classes;
   return {};
@@ -17,8 +16,7 @@ function getMeasurements(report) {
 function getImageFractions(image, report) {
   if (image.fraction_estimates) return image.fraction_estimates;
 
-  const measurements =
-    report?.detector === "BSE" ? image.phases : image.intensity_classes;
+  const measurements = report?.detector === "BSE" ? image.phases : image.intensity_classes;
   if (!measurements) return {};
 
   return Object.fromEntries(
@@ -49,8 +47,7 @@ function FractionInterval({ fraction, interval, label }) {
   const lower = Number(interval?.[0]);
   const upper = Number(interval?.[1]);
   const point = Number(fraction);
-  const hasInterval =
-    Number.isFinite(lower) && Number.isFinite(upper) && upper >= lower;
+  const hasInterval = Number.isFinite(lower) && Number.isFinite(upper) && upper >= lower;
 
   return (
     <svg
@@ -66,64 +63,27 @@ function FractionInterval({ fraction, interval, label }) {
       <line x1="0" x2="100" y1="12" y2="12" className="get4-interval-track" />
       {hasInterval && (
         <>
-          <line
-            x1={lower * 100}
-            x2={upper * 100}
-            y1="12"
-            y2="12"
-            className="get4-interval-range"
-          />
-          <line
-            x1={lower * 100}
-            x2={lower * 100}
-            y1="6"
-            y2="18"
-            className="get4-interval-cap"
-          />
-          <line
-            x1={upper * 100}
-            x2={upper * 100}
-            y1="6"
-            y2="18"
-            className="get4-interval-cap"
-          />
+          <line x1={lower * 100} x2={upper * 100} y1="12" y2="12" className="get4-interval-range" />
+          <line x1={lower * 100} x2={lower * 100} y1="6" y2="18" className="get4-interval-cap" />
+          <line x1={upper * 100} x2={upper * 100} y1="6" y2="18" className="get4-interval-cap" />
         </>
       )}
-      {Number.isFinite(point) && (
-        <circle
-          cx={point * 100}
-          cy="12"
-          r="4"
-          className="get4-interval-point"
-        />
-      )}
+      {Number.isFinite(point) && <circle cx={point * 100} cy="12" r="4" className="get4-interval-point" />}
     </svg>
   );
 }
 
-function Get4Results({
-  report = null,
-  batchLabel = "",
-  title = "Image uncertainty",
-  loading = false,
-  error = "",
-}) {
+// Uncertainty (GET4) tab: per-image phase fractions with their uncertainty intervals for one detector.
+function Get4Results({ report = null, batchLabel = "", title = "Image uncertainty", loading = false, error = "" }) {
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("all");
 
   const measurements = getMeasurements(report);
   const classNames = Object.keys(measurements);
   const images = Array.isArray(report?.images) ? report.images : [];
-  const locations = [
-    ...new Set(images.map((image) => image.location_id).filter(Boolean)),
-  ].sort();
-  const activeClass = classNames.includes(selectedClass)
-    ? selectedClass
-    : classNames[0] || "";
-  const filteredImages = images.filter(
-    (image) =>
-      selectedLocation === "all" || image.location_id === selectedLocation,
-  );
+  const locations = [...new Set(images.map((image) => image.location_id).filter(Boolean))].sort();
+  const activeClass = classNames.includes(selectedClass) ? selectedClass : classNames[0] || "";
+  const filteredImages = images.filter((image) => selectedLocation === "all" || image.location_id === selectedLocation);
   const detector = report?.detector?.toUpperCase() || "UNKNOWN";
   const isEmpty = !report || classNames.length === 0;
 
@@ -135,14 +95,9 @@ function Get4Results({
             <p className="get4-eyebrow">GET4 / UNCERTAINTY REPORT</p>
             <h2 id="get4-results-title">{title}</h2>
           </div>
-          <span className="get4-badge">
-            {loading ? "LOADING" : error ? "UNAVAILABLE" : "NO REPORT"}
-          </span>
+          <span className="get4-badge">{loading ? "LOADING" : error ? "UNAVAILABLE" : "NO REPORT"}</span>
         </div>
-        <div
-          className={`get4-empty${error ? " get4-empty-error" : ""}`}
-          role={error ? "alert" : "status"}
-        >
+        <div className={`get4-empty${error ? " get4-empty-error" : ""}`} role={error ? "alert" : "status"}>
           <strong>
             {loading
               ? "Loading GET4 analysis…"
@@ -152,7 +107,7 @@ function Get4Results({
           </strong>
           <span>
             {loading
-                ? "Fetching the generated analysis_report.json from the local API."
+              ? "Fetching the generated analysis_report.json from the local API."
               : error ||
                 "Run python -m analysis.get4 --project from the repository root, then restart the API if needed."}
           </span>
@@ -168,14 +123,9 @@ function Get4Results({
     : Array.isArray(report.image_metrics)
       ? report.image_metrics
       : [];
-  const kpisById = Object.fromEntries(
-    reportMetrics.map((metric) => [metric.id, metric]),
-  );
+  const kpisById = Object.fromEntries(reportMetrics.map((metric) => [metric.id, metric]));
   const uncertaintyBudget = pooled.budget || {};
-  const budgetTotal = Object.values(uncertaintyBudget).reduce(
-    (sum, value) => sum + (Number(value) || 0),
-    0,
-  );
+  const budgetTotal = Object.values(uncertaintyBudget).reduce((sum, value) => sum + (Number(value) || 0), 0);
 
   return (
     <section className="get4-panel" aria-labelledby="get4-results-title">
@@ -195,26 +145,18 @@ function Get4Results({
           "Intensity classes are not validated material-phase labels."}
       </p>
 
-      {report.comparison?.reason && (
-        <p className="get4-comparison-note">{report.comparison.reason}</p>
-      )}
+      {report.comparison?.reason && <p className="get4-comparison-note">{report.comparison.reason}</p>}
 
       {report.report_summary && <p className="get4-comparison-note">{report.report_summary}</p>}
 
       {report.decision?.status === "not_assessed" && (
-        <p className="get4-comparison-note">
-          No accept/watch/reject verdict is assigned. {report.decision.reason}
-        </p>
+        <p className="get4-comparison-note">No accept/watch/reject verdict is assigned. {report.decision.reason}</p>
       )}
 
       {reportMetrics.length > 0 && (
         <div
           className="get4-kpi-grid"
-          aria-label={
-            report.kpis?.length
-              ? "Provisional image-derived KPIs"
-              : "Detector intensity metrics"
-          }
+          aria-label={report.kpis?.length ? "Provisional image-derived KPIs" : "Detector intensity metrics"}
         >
           {reportMetrics.map((metric) => (
             <article className="get4-kpi-card" key={metric.id}>
@@ -223,9 +165,7 @@ function Get4Results({
                 <span className="get4-kpi-status">{metric.status}</span>
               </div>
               <strong>{formatPercent(metric.value)}</strong>
-              <span className="get4-kpi-interval">
-                95% CI {formatInterval([metric.ci_low, metric.ci_high])}
-              </span>
+              <span className="get4-kpi-interval">95% CI {formatInterval([metric.ci_low, metric.ci_high])}</span>
               <small>
                 {metric.locations_measured} locations · between-location SD{" "}
                 {Number.isFinite(metric.between_location_sd)
@@ -274,9 +214,7 @@ function Get4Results({
         </article>
         <article className="get4-summary-card">
           <span>Between-location variation</span>
-          <strong>
-            {Number.isFinite(pooled.tau) ? pooled.tau.toFixed(4) : "Not available"}
-          </strong>
+          <strong>{Number.isFinite(pooled.tau) ? pooled.tau.toFixed(4) : "Not available"}</strong>
         </article>
       </div>
 
@@ -290,10 +228,7 @@ function Get4Results({
             className="get4-budget-bar"
             role="img"
             aria-label={Object.entries(uncertaintyBudget)
-              .map(
-                ([name, value]) =>
-                  `${name}: ${Math.round((value / budgetTotal) * 100)}%`,
-              )
+              .map(([name, value]) => `${name}: ${Math.round((value / budgetTotal) * 100)}%`)
               .join(", ")}
           >
             {Object.entries(uncertaintyBudget).map(([name, value]) => (
@@ -323,10 +258,7 @@ function Get4Results({
         {locations.length > 0 && (
           <label className="get4-location-filter">
             Location
-            <select
-              value={selectedLocation}
-              onChange={(event) => setSelectedLocation(event.target.value)}
-            >
+            <select value={selectedLocation} onChange={(event) => setSelectedLocation(event.target.value)}>
               <option value="all">All locations</option>
               {locations.map((location) => (
                 <option value={location} key={location}>
@@ -362,9 +294,7 @@ function Get4Results({
                   interval={estimate.uncertainty_95}
                   label={`${image.location_id || image.image} ${activeClass}`}
                 />
-                <strong className="get4-image-value">
-                  {formatPercent(estimate.fraction)}
-                </strong>
+                <strong className="get4-image-value">{formatPercent(estimate.fraction)}</strong>
                 <span
                   className={`get4-image-status${flags.length ? " has-flags" : ""}`}
                   title={flags.join("; ") || "No image quality flags"}

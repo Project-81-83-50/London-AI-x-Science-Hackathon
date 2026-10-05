@@ -1,0 +1,25 @@
+# secrets
+.env
+
+# raw and derived data (large) - see README for where to get / how to rebuild them
+data/raw/
+data/processed/
+data/nnUNet_raw/
+outputs/segmentation/
+outputs/predict/
+outputs/demo_new_image/
+outputs/*.log
+outputs/batchid/*.jpg
+models/*.pt
+models/*.onnx
+models/*.onnx.data
+models/*.txt
+models/*.pkl
+models/v1/
+release/
+prior_analysis/llm_run/previews/
+prior_analysis/llm_run/*.log
+
+# python
+__pycache__/
+*.pyc

@@ -1,0 +1,46 @@
+{
+ "info": {
+  "analysis_pixel_nm": 50.00011023646351,
+  "pixel_size_nm": 25.000055118231757,
+  "segmentation": "BSE grey levels split into 3 intensity classes: pore (black), graphite (grey), bright phase",
+  "segmentation_confidence": "usable",
+  "views_compared": [
+   "ETD",
+   "InLens"
+  ]
+ },
+ "kpis": {
+  "bright_area_d50": 4.903918631190425,
+  "bright_aspect": 2.440372962130667,
+  "bright_clustering": 0.9580955713154132,
+  "bright_d50": 0.4222017554029911,
+  "bright_d90": 1.349348204662096,
+  "bright_density": 14.6288081085391,
+  "bright_fraction": 0.18066015627508009,
+  "bright_interface_density": 0.8481050390290101,
+  "bright_lit_inlens": 0.5966486601748525,
+  "bright_to_solid": 0.19990616606966174,
+  "bruggeman_tortuosity": 3.2228696730333857,
+  "bruggeman_transport": 0.02987251367597772,
+  "crack_share": 0.16144338742867712,
+  "etd_dark_solid": 0.040471156377314285,
+  "graphite_chord_x": 1.8718856051050576,
+  "graphite_chord_y": 1.667097515661204,
+  "graphite_fraction": 0.7230646253413362,
+  "graphite_orientation": 1.1228410980881527,
+  "inlens_lit_outside_bright": 0.0989365175084689,
+  "largest_pore_share": 0.055931607796464965,
+  "pore_agreement_etd": 0.803236563485357,
+  "pore_density": 14.332478437197999,
+  "pore_ecd_area_d50": 3.5620061776781102,
+  "pore_ecd_d50": 0.22567633097321804,
+  "pore_interface_density": 0.3757802733143315,
+  "pores_filled_inlens": 0.2925495486945615,
+  "porosity": 0.09627521838358366,
+  "porosity_band_cv": 0.3208010645019651,
+  "porosity_bse_minus_etd": -0.035976556268560805,
+  "porosity_confirmed_etd": 0.0917806182748302,
+  "porosity_gradient": -0.021445311462880354,
+  "porosity_inplane_cv": 0.19466616325281305
+ }
+}

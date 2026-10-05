@@ -1,0 +1,276 @@
+{
+ "single_vs_two": {
+  "flagged_images": [],
+  "phases": [
+   {
+    "caveats": [
+     "one lot has a single field: borrowed the other lot's field-to-field variation"
+    ],
+    "delta": -0.0002536397360487497,
+    "delta_rel": -0.001132710987508747,
+    "dof": 9.305063941689271,
+    "how_sure_beyond_tolerance": "uncertain",
+    "how_sure_real_change": "uncertain",
+    "interval90": [
+     -0.02948737437433628,
+     0.02898009490223878
+    ],
+    "interval95": [
+     -0.036167058663722294,
+     0.035659779191624795
+    ],
+    "interval_width": {
+     "lot A sampling": 0.029031270758921465,
+     "lot B sampling": 0.020274240824955533,
+     "segmentation": 0.0005035400390625
+    },
+    "n_images": [
+     1,
+     2
+    ],
+    "p_beyond_tolerance": [
+     0.494102617199096,
+     0.49461416534994895
+    ],
+    "p_direction": [
+     0.493830602715537,
+     0.518685706692424
+    ],
+    "phase": "pore",
+    "phi_a": 0.22392272949218747,
+    "phi_b": 0.22366908975613872,
+    "se_sampling": 0.015731415887768902,
+    "systematic_halfwidth": 0.0005035400390625,
+    "systematic_kind": "common-mode cancelled",
+    "to_settle": "~7.6x more imaging per lot (area or locations) would make us 95% sure the change is within tolerance, if the difference stays this size",
+    "tolerance": 0.011196136474609375
+   },
+   {
+    "caveats": [
+     "one lot has a single field: borrowed the other lot's field-to-field variation"
+    ],
+    "delta": -0.0037828073074502866,
+    "delta_rel": -0.0055863279034896116,
+    "dof": 13.793446967772029,
+    "how_sure_beyond_tolerance": "unlikely",
+    "how_sure_real_change": "uncertain",
+    "interval90": [
+     -0.033228210621441184,
+     0.025662596006540608
+    ],
+    "interval95": [
+     -0.03950678460571425,
+     0.03194116999081368
+    ],
+    "interval_width": {
+     "lot A sampling": 0.029970748981123497,
+     "lot B sampling": 0.018192669681465774,
+     "segmentation": 0.00066375732421875
+    },
+    "n_images": [
+     1,
+     2
+    ],
+    "p_beyond_tolerance": [
+     0.060552223982305975,
+     0.06395559608059076
+    ],
+    "p_direction": [
+     0.5743743561706032,
+     0.6053245220949772
+    ],
+    "phase": "graphite",
+    "phi_a": 0.677154541015625,
+    "phi_b": 0.6733717337081747,
+    "se_sampling": 0.016323753877527603,
+    "systematic_halfwidth": 0.00066375732421875,
+    "systematic_kind": "common-mode cancelled",
+    "to_settle": "~1.0x more imaging per lot (area or locations) would make us 95% sure the change is within tolerance, if the difference stays this size",
+    "tolerance": 0.03385772705078125
+   },
+   {
+    "caveats": [
+     "one lot has a single field: borrowed the other lot's field-to-field variation"
+    ],
+    "delta": 0.004152239650099046,
+    "delta_rel": 0.041974576231511816,
+    "dof": 8.2942986015939,
+    "how_sure_beyond_tolerance": "uncertain",
+    "how_sure_real_change": "uncertain",
+    "interval90": [
+     -0.008529464393968436,
+     0.016833943694166527
+    ],
+    "interval95": [
+     -0.011511362314429063,
+     0.019815841614627155
+    ],
+    "interval_width": {
+     "lot A sampling": 0.012525887242323772,
+     "lot B sampling": 0.00913548495205223,
+     "segmentation": 0.00016021728515625
+    },
+    "n_images": [
+     1,
+     2
+    ],
+    "p_beyond_tolerance": [
+     0.5564407923576772,
+     0.5673043146978862
+    ],
+    "p_direction": [
+     0.71458744353772,
+     0.729503977629016
+    ],
+    "phase": "bright phase",
+    "phi_a": 0.0989227294921875,
+    "phi_b": 0.10307496914228655,
+    "se_sampling": 0.006764603739535881,
+    "systematic_halfwidth": 0.00016021728515625,
+    "systematic_kind": "common-mode cancelled",
+    "to_settle": "~390.5x more imaging per lot (area or locations) would make us 95% sure the change is within tolerance, if the difference stays this size",
+    "tolerance": 0.0049461364746093755
+   }
+  ],
+  "scale_mismatch": false,
+  "scale_nm": [
+   50.0,
+   50.0
+  ],
+  "strongest_evidence": "bright phase"
+ },
+ "two_vs_two": {
+  "flagged_images": [],
+  "phases": [
+   {
+    "caveats": [],
+    "delta": -0.0005659621507260459,
+    "delta_rel": -0.0025239682463253617,
+    "dof": 1.9894020974894822,
+    "how_sure_beyond_tolerance": "uncertain",
+    "how_sure_real_change": "uncertain",
+    "interval90": [
+     -0.039437296120501515,
+     0.03830537181904942
+    ],
+    "interval95": [
+     -0.05788087118026159,
+     0.0567489468788095
+    ],
+    "interval_width": {
+     "lot A sampling": 0.04190807955031126,
+     "lot B sampling": 0.03895320619887634,
+     "segmentation": 9.918212890625e-05
+    },
+    "n_images": [
+     2,
+     2
+    ],
+    "p_beyond_tolerance": [
+     0.2705189184352832,
+     0.27067171307366666
+    ],
+    "p_direction": [
+     0.512462603381221,
+     0.5177530501673857
+    ],
+    "phase": "pore",
+    "phi_a": 0.22423505190686477,
+    "phi_b": 0.22366908975613872,
+    "se_sampling": 0.013230010294180895,
+    "systematic_halfwidth": 9.918212890625e-05,
+    "systematic_kind": "common-mode cancelled",
+    "to_settle": "~4.0x more imaging per lot (area or locations) would make us 95% sure the change is within tolerance, if the difference stays this size",
+    "tolerance": 0.02
+   },
+   {
+    "caveats": [],
+    "delta": -0.0007418240030643286,
+    "delta_rel": -0.0011004436783366013,
+    "dof": 1.9704182007627216,
+    "how_sure_beyond_tolerance": "very unlikely",
+    "how_sure_real_change": "uncertain",
+    "interval90": [
+     -0.03871927415149251,
+     0.037235626145363854
+    ],
+    "interval95": [
+     -0.05681480967198128,
+     0.05533116166585262
+    ],
+    "interval_width": {
+     "lot A sampling": 0.04181987789741822,
+     "lot B sampling": 0.036974395589654395,
+     "segmentation": 0.00025177001953125
+    },
+    "n_images": [
+     2,
+     2
+    ],
+    "p_beyond_tolerance": [
+     0.035255252555801864,
+     0.035270305485971876
+    ],
+    "p_direction": [
+     0.5135206691211621,
+     0.5273820326589371
+    ],
+    "phase": "graphite",
+    "phi_a": 0.674113557711239,
+    "phi_b": 0.6733717337081747,
+    "se_sampling": 0.01278792387701121,
+    "systematic_halfwidth": 0.00025177001953125,
+    "systematic_kind": "common-mode cancelled",
+    "to_settle": null,
+    "tolerance": 0.06741135577112391
+   },
+   {
+    "caveats": [],
+    "delta": 0.00168873723827985,
+    "delta_rel": 0.016656475012097896,
+    "dof": 1.9991769332630975,
+    "how_sure_beyond_tolerance": "uncertain",
+    "how_sure_real_change": "uncertain",
+    "interval90": [
+     -0.014772064613280442,
+     0.01814953908984014
+    ],
+    "interval95": [
+     -0.02249342562463508,
+     0.02587090010119478
+    ],
+    "interval_width": {
+     "lot A sampling": 0.01681286977954694,
+     "lot B sampling": 0.01715754292189873,
+     "segmentation": 0.00016021728515625
+    },
+    "n_images": [
+     2,
+     2
+    ],
+    "p_beyond_tolerance": [
+     0.21733119419191405,
+     0.2203158273123903
+    ],
+    "p_direction": [
+     0.5950623856556196,
+     0.614039986345978
+    ],
+    "phase": "bright phase",
+    "phi_a": 0.1013862319040067,
+    "phi_b": 0.10307496914228655,
+    "se_sampling": 0.0055808523084037755,
+    "systematic_halfwidth": 0.00016021728515625,
+    "systematic_kind": "common-mode cancelled",
+    "to_settle": "~3.9x more imaging per lot (area or locations) would make us 95% sure the change is within tolerance, if the difference stays this size",
+    "tolerance": 0.01013862319040067
+   }
+  ],
+  "scale_mismatch": false,
+  "scale_nm": [
+   50.0,
+   50.0
+  ],
+  "strongest_evidence": "pore"
+ }
+}

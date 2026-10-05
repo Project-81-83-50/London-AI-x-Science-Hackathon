@@ -71,7 +71,9 @@
 .get4-eyebrow {
   margin: 0 0 5px;
   color: var(--accent);
-  font: 600 11.5px/1.5 "IBM Plex Mono", monospace;
+  font:
+    600 11.5px/1.5 "IBM Plex Mono",
+    monospace;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -79,7 +81,9 @@
 .get4-heading h2 {
   margin: 0;
   color: var(--ink);
-  font: 600 clamp(23px, 3vw, 30px)/1.2 "Manrope", sans-serif;
+  font:
+    600 clamp(23px, 3vw, 30px)/1.2 "Manrope",
+    sans-serif;
   letter-spacing: -0.04em;
 }
 
@@ -90,7 +94,9 @@
   border-radius: 999px;
   color: var(--accent);
   background: var(--surface-2);
-  font: 600 11.5px "IBM Plex Mono", monospace;
+  font:
+    600 11.5px "IBM Plex Mono",
+    monospace;
   letter-spacing: 0.04em;
 }
 
@@ -111,7 +117,6 @@
   font-size: 12.5px;
   line-height: 1.6;
 }
-
 
 .get4-kpi-grid {
   display: grid;
@@ -147,13 +152,17 @@
   border-radius: 99px;
   color: var(--amber-ink);
   background: var(--amber-soft);
-  font: 600 11.5px "IBM Plex Mono", monospace;
+  font:
+    600 11.5px "IBM Plex Mono",
+    monospace;
   text-transform: uppercase;
 }
 
 .get4-kpi-card > strong {
   color: var(--accent-strong);
-  font: 650 31px/1.1 "Manrope", sans-serif;
+  font:
+    650 31px/1.1 "Manrope",
+    sans-serif;
   letter-spacing: -0.05em;
 }
 
@@ -225,7 +234,9 @@
 .get4-class-card > strong {
   margin: 7px 0 3px;
   color: var(--accent-strong);
-  font: 650 28.5px/1 "Manrope", sans-serif;
+  font:
+    650 28.5px/1 "Manrope",
+    sans-serif;
   letter-spacing: -0.05em;
 }
 
@@ -384,7 +395,9 @@
   border-top: 0;
   color: var(--faint);
   background: var(--surface-2);
-  font: 600 11.5px "IBM Plex Mono", monospace;
+  font:
+    600 11.5px "IBM Plex Mono",
+    monospace;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -407,7 +420,9 @@
 .get4-image-name span {
   overflow: hidden;
   color: var(--faint);
-  font: 11.5px/1.5 "IBM Plex Mono", monospace;
+  font:
+    11.5px/1.5 "IBM Plex Mono",
+    monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

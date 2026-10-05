@@ -1,6 +1,7 @@
 // Unknown batch: the current method's call for each location (KPI model + v3 material check and explanation).
 import { useJson } from "../../hooks/useJson";
-import { CompositionBar, ProbBars, Tier, nice } from "./common";
+import { humanize } from "../../lib/v3format";
+import { CompositionBar, ProbBars, Tier } from "./V3Widgets";
 
 export default function V3UnknownCalls({ apiUrl }) {
   const { status, data, error } = useJson(`${apiUrl}/v3/unknown`);
@@ -14,11 +15,11 @@ export default function V3UnknownCalls({ apiUrl }) {
         computed for earlier versions of the methods and have not been recomputed for the current one.
       </p>
       <p className="v3-small v3-muted">
-        Probability = 90% KPI model (Guanyi: a measured material KPI, ETD-dark solid — area dark in ETD but solid in BSE,
-        i.e. sub-surface pores) + 10% our v3 material model (U-Net segmentation + DINOv2, no fingerprint). Confidence is
-        High when the KPI model is at least 50% sure and the v3 material model agrees, otherwise Low. Batch 1 and
-        Batch 2 differ only subtly — Batch 2 is more porous, with more open and hidden sub-surface pores; Batch 1 has
-        slightly more and larger SiOx — and their ranges overlap, so calls between them are the hardest.
+        Probability = 90% KPI model (a measured material KPI, ETD-dark solid — area dark in ETD but solid in BSE, i.e.
+        sub-surface pores) + 10% our v3 material model (U-Net segmentation + DINOv2, no fingerprint). Confidence is High
+        when the KPI model is at least 50% sure and the v3 material model agrees, otherwise Low. Batch 1 and Batch 2
+        differ only subtly — Batch 2 is more porous, with more open and hidden sub-surface pores; Batch 1 has slightly
+        more and larger SiOx — and their ranges overlap, so calls between them are the hardest.
       </p>
       <div className="v3-grid3">
         {data.locations.map((l) => {
@@ -28,21 +29,26 @@ export default function V3UnknownCalls({ apiUrl }) {
           return (
             <div className="v3-card" key={l.location_id} style={{ marginBottom: 0 }}>
               <div className="v3-small v3-muted">Location {l.location_id}</div>
-              <div className={`v3-big ${l.answer_type === "unsure" ? "v3-unsure" : ""}`}>{nice(l.answer)}</div>
+              <div className={`v3-big ${l.answer_type === "unsure" ? "v3-unsure" : ""}`}>{humanize(l.answer)}</div>
               <Tier value={l.confidence} />
               <ProbBars probabilities={l.probabilities} highlight={l.answer} />
               {l.material_model_pick && (
                 <p className={`v3-small ${l.material_model_agrees ? "v3-muted" : "v3-warn"}`}>
-                  Material model check (U-Net + DINOv2): {nice(l.material_model_pick)} —{" "}
+                  Material model check (U-Net + DINOv2): {humanize(l.material_model_pick)} —{" "}
                   {l.material_model_agrees ? "agrees." : "disagrees, so confidence is Low."}
                 </p>
               )}
               <CompositionBar pore={c.pore} carbon={c["carbon (graphite + binder)"]} siox={c.SiOx} />
               <div className="v3-small v3-muted">
-                pore {c.pore.toFixed(1)}%{iv("pore")} · carbon {c["carbon (graphite + binder)"].toFixed(1)}%{iv("carbon")} ·
-                SiOx {c.SiOx.toFixed(1)}%{iv("SiOx")} <span title="95% sampling interval (GET4)">(95% sampling interval)</span>
+                pore {c.pore.toFixed(1)}%{iv("pore")} · carbon {c["carbon (graphite + binder)"].toFixed(1)}%
+                {iv("carbon")} · SiOx {c.SiOx.toFixed(1)}%{iv("SiOx")}{" "}
+                <span title="95% sampling interval (GET4)">(95% sampling interval)</span>
               </div>
-              <a className="v3-button v3-ghost" href={`#pipeline/${l.run}`} style={{ display: "inline-block", textDecoration: "none", marginTop: 8 }}>
+              <a
+                className="v3-button v3-ghost"
+                href={`#pipeline/${l.run}`}
+                style={{ display: "inline-block", textDecoration: "none", marginTop: 8 }}
+              >
                 Open pipeline →
               </a>
             </div>

@@ -1,0 +1,164 @@
+{
+ "batch_id": "9",
+ "detector_method": "BSE: relative pixel noise \u2265 0.055. ETD vs InLens: pore contrast against the field's BSE phase map, ETD \u2264 -4.0 < InLens.",
+ "fields": [
+  {
+   "best_outside_score": 0.0887351717597914,
+   "confidence": "strong",
+   "detectors": [
+    "BSE",
+    "ETD",
+    "InLens"
+   ],
+   "field_id": "F01",
+   "filename_codes": [
+    "f1a"
+   ],
+   "location": "f1a",
+   "location_alternatives": [],
+   "location_recovered": true,
+   "match_score_min": 0.2835898913488123,
+   "pair_scores": [
+    0.473,
+    0.284,
+    0.243
+   ],
+   "views": [
+    {
+     "detector": "BSE",
+     "detector_confidence": "moderate",
+     "detector_evidence": {
+      "relative_noise": 0.0714
+     },
+     "display_name": "f1a_BSE",
+     "filename": "img_f1a_BSE.tif",
+     "filename_code": "f1a",
+     "filename_detector": "BSE",
+     "label_matches_image": true,
+     "offset_px": [
+      0,
+      0
+     ]
+    },
+    {
+     "detector": "ETD",
+     "detector_confidence": "moderate",
+     "detector_evidence": {
+      "bright_contrast": 7.41,
+      "pore_contrast": -38.74,
+      "relative_noise": 0.0223
+     },
+     "display_name": "f1a_ETD",
+     "filename": "img_f1a_ETD.tif",
+     "filename_code": "f1a",
+     "filename_detector": "ETD",
+     "label_matches_image": true,
+     "offset_px": [
+      0,
+      -8
+     ]
+    },
+    {
+     "detector": "InLens",
+     "detector_confidence": "moderate",
+     "detector_evidence": {
+      "bright_contrast": 19.98,
+      "pore_contrast": -4.34,
+      "relative_noise": 0.0289
+     },
+     "display_name": "f1a_Inlens",
+     "filename": "img_f1a_Inlens.tif",
+     "filename_code": "f1a",
+     "filename_detector": "INLENS",
+     "label_matches_image": true,
+     "offset_px": [
+      -8,
+      -8
+     ]
+    }
+   ]
+  },
+  {
+   "best_outside_score": 0.0887351717597914,
+   "confidence": "strong",
+   "detectors": [
+    "BSE",
+    "ETD",
+    "InLens"
+   ],
+   "field_id": "F02",
+   "filename_codes": [
+    "f2b"
+   ],
+   "location": "f2b",
+   "location_alternatives": [],
+   "location_recovered": true,
+   "match_score_min": 0.28504213866761285,
+   "pair_scores": [
+    0.493,
+    0.285,
+    0.278
+   ],
+   "views": [
+    {
+     "detector": "BSE",
+     "detector_confidence": "high",
+     "detector_evidence": {
+      "relative_noise": 0.0715
+     },
+     "display_name": "f2b_BSE",
+     "filename": "img_f2b_BSE.tif",
+     "filename_code": "f2b",
+     "filename_detector": "BSE",
+     "label_matches_image": true,
+     "offset_px": [
+      0,
+      0
+     ]
+    },
+    {
+     "detector": "ETD",
+     "detector_confidence": "moderate",
+     "detector_evidence": {
+      "bright_contrast": 5.36,
+      "pore_contrast": -40.79,
+      "relative_noise": 0.023
+     },
+     "display_name": "f2b_ETD",
+     "filename": "img_f2b_ETD.tif",
+     "filename_code": "f2b",
+     "filename_detector": "ETD",
+     "label_matches_image": true,
+     "offset_px": [
+      0,
+      -8
+     ]
+    },
+    {
+     "detector": "InLens",
+     "detector_confidence": "moderate",
+     "detector_evidence": {
+      "bright_contrast": 14.29,
+      "pore_contrast": -4.24,
+      "relative_noise": 0.0293
+     },
+     "display_name": "f2b_Inlens",
+     "filename": "img_f2b_Inlens.tif",
+     "filename_code": "f2b",
+     "filename_detector": "INLENS",
+     "label_matches_image": true,
+     "offset_px": [
+      -8,
+      -8
+     ]
+    }
+   ]
+  }
+ ],
+ "method": "Phase correlation of edge maps (~200 nm/px); strongest-first merging, score \u2265 0.045, at most 3 views per field.",
+ "note": "Filename codes and detector suffixes do not identify fields or detectors; both are recovered from the images.",
+ "unrelated_pair_scores": {
+  "max": 0.0887351717597914,
+  "median": 0.07964428636058069
+ }
+}

@@ -17,6 +17,7 @@ function cssVar(name, fallback) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 
+// Decorative animated point network drawn on a full-page background canvas (colours from the theme tokens).
 function PointNetwork() {
   const canvasRef = useRef(null);
 

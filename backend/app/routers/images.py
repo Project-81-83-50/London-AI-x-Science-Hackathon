@@ -1,7 +1,9 @@
 """Raw microscopy images: grouped listing, cached JPEG previews and TIFF downloads (frontend: Images tab)."""
 
 import json
+import logging
 from io import BytesIO
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -11,10 +13,11 @@ from ..batches import find_batch_image, get_batch_image_directory
 from ..paths import FIELD_DATA_DIR, IMAGE_NAME_PATTERN, PREVIEW_CACHE_DIR
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/batches/{batch_id}/images")
-def list_batch_images(batch_id: str):
+def list_batch_images(batch_id: str) -> list[dict[str, Any]]:
     """List local TIFF views grouped by the field of view they show.
 
     Filename codes do not identify fields, so when analysis.fields has produced a manifest
@@ -32,6 +35,7 @@ def list_batch_images(batch_id: str):
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             listed = {view["filename"] for field in manifest["fields"] for view in field["views"]}
         except (json.JSONDecodeError, KeyError, TypeError):
+            logger.warning("Ignoring unreadable field manifest %s; grouping by filename", manifest_path, exc_info=True)
             listed = None
         if listed == set(files):
             return [
@@ -64,9 +68,7 @@ def list_batch_images(batch_id: str):
             ]
     groups: dict[str, list[dict[str, str]]] = {}
     for name, match in files.items():
-        groups.setdefault(match.group("specimen"), []).append(
-            {"filter": match.group("filter"), "filename": name}
-        )
+        groups.setdefault(match.group("specimen"), []).append({"filter": match.group("filter"), "filename": name})
     return [
         {"specimen_id": specimen_id, "grouping": "filename", "images": images}
         for specimen_id, images in sorted(groups.items())
@@ -78,7 +80,7 @@ def get_batch_image(
     batch_id: str,
     image_name: str,
     download: bool = Query(default=False),
-):
+) -> FileResponse:
     """Serve a browser-friendly JPEG preview or the original TIFF download."""
     path = find_batch_image(batch_id, image_name)
     if download:
@@ -97,6 +99,7 @@ def get_batch_image(
                 output = BytesIO()
                 preview.save(output, format="JPEG", quality=88, optimize=True)
         except OSError as error:
+            logger.warning("Could not decode %s for a preview: %s", path, error)
             raise HTTPException(500, f"Could not decode image {image_name}") from error
         cache_dir.mkdir(parents=True, exist_ok=True)
         for stale in cache_dir.glob(f"{path.stem}_*.jpg"):

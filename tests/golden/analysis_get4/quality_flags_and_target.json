@@ -1,0 +1,33 @@
+{
+ "flags": {
+  "no_reference": [],
+  "shifted": [
+   "separability 0.500 below limit 0.7",
+   "median 0.641 vs reference 0.442 (+0.199)",
+   "separability 0.500 vs reference 0.861 (-0.361)"
+  ],
+  "vs_rest": [
+   [],
+   [],
+   []
+  ]
+ },
+ "targets": {
+  "baseline": [
+   75.0,
+   "taken from baseline"
+  ],
+  "fast_bin2": [
+   50.0,
+   "coarsest image x bin 2"
+  ],
+  "no_pixel_sizes": [
+   null,
+   "NO PIXEL SIZES: plain 2x binning, scale consistency cannot be checked"
+  ],
+  "target_px": [
+   40.0,
+   "set by --target-px"
+  ]
+ }
+}

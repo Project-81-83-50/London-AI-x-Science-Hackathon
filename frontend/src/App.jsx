@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+// App shell: hash routing between the batch workspace, the Demo page and the Pipeline page, plus the batch
+// workspace itself (batch picker, per-batch view tabs and the API data-readiness line).
+import { useEffect, useState } from "react";
 import "./styles/App.css";
 import BatchPicker from "./features/reference/BatchPicker";
 import ImageGallery from "./features/reference/ImageGallery";
@@ -24,9 +26,7 @@ function routeFromHash() {
 }
 
 // Vite reads VITE_ variables at build/start time; change this in frontend/.env.
-const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:8000"
-).replace(/\/$/, "");
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
 const allBatches = ["1", "2", "3", UNKNOWN_BATCH];
 const supportedDetectors = ["BSE", "ETD", "INLENS", "SE", "TLD", "CBS"];
@@ -46,11 +46,13 @@ const unknownViews = [
 function App() {
   const [route, setRoute] = useState(routeFromHash);
   useEffect(() => {
-    const onHash = () => { setRoute(routeFromHash()); window.scrollTo(0, 0); };
+    const onHash = () => {
+      setRoute(routeFromHash());
+      window.scrollTo(0, 0);
+    };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
-  const [apiRecords, setApiRecords] = useState([]);
   const [apiState, setApiState] = useState("loading");
   const [apiError, setApiError] = useState("");
   const [selectedReferenceBatch, setSelectedReferenceBatch] = useState("");
@@ -62,21 +64,9 @@ function App() {
   const [uncertaintyState, setUncertaintyState] = useState("idle");
   const [uncertaintyError, setUncertaintyError] = useState("");
   const [batchView, setBatchView] = useState("images");
-  // Bumped when the unknown batch changes (new uploads, finished analysis) so its views refetch.
-  const [imagesVersion, setImagesVersion] = useState(0);
-  const [analysisVersion, setAnalysisVersion] = useState(0);
-  const refreshImages = useCallback(() => setImagesVersion((v) => v + 1), []);
-  const refreshAnalysis = useCallback(() => {
-    setAnalysisVersion((v) => v + 1);
-    setImagesVersion((v) => v + 1);
-  }, []);
 
   const availableDetectors = [
-    ...new Set(
-      referenceSpecimens.flatMap((specimen) =>
-        specimen.images.map((image) => image.filter.toUpperCase()),
-      ),
-    ),
+    ...new Set(referenceSpecimens.flatMap((specimen) => specimen.images.map((image) => image.filter.toUpperCase()))),
   ].filter((detector) => supportedDetectors.includes(detector));
   const analysisDetector = availableDetectors.includes(selectedDetector)
     ? selectedDetector
@@ -84,17 +74,12 @@ function App() {
       ? "BSE"
       : availableDetectors[0] || selectedDetector;
 
+  // Health check for the data-readiness line at the bottom of the page.
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`${API_URL}/batches`, { signal: controller.signal })
+    fetch(`${API_URL}/health`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`API returned ${response.status}`);
-        return response.json();
-      })
-      .then((result) => {
-        if (!Array.isArray(result))
-          throw new Error("The API returned an unexpected batch list.");
-        setApiRecords(result);
         setApiState("connected");
       })
       .catch((cause) => {
@@ -117,8 +102,7 @@ function App() {
         return response.json();
       })
       .then((result) => {
-        if (!Array.isArray(result))
-          throw new Error("The API returned an unexpected image inventory.");
+        if (!Array.isArray(result)) throw new Error("The API returned an unexpected image inventory.");
         setReferenceSpecimens(result);
         setReferenceImageState("connected");
       })
@@ -129,7 +113,7 @@ function App() {
         }
       });
     return () => controller.abort();
-  }, [selectedReferenceBatch, imagesVersion]);
+  }, [selectedReferenceBatch]);
 
   useEffect(() => {
     if (!selectedReferenceBatch) return undefined;
@@ -142,18 +126,12 @@ function App() {
       .then(async (response) => {
         if (!response.ok) {
           const body = await response.json().catch(() => null);
-          throw new Error(
-            body?.detail || `Analysis API returned ${response.status}`,
-          );
+          throw new Error(body?.detail || `Analysis API returned ${response.status}`);
         }
         return response.json();
       })
       .then((result) => {
-        if (
-          !result ||
-          typeof result !== "object" ||
-          !Array.isArray(result.images)
-        ) {
+        if (!result || typeof result !== "object" || !Array.isArray(result.images)) {
           throw new Error("The API returned an unexpected GET4 report.");
         }
         setUncertaintyReport(result);
@@ -166,7 +144,7 @@ function App() {
         }
       });
     return () => controller.abort();
-  }, [selectedReferenceBatch, analysisDetector, analysisVersion]);
+  }, [selectedReferenceBatch, analysisDetector]);
 
   function selectReferenceBatch(batch) {
     if (selectedReferenceBatch === batch) {
@@ -191,10 +169,7 @@ function App() {
   const views = isUnknownBatch(selectedReferenceBatch) ? unknownViews : referenceViews;
   const activeView = views.some((v) => v.id === batchView) ? batchView : "images";
 
-  const referenceImageCount = referenceSpecimens.reduce(
-    (count, specimen) => count + specimen.images.length,
-    0,
-  );
+  const referenceImageCount = referenceSpecimens.reduce((count, specimen) => count + specimen.images.length, 0);
 
   function selectDetector(detector) {
     setSelectedDetector(detector);
@@ -211,165 +186,166 @@ function App() {
       {route.page === "demo" && <DemoPage apiUrl={API_URL} />}
       {route.page === "pipeline" && <PipelinePage apiUrl={API_URL} run={route.run} />}
       {route.page === "batches" && (
-      <div className="content-wrap" id="overview">
-        <section className="page-heading">
-          <div>
-            <p className="eyebrow">ELECTRON MICROSCOPY / BATCH ORGANISATION</p>
-            <h1>Trace each image to its source</h1>
-            <p className="page-subtitle">
-              Learn the three known battery batches, then assign each location
-              in the unknown batch to its closest reference, with evidence.
-            </p>
-          </div>
-        </section>
-
-        <ol className="workflow" aria-label="Analysis workflow">
-          <li className="workflow-step">
-            <span className="workflow-number">01</span>
-            <span>
-              <strong>Build the references</strong> · compare views within each known batch
-            </span>
-          </li>
-          <li className="workflow-step">
-            <span className="workflow-number">02</span>
-            <span>
-              <strong>Classify the unknown batch</strong> · assign each location to batch 1, 2 or 3
-            </span>
-          </li>
-          <li className="workflow-step">
-            <span className="workflow-number">03</span>
-            <span>
-              <strong>Explain every match</strong> · evidence and uncertainty for each call
-            </span>
-          </li>
-        </ol>
-
-        <section className="section-block" aria-labelledby="reference-title">
-          <div className="section-heading">
+        <div className="content-wrap" id="overview">
+          <section className="page-heading">
             <div>
-              <p className="eyebrow">REFERENCE LIBRARY · UNKNOWN SET</p>
-              <h2 id="reference-title">Batches</h2>
+              <p className="eyebrow">ELECTRON MICROSCOPY / BATCH ORGANISATION</p>
+              <h1>Trace each image to its source</h1>
+              <p className="page-subtitle">
+                Learn the three known battery batches, then assign each location in the unknown batch to its closest
+                reference, with evidence.
+              </p>
             </div>
-            <span className="section-count">3 REFERENCE SETS + UNKNOWN</span>
-          </div>
-          <BatchPicker
-            batches={allBatches}
-            selectedBatch={selectedReferenceBatch}
-            imageState={referenceImageState}
-            specimens={referenceSpecimens}
-            imageCount={referenceImageCount}
-            onSelect={selectReferenceBatch}
-          />
-          {!selectedReferenceBatch && (
-            <p className="picker-hint">
-              Select a reference batch to see its images and analysis reports, or Unknown to
-              classify and inspect the unknown images. To test a new location, use the Demo page.
-            </p>
-          )}
-          {selectedReferenceBatch && (
-            <div className="batch-views">
-              <Tabs
-                tabs={views.map((view) =>
-                  view.id === "images" && referenceImageState === "connected"
-                    ? { ...view, badge: referenceImageCount }
-                    : view,
-                )}
-                active={activeView}
-                onChange={setBatchView}
-                label={`${batchLabel(selectedReferenceBatch)} views`}
-                idPrefix="batch-view"
-              />
-              <div {...tabPanelProps("batch-view", activeView)}>
-                {activeView === "images" && (
-                  <ImageGallery
-                    apiUrl={API_URL}
-                    selectedBatch={selectedReferenceBatch}
-                    imageState={referenceImageState}
-                    imageError={referenceImageError}
-                    specimens={referenceSpecimens}
-                    imageCount={referenceImageCount}
-                  />
-                )}
-                {activeView === "general" && (
-                  <GeneralReport key={`general-${selectedReferenceBatch}-${analysisVersion}`} apiUrl={API_URL} batch={selectedReferenceBatch} />
-                )}
-                {activeView === "detailed" && (
-                  <DetailedReport key={`detailed-${selectedReferenceBatch}-${analysisVersion}`} apiUrl={API_URL} batch={selectedReferenceBatch} />
-                )}
-                {activeView === "classification" && (
-                  <>
-                    <V3UnknownCalls key={`v3-${analysisVersion}`} apiUrl={API_URL} />
-                    <UnknownBatch key={analysisVersion} apiUrl={API_URL} />
-                  </>
-                )}
-                {activeView === "uncertainty" && (
-                  <>
-                    <div className="get4-controls">
-                      <label htmlFor="get4-detector">
-                        Analysis filter
-                        <select
-                          id="get4-detector"
-                          value={analysisDetector}
-                          onChange={(event) => selectDetector(event.target.value)}
-                        >
-                          {(availableDetectors.length > 0
-                            ? availableDetectors
-                            : [selectedDetector]
-                          ).map((detector) => (
-                            <option value={detector} key={detector}>
-                              {detector}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <span>
-                        Reports are analysed per filter. Views from one location are
-                        not counted as separate locations across filters.
-                      </span>
-                    </div>
-                    {analysisDetector === "BSE" && (
-                      <p className="notice">
-                        These phases are brightness classes: "pore" counts only the BSE-dark (deep) pores, and
-                        grey-floored open pores fall into "graphite". For the four-phase machine-learning segmentation
-                        (pore, graphite, SiOx, binder) see the General report.
-                      </p>
-                    )}
-                    <Get4Results
-                      key={`${selectedReferenceBatch}-${analysisDetector}-${analysisVersion}`}
-                      report={uncertaintyReport}
-                      batchLabel={batchLabel(selectedReferenceBatch)}
-                      title="GET4 uncertainty results"
-                      loading={uncertaintyState === "loading"}
-                      error={uncertaintyState === "error" ? uncertaintyError : ""}
-                    />
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </section>
+          </section>
 
-        <details
-          className={`data-notice ${apiState === "error" ? "data-notice-error" : ""}`}
-          aria-live="polite"
-        >
-          <summary className="data-notice-heading">
-            <span className="data-notice-indicator" />
-            <strong>Data readiness</strong>
-            <span>
-              {apiState === "loading"
-                ? "checking the local API…"
-                : apiState === "error"
-                  ? `API unreachable (${apiError})`
-                  : `API connected · ${apiRecords.length} analysis ${apiRecords.length === 1 ? "record" : "records"}`}
-            </span>
-            <span className="api-address">{API_URL}</span>
-          </summary>
-          {apiState === "error" && (
-            <p>Start the backend to check available records.</p>
-          )}
-          {apiState === "connected" && (
-            <>
+          <ol className="workflow" aria-label="Analysis workflow">
+            <li className="workflow-step">
+              <span className="workflow-number">01</span>
+              <span>
+                <strong>Build the references</strong> · compare views within each known batch
+              </span>
+            </li>
+            <li className="workflow-step">
+              <span className="workflow-number">02</span>
+              <span>
+                <strong>Classify the unknown batch</strong> · assign each location to batch 1, 2 or 3
+              </span>
+            </li>
+            <li className="workflow-step">
+              <span className="workflow-number">03</span>
+              <span>
+                <strong>Explain every match</strong> · evidence and uncertainty for each call
+              </span>
+            </li>
+          </ol>
+
+          <section className="section-block" aria-labelledby="reference-title">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">REFERENCE LIBRARY · UNKNOWN SET</p>
+                <h2 id="reference-title">Batches</h2>
+              </div>
+              <span className="section-count">3 REFERENCE SETS + UNKNOWN</span>
+            </div>
+            <BatchPicker
+              batches={allBatches}
+              selectedBatch={selectedReferenceBatch}
+              imageState={referenceImageState}
+              specimens={referenceSpecimens}
+              imageCount={referenceImageCount}
+              onSelect={selectReferenceBatch}
+            />
+            {!selectedReferenceBatch && (
+              <p className="picker-hint">
+                Select a reference batch to see its images and analysis reports, or Unknown to classify and inspect the
+                unknown images. To test a new location, use the Demo page.
+              </p>
+            )}
+            {selectedReferenceBatch && (
+              <div className="batch-views">
+                <Tabs
+                  tabs={views.map((view) =>
+                    view.id === "images" && referenceImageState === "connected"
+                      ? { ...view, badge: referenceImageCount }
+                      : view,
+                  )}
+                  active={activeView}
+                  onChange={setBatchView}
+                  label={`${batchLabel(selectedReferenceBatch)} views`}
+                  idPrefix="batch-view"
+                />
+                <div {...tabPanelProps("batch-view", activeView)}>
+                  {activeView === "images" && (
+                    <ImageGallery
+                      apiUrl={API_URL}
+                      selectedBatch={selectedReferenceBatch}
+                      imageState={referenceImageState}
+                      imageError={referenceImageError}
+                      specimens={referenceSpecimens}
+                      imageCount={referenceImageCount}
+                    />
+                  )}
+                  {activeView === "general" && (
+                    <GeneralReport
+                      key={`general-${selectedReferenceBatch}`}
+                      apiUrl={API_URL}
+                      batch={selectedReferenceBatch}
+                    />
+                  )}
+                  {activeView === "detailed" && (
+                    <DetailedReport
+                      key={`detailed-${selectedReferenceBatch}`}
+                      apiUrl={API_URL}
+                      batch={selectedReferenceBatch}
+                    />
+                  )}
+                  {activeView === "classification" && (
+                    <>
+                      <V3UnknownCalls apiUrl={API_URL} />
+                      <UnknownBatch apiUrl={API_URL} />
+                    </>
+                  )}
+                  {activeView === "uncertainty" && (
+                    <>
+                      <div className="get4-controls">
+                        <label htmlFor="get4-detector">
+                          Analysis filter
+                          <select
+                            id="get4-detector"
+                            value={analysisDetector}
+                            onChange={(event) => selectDetector(event.target.value)}
+                          >
+                            {(availableDetectors.length > 0 ? availableDetectors : [selectedDetector]).map(
+                              (detector) => (
+                                <option value={detector} key={detector}>
+                                  {detector}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                        <span>
+                          Reports are analysed per filter. Views from one location are not counted as separate locations
+                          across filters.
+                        </span>
+                      </div>
+                      {analysisDetector === "BSE" && (
+                        <p className="notice">
+                          These phases are brightness classes: "pore" counts only the BSE-dark (deep) pores, and
+                          grey-floored open pores fall into "graphite". For the four-phase machine-learning segmentation
+                          (pore, graphite, SiOx, binder) see the General report.
+                        </p>
+                      )}
+                      <Get4Results
+                        key={`${selectedReferenceBatch}-${analysisDetector}`}
+                        report={uncertaintyReport}
+                        batchLabel={batchLabel(selectedReferenceBatch)}
+                        title="GET4 uncertainty results"
+                        loading={uncertaintyState === "loading"}
+                        error={uncertaintyState === "error" ? uncertaintyError : ""}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+
+          <details className={`data-notice ${apiState === "error" ? "data-notice-error" : ""}`} aria-live="polite">
+            <summary className="data-notice-heading">
+              <span className="data-notice-indicator" />
+              <strong>Data readiness</strong>
+              <span>
+                {apiState === "loading"
+                  ? "checking the local API…"
+                  : apiState === "error"
+                    ? `API unreachable (${apiError})`
+                    : "API connected"}
+              </span>
+              <span className="api-address">{API_URL}</span>
+            </summary>
+            {apiState === "error" && <p>Start the backend to load the batch images and reports.</p>}
+            {apiState === "connected" && (
               <p>
                 {selectedReferenceBatch
                   ? `Batch ${selectedReferenceBatch} image inventory: ${
@@ -381,28 +357,14 @@ function App() {
                     }`
                   : "Select a reference batch to load its images."}
               </p>
-              {apiRecords.length > 0 && (
-                <ul className="api-record-list" aria-label="Available API records">
-                  {apiRecords.map((record) => (
-                    <li key={record.batch_id}>
-                      <code>{record.batch_id}</code>
-                      <span>Analysis metadata only</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {apiRecords.length === 0 && (
-                <p className="api-empty">The API is running, but it has no batch records yet.</p>
-              )}
-            </>
-          )}
-        </details>
+            )}
+          </details>
 
-        <p className="integrity-note">
-          Reference images load only after selecting a batch. No image
-          classifications are inferred; matching needs analysis evidence.
-        </p>
-      </div>
+          <p className="integrity-note">
+            Reference images load only after selecting a batch. No image classifications are inferred; matching needs
+            analysis evidence.
+          </p>
+        </div>
       )}
 
       <footer className="footer">

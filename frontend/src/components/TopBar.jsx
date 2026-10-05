@@ -1,3 +1,4 @@
+// Top navigation bar: brand, links to the three pages and the workspace labels.
 import "../features/v3live/v3live.css";
 const PAGES = [
   { id: "batches", href: "#overview", label: "1 · Batches" },
@@ -18,7 +19,9 @@ export default function TopBar({ page = "batches" }) {
       </a>
       <nav className="v3-nav" aria-label="Pages">
         {PAGES.map((p) => (
-          <a key={p.id} href={p.href} className={page === p.id ? "v3-nav-on" : ""}>{p.label}</a>
+          <a key={p.id} href={p.href} className={page === p.id ? "v3-nav-on" : ""}>
+            {p.label}
+          </a>
         ))}
       </nav>
       <div className="topbar-meta">

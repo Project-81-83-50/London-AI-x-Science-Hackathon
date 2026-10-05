@@ -1,0 +1,20 @@
+# Normalise line endings in the repository; Windows launchers keep CRLF.
+* text=auto
+*.bat text eol=crlf
+*.sh text eol=lf
+
+# Binary assets.
+*.png binary
+*.jpg binary
+*.tif binary
+*.npz binary
+*.pkl binary
+*.pt binary
+
+# Committed results of the SEM pipeline. The website reads them at run time, so they stay in Git,
+# but they are generated (regenerate with the scripts in sem_pipeline/), so reviews and language stats skip them.
+sem_pipeline/outputs/** linguist-generated=true -diff
+sem_pipeline/reports/** linguist-generated=true
+sem_pipeline/website/runs/** linguist-generated=true -diff
+sem_pipeline/prior_analysis/llm_run/** linguist-generated=true -diff
+frontend/package-lock.json linguist-generated=true

@@ -1,0 +1,44 @@
+# Shared tooling configuration for every Python package in the repository
+# (backend/, analysis/, batch_match/, sem_pipeline/). Dependencies are pinned
+# per component in their own requirements.txt files.
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["frontend", "sem_pipeline/website/runs"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501", # long lines are handled by the formatter; scientific expressions may exceed it
+    "E741", # `l` is used deliberately for location indices in the analysis code
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Exploratory research scripts are kept as run; only correctness rules apply.
+"batch_match/experiments/*" = ["B", "SIM", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["analysis", "app", "src", "get4", "batch_classifier"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+# Run from the repository root: python -m pytest  (CI: python -m pytest -m "not realdata").
+# Golden files live in tests/golden/; regenerate them with UPDATE_GOLDEN=1 (see tests/_support.py).
+testpaths = ["tests"]
+pythonpath = [".", "backend", "tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "realdata: needs the raw SEM images (batch_1 under SEM_RAW_DATA_DIR, data/raw/ or data/); skipped when absent",
+    "slow: runs a command-line tool in a subprocess",
+]

@@ -1,0 +1,47 @@
+{
+ "bse_inlens": [
+  {
+   "confidence": "high",
+   "detector": "BSE",
+   "evidence": {
+    "relative_noise": 0.0721
+   }
+  },
+  {
+   "confidence": "low",
+   "detector": "ETD",
+   "evidence": {
+    "bright_contrast": 13.16,
+    "pore_contrast": -4.05,
+    "relative_noise": 0.0291
+   }
+  }
+ ],
+ "triplet": [
+  {
+   "confidence": "moderate",
+   "detector": "InLens",
+   "evidence": {
+    "bright_contrast": 13.16,
+    "pore_contrast": -4.05,
+    "relative_noise": 0.0291
+   }
+  },
+  {
+   "confidence": "high",
+   "detector": "BSE",
+   "evidence": {
+    "relative_noise": 0.0721
+   }
+  },
+  {
+   "confidence": "moderate",
+   "detector": "ETD",
+   "evidence": {
+    "bright_contrast": 5.05,
+    "pore_contrast": -38.79,
+    "relative_noise": 0.0226
+   }
+  }
+ ]
+}

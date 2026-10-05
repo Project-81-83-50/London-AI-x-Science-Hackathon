@@ -1,11 +1,10 @@
-// Detailed report: every location, metric and test for one batch, from lucas-sem-analysis v3. The same view
+// Detailed report: every location, metric and test for one batch, from the SEM pipeline (v3). The same view
 // serves the reference batches and the unknown batch (whose locations are compared with the references).
 import { useJson } from "../../hooks/useJson";
 import { useTooltip } from "../../hooks/useTooltip";
 import { V3_BATCHES, differenceKind, formatNumber, formatP, reportSubject, unitLabel } from "../../lib/v3format";
-import { CompositionBars, DecisionTable, PhaseLegend } from "../segmentation/LucasReport";
-import "../kpi/KpiReport.css";
-import "../segmentation/LucasReport.css";
+import { CompositionBars, DecisionTable, PhaseLegend } from "./SegmentationCharts";
+import "../../styles/report.css";
 import "./V3Report.css";
 
 const GROUPS = [
@@ -21,8 +20,15 @@ function LocationTable({ data, subject }) {
   const { locations } = data.detailed;
   const m = Object.fromEntries(data.metrics.map((d) => [d.id, d]));
   const se = (v) => (Number.isFinite(v) ? ` ± ${v.toFixed(1)}` : "");
-  const cols = ["graphite_pct", "CBD_pct", "pore_deep_pct", "pore_open_pct", "siox_per_1000um2", "siox_area_d50_um",
-    "siox_clark_evans"];
+  const cols = [
+    "graphite_pct",
+    "CBD_pct",
+    "pore_deep_pct",
+    "pore_open_pct",
+    "siox_per_1000um2",
+    "siox_area_d50_um",
+    "siox_clark_evans",
+  ];
   const footer = subject.unknown ? [...V3_BATCHES, "unknown"] : V3_BATCHES;
   return (
     <div className="kpi-table-scroll">
@@ -205,8 +211,12 @@ function SioxSizeChart({ data, subject }) {
   const keyDash = ["", "v3-key-dashed", "v3-key-dotted"];
   return (
     <div className="kpi-chart-frame" ref={frame}>
-      <svg viewBox={`0 0 ${width} ${height}`} className="kpi-chart" role="img"
-        aria-label={`Share of SiOx area by particle diameter, ${subject.name} against the other batches`}>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="kpi-chart"
+        role="img"
+        aria-label={`Share of SiOx area by particle diameter, ${subject.name} against the other batches`}
+      >
         {[0, top / 2, top].map((t) => (
           <g key={t}>
             <line x1={left} x2={left + plotW} y1={y(t)} y2={y(t)} className="v3-grid" />
@@ -321,7 +331,12 @@ function Overlays({ apiUrl, locations }) {
       {locations.map((l) => (
         <article className="kpi-location" key={l.sample_id}>
           <a href={`${apiUrl}${l.overlay}`} target="_blank" rel="noreferrer" className="kpi-overlay-link">
-            <img src={`${apiUrl}${l.overlay}`} alt={`v3 four-phase segmentation of ${l.sample_id}`} loading="lazy" decoding="async" />
+            <img
+              src={`${apiUrl}${l.overlay}`}
+              alt={`v3 four-phase segmentation of ${l.sample_id}`}
+              loading="lazy"
+              decoding="async"
+            />
           </a>
           <div className="kpi-location-body">
             <div className="kpi-location-heading">
@@ -341,8 +356,13 @@ function Overlays({ apiUrl, locations }) {
 function DetailedReport({ apiUrl, batch }) {
   const report = useJson(`${apiUrl}/batches/${batch}/v3-report`);
   const unknownBatch = batch === "unknown";
-  const lucas = useJson(unknownBatch ? null : `${apiUrl}/batches/${batch}/lucas-report`);
-  if (report.status === "loading") return <div className="notice" role="status">Loading the detailed report…</div>;
+  const segmentation = useJson(unknownBatch ? null : `${apiUrl}/batches/${batch}/segmentation-report`);
+  if (report.status === "loading")
+    return (
+      <div className="notice" role="status">
+        Loading the detailed report…
+      </div>
+    );
   if (report.status === "error")
     return (
       <div className="notice notice-error" role="alert">
@@ -355,7 +375,12 @@ function DetailedReport({ apiUrl, batch }) {
   const locations = data.detailed.locations;
   const samples = locations.map((l) => ({
     sample_id: l.sample_id,
-    phases_pct: { pore: l.metrics.pore_pct, graphite: l.metrics.graphite_pct, SiOx: l.metrics.SiOx_pct, CBD: l.metrics.CBD_pct },
+    phases_pct: {
+      pore: l.metrics.pore_pct,
+      graphite: l.metrics.graphite_pct,
+      SiOx: l.metrics.SiOx_pct,
+      CBD: l.metrics.CBD_pct,
+    },
   }));
   const overlays = locations.filter((l) => l.overlay);
   const maxStability = q.stability_sd_pp ? Math.max(...Object.values(q.stability_sd_pp).map((s) => s.max)) : null;
@@ -363,7 +388,7 @@ function DetailedReport({ apiUrl, batch }) {
     <section className="section-block kpi-report" aria-labelledby="v3-detailed-title">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">DETAILED REPORT / LUCAS-SEM-ANALYSIS V3 / {subject.name.toUpperCase()}</p>
+          <p className="eyebrow">DETAILED REPORT / SEM PIPELINE V3 / {subject.name.toUpperCase()}</p>
           <h2 id="v3-detailed-title">{subject.name}: every location and test</h2>
         </div>
         <span className="section-count">
@@ -398,7 +423,9 @@ function DetailedReport({ apiUrl, batch }) {
         <div className="kpi-card-heading">
           <h3>Batch comparison, every segmentation metric</h3>
           <span className="kpi-card-note">
-            {subject.unknown ? "p-values test the reference batches; z is the distance of the unknown mean to each batch mean in pooled SDs" : "within-session p shuffles batch labels only inside imaging sessions; q is Benjamini-Hochberg across these metrics"}
+            {subject.unknown
+              ? "p-values test the reference batches; z is the distance of the unknown mean to each batch mean in pooled SDs"
+              : "within-session p shuffles batch labels only inside imaging sessions; q is Benjamini-Hochberg across these metrics"}
           </span>
         </div>
         <StatisticsTable data={data} subject={subject} />
@@ -416,14 +443,20 @@ function DetailedReport({ apiUrl, batch }) {
         <div className="kpi-card">
           <div className="kpi-card-heading">
             <h3>Segmentation overlays</h3>
-            <span className="kpi-card-note">v3 colours: blue pore, purple graphite, orange SiOx, green binder, red excluded</span>
+            <span className="kpi-card-note">
+              v3 colours: blue pore, purple graphite, orange SiOx, green binder, red excluded
+            </span>
           </div>
           <Overlays apiUrl={apiUrl} locations={overlays} />
         </div>
       )}
 
-      {!unknownBatch && lucas.status === "ready" && (
-        <DecisionTable samples={lucas.data.samples} batch={lucas.data.batch_id} trackRecord={lucas.data.decision_track_record} />
+      {!unknownBatch && segmentation.status === "ready" && (
+        <DecisionTable
+          samples={segmentation.data.samples}
+          batch={segmentation.data.batch_id}
+          trackRecord={segmentation.data.decision_track_record}
+        />
       )}
 
       {data.detailed.image_kpis.length > 0 && (
@@ -442,7 +475,9 @@ function DetailedReport({ apiUrl, batch }) {
           {Object.entries(q.per_phase_precision)
             .map(([k, v]) => `${k} ${v}`)
             .join(", ")}
-          .{maxStability !== null && ` Re-running on shifted inputs moves a phase fraction by at most ${maxStability.toFixed(2)} percentage points.`}
+          .
+          {maxStability !== null &&
+            ` Re-running on shifted inputs moves a phase fraction by at most ${maxStability.toFixed(2)} percentage points.`}
         </p>
         {Object.entries(q.single_detector_validation ?? {}).map(([det, v]) => (
           <p className="kpi-card-note" key={det}>

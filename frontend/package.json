@@ -1,13 +1,16 @@
 {
-  "name": "frontend",
+  "name": "sem-batch-qc-frontend",
   "private": true,
   "version": "0.0.0",
+  "description": "React frontend for the EM batch-QC workspace: reference batches, unknown-batch classification and the SEM pipeline (v3) Demo and Pipeline pages.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "preview": "vite preview",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -18,6 +21,7 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "oxlint": "^1.81.0",
+    "prettier": "^3.9.9",
     "vite": "^8.3.0"
   }
 }

@@ -1,14 +1,21 @@
-// General report: one batch at a glance, from lucas-sem-analysis v3's four-phase segmentation. The same view
+// General report: one batch at a glance, from the SEM pipeline (v3) four-phase segmentation. The same view
 // serves the reference batches and the unknown batch (whose locations are compared with the references).
 import { useJson } from "../../hooks/useJson";
 import { useTooltip } from "../../hooks/useTooltip";
 import { DIFFERENCE_LABEL, differenceKind, formatP, formatValue, reportSubject } from "../../lib/v3format";
-import "../kpi/KpiReport.css";
+import "../../styles/report.css";
 import "./V3Report.css";
 
 const HEADLINE = ["pore_pct", "carbon_pct", "SiOx_pct"];
-const COMPARED = ["pore_pct", "carbon_pct", "SiOx_pct", "pore_open_pct", "siox_per_1000um2", "siox_area_d50_um",
-  "siox_clark_evans"];
+const COMPARED = [
+  "pore_pct",
+  "carbon_pct",
+  "SiOx_pct",
+  "pore_open_pct",
+  "siox_per_1000um2",
+  "siox_area_d50_um",
+  "siox_clark_evans",
+];
 const CHIP = { robust: "", session: "kpi-chip-moderate", none: "kpi-chip-includes-zero" };
 
 function CompositionTiles({ data, subject }) {
@@ -74,14 +81,23 @@ function ComparisonChart({ data, subject }) {
               {keys.map((b, i) => {
                 const s = stat.batch[b];
                 const mine = b === subject.key;
-                const crowded = !mine && i > 0 && keys.slice(0, i).some((p) => p !== subject.key && Math.abs(x(s.mean) - x(stat.batch[p].mean)) < 14);
+                const crowded =
+                  !mine &&
+                  i > 0 &&
+                  keys.slice(0, i).some((p) => p !== subject.key && Math.abs(x(s.mean) - x(stat.batch[p].mean)) < 14);
                 return (
                   <g
                     key={b}
                     className="kpi-hit"
                     {...handlers([
-                      { value: formatValue(s.mean, def.unit), label: `${b === "unknown" ? "Unknown" : b.replace("_", " ")} mean` },
-                      { value: `${formatValue(s.min, def.unit)} – ${formatValue(s.max, def.unit)}`, label: `range, ${s.n} location${s.n === 1 ? "" : "s"}` },
+                      {
+                        value: formatValue(s.mean, def.unit),
+                        label: `${b === "unknown" ? "Unknown" : b.replace("_", " ")} mean`,
+                      },
+                      {
+                        value: `${formatValue(s.min, def.unit)} – ${formatValue(s.max, def.unit)}`,
+                        label: `range, ${s.n} location${s.n === 1 ? "" : "s"}`,
+                      },
                       { value: formatP(stat.kruskal_p), label: "reference batches differ: p" },
                       { value: formatP(stat.session_stratified_p), label: "within-session p" },
                     ])}
@@ -89,7 +105,12 @@ function ComparisonChart({ data, subject }) {
                     <rect x={x(s.mean) - 10} y={y - 14} width="20" height="28" fill="transparent" />
                     {mine && s.n > 1 && <line x1={x(s.min)} x2={x(s.max)} y1={y} y2={y} className="v3-range" />}
                     <circle cx={x(s.mean)} cy={y} r={mine ? 6 : 4.5} className={mine ? "v3-dot-own" : "v3-dot-other"} />
-                    <text x={x(s.mean)} y={mine || crowded ? y + 19 : y - 9} textAnchor="middle" className="v3-dot-label">
+                    <text
+                      x={x(s.mean)}
+                      y={mine || crowded ? y + 19 : y - 9}
+                      textAnchor="middle"
+                      className="v3-dot-label"
+                    >
                       {b === "unknown" ? "U" : b.slice(-1)}
                     </text>
                   </g>
@@ -107,7 +128,8 @@ function ComparisonChart({ data, subject }) {
       {layer}
       <p className="v3-legend">
         <span>
-          <i className="v3-key v3-key-own" /> {subject.name} mean{subject.unknown ? " (U)" : ""}, with its location range
+          <i className="v3-key v3-key-own" /> {subject.name} mean{subject.unknown ? " (U)" : ""}, with its location
+          range
         </span>
         <span>
           <i className="v3-key v3-key-other" /> {subject.unknown ? "reference" : "other"} batches&apos; means (numbered)
@@ -120,7 +142,12 @@ function ComparisonChart({ data, subject }) {
 
 function GeneralReport({ apiUrl, batch }) {
   const report = useJson(`${apiUrl}/batches/${batch}/v3-report`);
-  if (report.status === "loading") return <div className="notice" role="status">Loading the general report…</div>;
+  if (report.status === "loading")
+    return (
+      <div className="notice" role="status">
+        Loading the general report…
+      </div>
+    );
   if (report.status === "error")
     return (
       <div className="notice notice-error" role="alert">
@@ -137,7 +164,7 @@ function GeneralReport({ apiUrl, batch }) {
     <section className="section-block kpi-report" aria-labelledby="v3-general-title">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">GENERAL REPORT / LUCAS-SEM-ANALYSIS V3 / {subject.name.toUpperCase()}</p>
+          <p className="eyebrow">GENERAL REPORT / SEM PIPELINE V3 / {subject.name.toUpperCase()}</p>
           <h2 id="v3-general-title">{subject.name} at a glance</h2>
         </div>
         <span className="section-count">
@@ -148,8 +175,8 @@ function GeneralReport({ apiUrl, batch }) {
 
       <p className="kpi-card-note v3-intro">
         {subject.unknown
-          ? `Each unknown location is segmented by lucas-sem-analysis v3 into pore, graphite, SiOx and binder, and compared with ${g.reference_basis}. Composition is shown as three phases (binder merged into carbon). This describes the material; the batch calls are in the Classification tab.`
-          : `Built on lucas-sem-analysis v3: a machine-learning segmentation of each location's BSE and InLens images into pore, graphite, SiOx and binder. Composition is shown as three phases (binder merged into carbon) because that split agrees with an independent annotator ${Math.round(q.annotator_agreement_3_phase * 100)}% of the time. The Detailed report has every location and statistic.`}
+          ? `Each unknown location is segmented by the SEM pipeline (v3) into pore, graphite, SiOx and binder, and compared with ${g.reference_basis}. Composition is shown as three phases (binder merged into carbon). This describes the material; the batch calls are in the Classification tab.`
+          : `Built on the SEM pipeline (v3): a machine-learning segmentation of each location's BSE and InLens images into pore, graphite, SiOx and binder. Composition is shown as three phases (binder merged into carbon) because that split agrees with an independent annotator ${Math.round(q.annotator_agreement_3_phase * 100)}% of the time. The Detailed report has every location and statistic.`}
       </p>
 
       <CompositionTiles data={data} subject={subject} />

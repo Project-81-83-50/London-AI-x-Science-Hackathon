@@ -1,3 +1,4 @@
+// Entry point: global styles (design tokens first) and the React root.
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles/theme.css";

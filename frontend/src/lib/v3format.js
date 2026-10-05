@@ -1,7 +1,12 @@
-// Formatting shared by the General and Detailed reports (lucas-sem-analysis v3 data).
+// Formatting shared by the General and Detailed reports (SEM pipeline v3 data).
 export const V3_BATCHES = ["Batch_1", "Batch_2", "Batch_3"];
 
-const DIGITS = { "%": 1, "µm": 2, ratio: 3, "per 1000 µm²": 1 };
+// A 0-1 fraction as a percentage string; missing values count as 0.
+export const percent = (fraction, digits = 0) => `${((fraction ?? 0) * 100).toFixed(digits)}%`;
+// "Batch_1" -> "Batch 1".
+export const humanize = (name) => String(name ?? "").replaceAll("_", " ");
+
+const DIGITS = { "%": 1, µm: 2, ratio: 3, "per 1000 µm²": 1 };
 
 export function formatValue(value, unit) {
   if (!Number.isFinite(value)) return "—";
@@ -27,8 +32,12 @@ export function formatP(p) {
 export function reportSubject(data) {
   const key = data.own_key ?? `Batch_${data.batch_id}`;
   const unknown = key === "unknown";
-  return { key, unknown, name: unknown ? "Unknown batch" : `Batch ${data.batch_id}`,
-    others: V3_BATCHES.filter((b) => b !== key) };
+  return {
+    key,
+    unknown,
+    name: unknown ? "Unknown batch" : `Batch ${data.batch_id}`,
+    others: V3_BATCHES.filter((b) => b !== key),
+  };
 }
 
 // How a metric's batch difference should be read: holds within imaging sessions, may be session, or none.

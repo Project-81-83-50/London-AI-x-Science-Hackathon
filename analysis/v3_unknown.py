@@ -1,8 +1,7 @@
-"""
-Segment the unknown batch with lucas-sem-analysis v3 and measure it like the references.
+"""Segment the unknown batch with the v3 SEM pipeline (sem_pipeline/) and measure it like the references.
 
 v3's delivered U-Net weights are a release asset that is not in this repository, so the unknown images are
-segmented with v3's LightGBM teacher, which lucas-sem-analysis-v3/run_cpu_pipeline.py trains on CPU from Lucas's
+segmented with v3's LightGBM teacher, which sem_pipeline/run_cpu_pipeline.py trains on CPU from the pipeline's
 committed labels (models/teacher_cpu.txt, BSE + InLens features). Each step is v3's own code, applied to images
 outside its manifest: prepare() below (src.predict.prepare, repeated here because src.predict imports PyTorch for
 the U-Net), src.features.detector_features (27 features per detector), the model, src.physics.constrain_siox
@@ -16,46 +15,59 @@ differences), then refitted on all 31. Those scores travel with every result it 
 
 So that the comparison is like for like, the 31 reference locations are measured from the teacher's own label
 maps (v3 data/processed/<sid>/teacher_cpu_labels.npy) with the same measure() below, not from the U-Net numbers
-shown in the reference reports. Detectors of the unknown views are identified from the pixels by analysis.fields.
+shown in the reference reports. Detectors of the unknown views are identified from the pixels by analysis.fields
+(data/processed/fields/batch_unknown.json must exist; analysis.classify --rebuild creates it).
 
     python -m analysis.v3_unknown     # writes data/processed/v3_unknown/measurements.json and overlays/
 """
 
+import argparse
 import json
+import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
-ROOT = Path(__file__).resolve().parents[1]
-V3 = ROOT / "lucas-sem-analysis-v3"
-TEACHER = V3 / "models" / "teacher_cpu.txt"
-SPLIT = V3 / "models" / "student_split.json"
-RAW_UNKNOWN = ROOT / "data" / "raw" / "unknown"
-FIELDS = ROOT / "data" / "processed" / "fields" / "batch_unknown.json"
-OUT = ROOT / "data" / "processed" / "v3_unknown"
+from . import configure_cli_logging, paths
+
+logger = logging.getLogger(__name__)
+
+ROOT = paths.REPO_ROOT
+SEM_PIPELINE_DIR = paths.SEM_PIPELINE_DIR
+TEACHER = SEM_PIPELINE_DIR / "models" / "teacher_cpu.txt"
+SPLIT = SEM_PIPELINE_DIR / "models" / "student_split.json"
+RAW_UNKNOWN = paths.RAW_UNKNOWN_DIR
+FIELDS = paths.FIELDS_DIR / "batch_unknown.json"
+OUT = paths.V3_UNKNOWN_DIR
 MODEL_DIR = OUT / "models"
 # analysis.fields detector name -> v3 channel name. ETD and SE are v3's "SE2" channel.
 V3_CHANNEL = {"BSE": "BSE", "InLens": "Inlens", "ETD": "SE2", "SE": "SE2"}
-SINGLE_PRIORITY = ["BSE", "InLens", "ETD", "SE"]
-MODEL_LABEL = {"pair": "v3 teacher (BSE + InLens)", "BSE": "one-detector model (BSE)",
-               "Inlens": "one-detector model (InLens)", "SE2": "one-detector model (ETD / SE)"}
-CONFIDENT = int(0.9 * 255)    # teacher_cpu_maxp.npy stores the max class probability as uint8
-PER_CLASS = 6000               # training pixels per class and location
+SINGLE_PRIORITY = ["BSE", "InLens", "ETD", "SE"]  # which view a single-view location is segmented from
+MODEL_LABEL = {
+    "pair": "v3 teacher (BSE + InLens)",
+    "BSE": "one-detector model (BSE)",
+    "Inlens": "one-detector model (InLens)",
+    "SE2": "one-detector model (ETD / SE)",
+}
+CONFIDENT = int(0.9 * 255)  # teacher_cpu_maxp.npy stores the max class probability as uint8
+PER_CLASS = 6000  # training pixels per class and location
 
 
-def v3():
-    """Import v3's own modules (its package is called src)."""
-    if str(V3) not in sys.path:
-        sys.path.insert(0, str(V3))
+def import_sem_pipeline() -> tuple:
+    """Import the pipeline's own modules (its package is called src): (config, features, physics, preprocess,
+    teacher). This tuple is passed around as `mods`."""
+    if str(SEM_PIPELINE_DIR) not in sys.path:
+        sys.path.insert(0, str(SEM_PIPELINE_DIR))
     from src import config, features, physics, preprocess, teacher
+
     return config, features, physics, preprocess, teacher
 
 
-def prepare(paths, C, preprocess):
+def prepare(paths: dict[str, Path], C, preprocess) -> tuple[dict[str, np.ndarray], np.ndarray]:
     """v3 src/predict.prepare for any set of channels: half resolution, excluded border (and the Cu foil, found
     on BSE), 0.5-99.5% normalisation. paths: {v3 channel: path}."""
     raw = {d: preprocess.read_half(p) for d, p in paths.items()}
@@ -72,20 +84,21 @@ def prepare(paths, C, preprocess):
     return chans, exclude
 
 
-def channel_features(a, det, F):
+def channel_features(a: np.ndarray, det: str, F) -> np.ndarray:
+    """v3's per-pixel features of one normalised channel (H x W x 27, float16)."""
     f = F.detector_features(a)
     f[2] = a - ndi.gaussian_filter(a, F.CONTEXT_SIGMA[det])
     return np.stack(f, -1).astype(np.float16)  # v3 stores features as float16
 
 
-def predict_labels(booster, X, bse, exclude, mods):
+def predict_labels(booster, X: np.ndarray, bse: np.ndarray | None, exclude: np.ndarray, mods: tuple) -> np.ndarray:
     """Model probabilities -> v3's SiOx constraint (needs BSE) -> v3's clean-up."""
-    C, F, physics, preprocess, teacher = mods
+    _, _, physics, _, teacher = mods
     h, w, nf = X.shape
     flat = X.reshape(-1, nf)
     proba = np.empty((h * w, 4), np.float32)
     for i in range(0, h * w, 600_000):
-        proba[i:i + 600_000] = booster.predict(np.asarray(flat[i:i + 600_000], dtype=np.float32))
+        proba[i : i + 600_000] = booster.predict(np.asarray(flat[i : i + 600_000], dtype=np.float32))
     proba = proba.reshape(h, w, 4)
     if bse is not None:
         proba = physics.constrain_siox(proba, bse, exclude)
@@ -94,7 +107,9 @@ def predict_labels(booster, X, bse, exclude, mods):
 
 # ---------------------------------------------------------------- one-detector models
 
-def _training_set(sids, det, mods, rng):
+
+def _training_set(sids: list[str], det: str, mods: tuple, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
+    """Up to PER_CLASS confident teacher pixels per class and location: (features of channel `det`, labels)."""
     C = mods[0]
     X, y = [], []
     for sid in sids:
@@ -112,14 +127,14 @@ def _training_set(sids, det, mods, rng):
     return np.concatenate(X), np.concatenate(y)
 
 
-def _fit(X, y, teacher):
+def _fit(X: np.ndarray, y: np.ndarray, teacher):
+    """Train a LightGBM model with the teacher's own settings (uniform sample weights)."""
     return teacher.fit(X, y, np.ones(len(y), np.float32))
 
 
-def train_single_detector_models(mods):
+def train_single_detector_models(mods: tuple) -> dict:
     """Distil one model per detector from the teacher; score each on v3's held-out locations first."""
-    import lightgbm as lgb
-    C, F, physics, preprocess, teacher = mods
+    C, _, _, _, teacher = mods
     split = json.loads(SPLIT.read_text(encoding="utf-8"))
     sids = [s for _, s in C.sample_ids()]
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
@@ -138,21 +153,32 @@ def train_single_detector_models(mods):
             agree.append(float((lab[valid] == ref[valid]).mean()))
             for k, c in enumerate(C.CLASSES):
                 diffs[c].append(100 * float((lab[valid] == k).mean() - (ref[valid] == k).mean()))
-        scores[det] = {"held_out_locations": split["held_out"], "pixel_agreement_with_teacher": round(float(np.mean(agree)), 3),
-                       "fraction_difference_pp": {c: {"mean": round(float(np.mean(v)), 2), "max_abs": round(float(np.max(np.abs(v))), 2)}
-                                                  for c, v in diffs.items()}}
-        print(f"one-detector model {det}: held-out pixel agreement with the teacher {scores[det]['pixel_agreement_with_teacher']:.3f}; "
-              + ", ".join(f"{c} {d['mean']:+.1f} pp" for c, d in scores[det]["fraction_difference_pp"].items()), flush=True)
+        scores[det] = {
+            "held_out_locations": split["held_out"],
+            "pixel_agreement_with_teacher": round(float(np.mean(agree)), 3),
+            "fraction_difference_pp": {
+                c: {"mean": round(float(np.mean(v)), 2), "max_abs": round(float(np.max(np.abs(v))), 2)}
+                for c, v in diffs.items()
+            },
+        }
+        logger.info(
+            "one-detector model %s: held-out pixel agreement with the teacher %.3f; %s",
+            det,
+            scores[det]["pixel_agreement_with_teacher"],
+            ", ".join(f"{c} {d['mean']:+.1f} pp" for c, d in scores[det]["fraction_difference_pp"].items()),
+        )
         rng = np.random.default_rng(0)
         _fit(*_training_set(sids, det, mods, rng), teacher).save_model(str(MODEL_DIR / f"{det}.txt"))
     (MODEL_DIR / "validation.json").write_text(json.dumps(scores, indent=1), encoding="utf-8")
     return scores
 
 
-def single_detector_models(mods):
+def single_detector_models(mods: tuple) -> tuple[dict, dict]:
+    """The one-detector boosters by v3 channel (trained on first use) and their validation scores."""
     import lightgbm as lgb
+
     if not (MODEL_DIR / "validation.json").is_file():
-        print("training the one-detector models (once, a few minutes) ...", flush=True)
+        logger.info("training the one-detector models (once, a few minutes) ...")
         train_single_detector_models(mods)
     scores = json.loads((MODEL_DIR / "validation.json").read_text(encoding="utf-8"))
     return {det: lgb.Booster(model_file=str(MODEL_DIR / f"{det}.txt")) for det in scores}, scores
@@ -160,11 +186,13 @@ def single_detector_models(mods):
 
 # ---------------------------------------------------------------- measurement
 
-def siox_particles(lab, C):
+
+def siox_particles(lab: np.ndarray, C) -> list[dict]:
     """SiOx instances exactly as v3 src/instances.py: fill holes, EDT, h-maxima (h = 3 px), watershed."""
     from skimage.measure import regionprops
     from skimage.morphology import h_maxima
     from skimage.segmentation import watershed
+
     excl = lab == C.EXCLUDED
     mask = ndi.binary_fill_holes(lab == C.SIOX)
     dist = ndi.distance_transform_edt(mask)
@@ -176,19 +204,25 @@ def siox_particles(lab, C):
         area = p.area * C.PX_UM2
         if area < 0.1:
             continue
-        rows.append({"area_um2": area, "eq_diam_um": 2 * np.sqrt(area / np.pi),
-                     "aspect_ratio": p.major_axis_length / max(p.minor_axis_length, 1e-6),
-                     "centroid_y_um": p.centroid[0] * C.NM_PER_PX / 1000,
-                     "centroid_x_um": p.centroid[1] * C.NM_PER_PX / 1000,
-                     "touches_excluded": bool(near_excl[p.coords[:, 0], p.coords[:, 1]].any())})
+        rows.append(
+            {
+                "area_um2": area,
+                "eq_diam_um": 2 * np.sqrt(area / np.pi),
+                "aspect_ratio": p.major_axis_length / max(p.minor_axis_length, 1e-6),
+                "centroid_y_um": p.centroid[0] * C.NM_PER_PX / 1000,
+                "centroid_x_um": p.centroid[1] * C.NM_PER_PX / 1000,
+                "touches_excluded": bool(near_excl[p.coords[:, 0], p.coords[:, 1]].any()),
+            }
+        )
     return rows
 
 
-def measure(lab, bse, C):
+def measure(lab: np.ndarray, bse: np.ndarray | None, C) -> tuple[dict, list[dict]]:
     """The v3 report's segmentation metrics for one label map (0 pore, 1 graphite, 2 SiOx, 3 CBD, 255 excluded).
     bse may be None (no BSE view): the deep / open pore split, which is defined on BSE, is then not measured."""
     from scipy.spatial import cKDTree
     from skimage.filters import threshold_multiotsu
+
     valid = lab != C.EXCLUDED
     n = int(valid.sum())
     area = n * C.PX_UM2
@@ -219,7 +253,7 @@ def measure(lab, bse, C):
     return {k: (round(v, 4) if isinstance(v, float) else v) for k, v in m.items()}, ps
 
 
-def unknown_locations():
+def unknown_locations() -> list[tuple[str, dict[str, Path], list[str]]]:
     """(location_id, {fields detector: path}, all views) per unknown field; detectors read from the pixels."""
     fields = json.loads(FIELDS.read_text(encoding="utf-8"))["fields"]
     out = []
@@ -233,8 +267,11 @@ def unknown_locations():
     return out
 
 
-def segment_location(found, teacher_model, singles, mods):
-    """BSE + InLens -> the teacher; otherwise the best single view -> its one-detector model."""
+def segment_location(found: dict[str, Path], teacher_model, singles: dict, mods: tuple) -> tuple:
+    """BSE + InLens -> the teacher; otherwise the best single view -> its one-detector model.
+
+    Returns (label map, BSE channel or None, grey channel for the overlay, model key, filenames used).
+    """
     C, F = mods[0], mods[1]
     if "BSE" in found and "InLens" in found:
         chans, exclude = prepare({"BSE": found["BSE"], "Inlens": found["InLens"]}, C, mods[3])
@@ -250,11 +287,14 @@ def segment_location(found, teacher_model, singles, mods):
     return lab, bse, chans[ch], ch, [found[det].name]
 
 
-def main():
+def main() -> None:
+    argparse.ArgumentParser(description="Segment and measure the unknown batch with the v3 SEM pipeline.").parse_args()
+    configure_cli_logging()
     if not TEACHER.is_file():
-        sys.exit(f"{TEACHER} not found: run python run_cpu_pipeline.py in lucas-sem-analysis-v3 first (~1 h, CPU)")
+        sys.exit(f"{TEACHER} not found: run python run_cpu_pipeline.py in sem_pipeline first (~1 h, CPU)")
     import lightgbm as lgb
-    mods = v3()
+
+    mods = import_sem_pipeline()
     C = mods[0]
     teacher_model = lgb.Booster(model_file=str(TEACHER))
     singles, single_scores = single_detector_models(mods)
@@ -265,10 +305,17 @@ def main():
         lab = np.load(C.proc_dir(sid) / "teacher_cpu_labels.npy")
         metrics, particles = measure(lab, C.load_channels(sid, ["BSE"])["BSE"], C)
         height = json.loads((C.proc_dir(sid) / "meta.json").read_text(encoding="utf-8"))["shape"][0] * C.DS
-        reference.append({"sample_id": sid, "batch": batch, "session": f"h{height}", "metrics": metrics,
-                          "siox_diameters_um": [round(p["eq_diam_um"], 3) for p in particles],
-                          "siox_areas_um2": [round(p["area_um2"], 4) for p in particles]})
-    print(f"measured {len(reference)} reference locations from the teacher's label maps", flush=True)
+        reference.append(
+            {
+                "sample_id": sid,
+                "batch": batch,
+                "session": f"h{height}",
+                "metrics": metrics,
+                "siox_diameters_um": [round(p["eq_diam_um"], 3) for p in particles],
+                "siox_areas_um2": [round(p["area_um2"], 4) for p in particles],
+            }
+        )
+    logger.info("measured %d reference locations from the teacher's label maps", len(reference))
 
     unknown, skipped = [], []
     for code, found, views in unknown_locations():
@@ -280,21 +327,41 @@ def main():
         Image.fromarray(C.overlay_rgb(grey, lab, alpha=0.45)).save(OUT / "overlays" / f"{code}.jpg", quality=88)
         with Image.open(RAW_UNKNOWN / used[0]) as im:
             height = im.size[1]
-        unknown.append({"sample_id": code, "batch": "unknown", "session": f"h{height}", "views": views,
-                        "segmented_from": used, "model": model, "model_label": MODEL_LABEL[model],
-                        "model_validation": single_scores.get(model), "metrics": metrics,
-                        "siox_diameters_um": [round(p["eq_diam_um"], 3) for p in particles],
-                        "siox_areas_um2": [round(p["area_um2"], 4) for p in particles]})
-        print(f"{code} ({MODEL_LABEL[model]}): pore {metrics['pore_pct']:.1f}%, carbon {metrics['carbon_pct']:.1f}%, "
-              f"SiOx {metrics['SiOx_pct']:.1f}%", flush=True)
+        unknown.append(
+            {
+                "sample_id": code,
+                "batch": "unknown",
+                "session": f"h{height}",
+                "views": views,
+                "segmented_from": used,
+                "model": model,
+                "model_label": MODEL_LABEL[model],
+                "model_validation": single_scores.get(model),
+                "metrics": metrics,
+                "siox_diameters_um": [round(p["eq_diam_um"], 3) for p in particles],
+                "siox_areas_um2": [round(p["area_um2"], 4) for p in particles],
+            }
+        )
+        logger.info(
+            "%s (%s): pore %.1f%%, carbon %.1f%%, SiOx %.1f%%",
+            code,
+            MODEL_LABEL[model],
+            metrics["pore_pct"],
+            metrics["carbon_pct"],
+            metrics["SiOx_pct"],
+        )
 
-    out = {"generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-           "model": "lucas-sem-analysis v3 LightGBM teacher (CPU rebuild, models/teacher_cpu.txt); one-detector "
-                    "models distilled from it for locations with a single usable image",
-           "single_detector_validation": single_scores,
-           "reference": reference, "unknown": unknown, "skipped": skipped}
+    out = {
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
+        "model": "sem_pipeline v3 LightGBM teacher (CPU rebuild, models/teacher_cpu.txt); one-detector "
+        "models distilled from it for locations with a single usable image",
+        "single_detector_validation": single_scores,
+        "reference": reference,
+        "unknown": unknown,
+        "skipped": skipped,
+    }
     (OUT / "measurements.json").write_text(json.dumps(out), encoding="utf-8")
-    print(f"wrote {OUT / 'measurements.json'} ({len(unknown)} unknown locations, {len(skipped)} skipped)")
+    logger.info("wrote %s (%d unknown locations, %d skipped)", OUT / "measurements.json", len(unknown), len(skipped))
 
 
 if __name__ == "__main__":

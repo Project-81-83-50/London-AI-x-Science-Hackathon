@@ -1,28 +1,16 @@
 import { batchFolder, batchLabel } from "../../lib/batchLabel";
 
-function ImageGallery({
-  apiUrl,
-  selectedBatch,
-  imageState,
-  imageError,
-  specimens,
-  imageCount,
-}) {
+// Images tab: the batch's TIFF views grouped by location, with JPEG previews and original-TIFF downloads.
+function ImageGallery({ apiUrl, selectedBatch, imageState, imageError, specimens, imageCount }) {
   if (!selectedBatch) return null;
   const matched = specimens.length > 0 && specimens.every((s) => s.grouping === "matched");
 
   return (
-    <section
-      className="section-block"
-      id="reference-images"
-      aria-labelledby="reference-images-title"
-    >
+    <section className="section-block" id="reference-images" aria-labelledby="reference-images-title">
       <div className="section-heading">
         <div>
           <p className="eyebrow">LOCAL DATA / {batchLabel(selectedBatch).toUpperCase()}</p>
-          <h2 id="reference-images-title">
-            {batchLabel(selectedBatch)} microscopy images
-          </h2>
+          <h2 id="reference-images-title">{batchLabel(selectedBatch)} microscopy images</h2>
         </div>
         <span className="section-count">
           {imageState === "connected"
@@ -41,14 +29,12 @@ function ImageGallery({
       )}
       {imageState === "error" && (
         <div className="notice notice-error" role="alert">
-          Could not load {batchLabel(selectedBatch)} images ({imageError}). Check the
-          API and confirm the files are in {batchFolder(selectedBatch)}.
+          Could not load {batchLabel(selectedBatch)} images ({imageError}). Check the API and confirm the files are in{" "}
+          {batchFolder(selectedBatch)}.
         </div>
       )}
       {imageState === "connected" && specimens.length === 0 && (
-        <div className="notice">
-          No supported TIFF images were found in {batchFolder(selectedBatch)}.
-        </div>
+        <div className="notice">No supported TIFF images were found in {batchFolder(selectedBatch)}.</div>
       )}
       {imageState === "connected" && specimens.length > 0 && (
         <div className={`notice ${matched ? "" : "notice-error"}`}>
@@ -70,8 +56,7 @@ function ImageGallery({
                       : undefined
                   }
                 >
-                  {specimen.images.length}{" "}
-                  {specimen.images.length === 1 ? "view" : "views"}
+                  {specimen.images.length} {specimen.images.length === 1 ? "view" : "views"}
                   {specimen.location_recovered === false ? " · name assigned" : ""}
                 </span>
               </div>
@@ -98,15 +83,11 @@ function ImageGallery({
                         <span>
                           {image.detector ? (
                             <>
-                              <strong>
-                                {image.display_name ??
-                                  `${specimen.specimen_id}_${image.detector}`}
-                              </strong>
+                              <strong>{image.display_name ?? `${specimen.specimen_id}_${image.detector}`}</strong>
                               {image.label_matches_image === false && (
                                 <small className="label-corrected">
                                   {" "}
-                                  · relabelled from{" "}
-                                  {image.filename.replace(/^img_|\.tiff?$/gi, "")}
+                                  · relabelled from {image.filename.replace(/^img_|\.tiff?$/gi, "")}
                                 </small>
                               )}
                             </>
@@ -114,10 +95,7 @@ function ImageGallery({
                             image.filter
                           )}
                         </span>
-                        <a
-                          href={`${imageUrl}?download=true`}
-                          download={image.filename}
-                        >
+                        <a href={`${imageUrl}?download=true`} download={image.filename}>
                           Download TIFF
                         </a>
                       </figcaption>

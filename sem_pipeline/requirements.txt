@@ -1,0 +1,13 @@
+# Python 3.14 (tested). CPU parts of the pipeline + ONNX inference.
+numpy==2.4.6
+scipy==1.17.1
+scikit-image==0.26.0
+scikit-learn==1.9.1        # batch-identification models (LDA, logistic regression, PCA)
+pillow==12.2.0
+tifffile==2026.9.20        # src.get4 (raw TIFF metadata and memory-mapped reads)
+matplotlib==3.11.2         # report figures (src.get4, src.fingerprint_b12)
+lightgbm==4.7.0
+onnx==1.23.1
+onnxruntime==1.30.0
+anthropic==1.11.0          # AI-annotation stages (src.ai_labels, src.ai_validate, src.triangle_test) and website/agents.py
+python-dotenv==1.2.4

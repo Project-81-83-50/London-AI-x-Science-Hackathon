@@ -21,7 +21,9 @@
   border-radius: 7px;
   color: var(--muted);
   background: transparent;
-  font: 600 14px/1.2 "Manrope", sans-serif;
+  font:
+    600 14px/1.2 "Manrope",
+    sans-serif;
   cursor: pointer;
   transition:
     background 140ms ease,
@@ -46,7 +48,9 @@
   border-radius: 999px;
   color: inherit;
   background: rgba(var(--shadow-rgb), 0.18);
-  font: 600 12px/1.5 "IBM Plex Mono", monospace;
+  font:
+    600 12px/1.5 "IBM Plex Mono",
+    monospace;
 }
 
 .tab:not(.tab-selected) .tab-badge {

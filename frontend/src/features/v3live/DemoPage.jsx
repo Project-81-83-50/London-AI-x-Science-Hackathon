@@ -1,6 +1,9 @@
 // Demo: upload the BSE + Inlens (+ ETD) images of one location, run v3 (trained on batches 1-3), show batch + confidence.
 import { useEffect, useRef, useState } from "react";
-import { ProbBars, STEPS, Tier, apiJson, nice, pct } from "./common";
+import { apiJson } from "../../lib/api";
+import { humanize, percent } from "../../lib/v3format";
+import { PIPELINE_STEPS } from "./pipelineSteps";
+import { ProbBars, Tier } from "./V3Widgets";
 
 const DETECTORS = [
   { id: "BSE", required: true },
@@ -20,7 +23,10 @@ export default function DemoPage({ apiUrl }) {
   async function run() {
     setError("");
     setState(null);
-    if (!files.BSE || !files.Inlens) { setError("Choose at least the BSE and the Inlens image."); return; }
+    if (!files.BSE || !files.Inlens) {
+      setError("Choose at least the BSE and the Inlens image.");
+      return;
+    }
     setBusy(true);
     try {
       const { job: id } = await apiJson(`${apiUrl}/v3/jobs`, { method: "POST" });
@@ -35,8 +41,15 @@ export default function DemoPage({ apiUrl }) {
         try {
           const s = await apiJson(`${apiUrl}/v3/jobs/${id}`);
           setState(s);
-          if (s.status !== "running") { clearInterval(timer.current); setBusy(false); }
-        } catch (e) { clearInterval(timer.current); setBusy(false); setError(e.message); }
+          if (s.status !== "running") {
+            clearInterval(timer.current);
+            setBusy(false);
+          }
+        } catch (e) {
+          clearInterval(timer.current);
+          setBusy(false);
+          setError(e.message);
+        }
       }, 1000);
     } catch (e) {
       setBusy(false);
@@ -51,11 +64,12 @@ export default function DemoPage({ apiUrl }) {
     <div className="content-wrap">
       <section className="page-heading">
         <div>
-          <p className="eyebrow">DEMO · LUCAS-SEM-ANALYSIS V3</p>
+          <p className="eyebrow">DEMO · SEM PIPELINE V3</p>
           <h1>Which batch is this location from?</h1>
           <p className="page-subtitle">
-            Upload the images of one location — the same spot imaged with different detectors. BSE and Inlens are required;
-            ETD/SE is optional and sharpens the imaging fingerprint. The models are trained on batches 1–3 only.
+            Upload the images of one location — the same spot imaged with different detectors. BSE and Inlens are
+            required; ETD/SE is optional and sharpens the imaging fingerprint. The models are trained on batches 1–3
+            only.
           </p>
         </div>
       </section>
@@ -65,22 +79,29 @@ export default function DemoPage({ apiUrl }) {
             <label key={det.id} className={`v3-drop ${files[det.id] ? "v3-has" : ""}`}>
               <b>{det.id}</b> {!det.required && <span className="v3-muted">(optional)</span>}
               <br />
-              <input type="file" accept=".tif,.tiff" onChange={(e) => setFiles((f) => ({ ...f, [det.id]: e.target.files[0] }))} />
+              <input
+                type="file"
+                accept=".tif,.tiff"
+                onChange={(e) => setFiles((f) => ({ ...f, [det.id]: e.target.files[0] }))}
+              />
               <div className="v3-small v3-muted">{files[det.id]?.name}</div>
             </label>
           ))}
         </div>
         <p>
-          <button className="v3-button" onClick={run} disabled={busy}>Identify the batch</button>{" "}
+          <button className="v3-button" onClick={run} disabled={busy}>
+            Identify the batch
+          </button>{" "}
           <span className="v3-small v3-muted">about 30–40 s on the GPU</span>
         </p>
         {error && <p className="v3-error">{error}</p>}
         {state && (
           <>
             <div className="v3-flow">
-              {STEPS.filter((s) => s.key).map((s, i) => {
+              {PIPELINE_STEPS.filter((s) => s.key).map((s, i) => {
                 const done = state.steps?.includes(s.key);
-                const active = !done && state.status === "running" && (i === 0 || state.steps?.includes(STEPS[i - 1].key));
+                const active =
+                  !done && state.status === "running" && (i === 0 || state.steps?.includes(PIPELINE_STEPS[i - 1].key));
                 return (
                   <span key={s.id} style={{ display: "contents" }}>
                     {i > 0 && <span className="v3-arrow">→</span>}
@@ -95,9 +116,13 @@ export default function DemoPage({ apiUrl }) {
         {state?.status === "error" && <pre className="v3-error">{state.error}</pre>}
       </div>
       {d && (
-        <a className="v3-card v3-result" href={`#pipeline/${job}`} style={{ display: "block", textDecoration: "none", color: "inherit" }}>
-          <div className={`v3-big ${d.answer_type === "unsure" ? "v3-unsure" : ""}`}>{nice(d.answer)}</div>
-          <Tier value={d.confidence} /> {top != null && <b> {pct(top)} probability</b>}
+        <a
+          className="v3-card v3-result"
+          href={`#pipeline/${job}`}
+          style={{ display: "block", textDecoration: "none", color: "inherit" }}
+        >
+          <div className={`v3-big ${d.answer_type === "unsure" ? "v3-unsure" : ""}`}>{humanize(d.answer)}</div>
+          <Tier value={d.confidence} /> {top != null && <b> {percent(top)} probability</b>}
           {probs && <ProbBars probabilities={probs} highlight={d.answer} />}
           <p className="v3-small">{(d.reasons || []).join(" ")}</p>
           <span className="v3-button v3-ghost">See every step in the pipeline →</span>

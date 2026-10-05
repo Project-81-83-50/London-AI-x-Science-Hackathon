@@ -1,9 +1,11 @@
-# Python packages for the analysis package (fields, kpis, classify, get4).
-numpy
-scipy
-scikit-image
-tifffile
-imagecodecs
-pillow
-matplotlib
-scikit-learn
+# Python packages for the analysis package (fields, kpis, classify, kpi_single, get4, batch_match, v3_report).
+# analysis.v3_unknown also needs the v3 SEM pipeline's packages (LightGBM): pip install -r sem_pipeline/requirements.txt
+# Pinned to the tested versions (Python 3.14); pillow matches backend/app/requirements.txt so both install together.
+numpy==2.5.3
+scipy==1.18.1
+scikit-image==0.26.0
+tifffile==2026.9.20
+imagecodecs==2026.8.16
+pillow==12.0.0
+matplotlib==3.11.2
+scikit-learn==1.9.1

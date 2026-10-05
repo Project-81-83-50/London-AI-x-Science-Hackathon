@@ -36,17 +36,10 @@ export function useTooltip(defaultWidth = 640) {
     tabIndex: 0,
   });
   const layer = tip && (
-    <div
-      className="kpi-tooltip"
-      style={{ left: tip.x, top: tip.y }}
-      role="status"
-      aria-live="polite"
-    >
+    <div className="kpi-tooltip" style={{ left: tip.x, top: tip.y }} role="status" aria-live="polite">
       {tip.rows.map((row) => (
         <div className="kpi-tooltip-row" key={row.label}>
-          {row.color && (
-            <span className="kpi-tooltip-key" style={{ background: row.color }} />
-          )}
+          {row.color && <span className="kpi-tooltip-key" style={{ background: row.color }} />}
           <strong>{row.value}</strong>
           <span>{row.label}</span>
         </div>

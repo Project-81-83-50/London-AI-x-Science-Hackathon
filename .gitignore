@@ -1,21 +1,29 @@
-# Local Python environment and generated Python bytecode.
+# Python environments, bytecode and tool caches.
 .venv/
 __pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
 
-# Local secrets and generated frontend build/dependency files.
+# Frontend dependencies and build output.
 node_modules/
 dist/
+
+# Local secrets.
 .env
 
-# Machine-specific files and source data kept outside Git.
+# Editor and OS files.
 .DS_Store
-data/raw/
-data/processed/
+Thumbs.db
+
+# Microscopy data and generated results are large and kept outside Git (see README, "Dataset").
+/data/
+
 # Logs from local pipeline runs.
 *.log
 
-# lucas-sem-analysis-v3 website runs: machine-specific Python path, uploaded TIFFs, logs, transient report status.
-lucas-sem-analysis-v3/website/v3_python.txt
-lucas-sem-analysis-v3/website/runs/*/input/*.tif
-lucas-sem-analysis-v3/website/runs/*/log.txt
-lucas-sem-analysis-v3/website/runs/*/output/report_status.json
+# sem_pipeline website runs: machine-specific Python path, uploaded TIFFs, logs, transient report status.
+sem_pipeline/website/v3_python.txt
+sem_pipeline/website/runs/*/input/*.tif
+sem_pipeline/website/runs/*/log.txt
+sem_pipeline/website/runs/*/output/report_status.json

@@ -1,0 +1,6 @@
+# Development and CI tools: lint/format (Ruff, configured in pyproject.toml) and the test suite (pytest, tests/).
+# Install on top of the runtime packages:
+#   python -m pip install -r backend/app/requirements.txt -r analysis/requirements.txt -r requirements-dev.txt
+ruff==0.16.10
+pytest==9.1.1
+httpx2==2.13.1  # HTTP client behind FastAPI's TestClient (Starlette 1.x uses httpx2)

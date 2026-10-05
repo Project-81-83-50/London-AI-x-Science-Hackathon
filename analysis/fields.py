@@ -1,5 +1,4 @@
-"""
-Group each batch's images into the fields of view they actually show.
+"""Group each batch's images into the fields of view they actually show.
 
 The filename code (img_<code>_<detector>) does not identify the imaged field: views of one
 field carry different codes, and files sharing a code often show different fields. The
@@ -13,7 +12,6 @@ So fields are recovered from the pixels instead:
    same field peak at 0.06-0.5.
 3. Pairs are merged strongest first (single linkage) while the score clears MATCH_SCORE
    and a field holds at most MAX_VIEWS views.
-
 4. Each view's real detector is identified from its pixels (the filename suffix is ignored):
    - BSE: the only grainy view. Backscatter signal is weak, so its pixel noise relative to
      contrast is about 0.06-0.09, against at most 0.045 for the secondary-electron views.
@@ -31,14 +29,19 @@ So fields are recovered from the pixels instead:
    Each view's label is its filename (img_ and extension dropped) when that agrees with the
    field's location and the identified detector, and location_detector otherwise.
 
-Output: data/processed/fields/batch_N.json, used by analysis.kpis and the image API.
-Run to (re)build the manifests: python -m analysis.fields [--batches 1 2 3]
+Input: the images directly inside data/raw/batch_N (reference batches) or data/raw/unknown.
+Output: data/processed/fields/batch_N.json (one manifest per batch), used by analysis.kpis,
+analysis.classify, analysis.v3_unknown and the backend's image API.
+
+Run to (re)build the manifests:
+
+    python -m analysis.fields [--batches 1 2 3]
 """
 
 import argparse
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -46,26 +49,28 @@ import tifffile
 from scipy import fft, ndimage
 from scipy.optimize import linear_sum_assignment
 
-ROOT = Path(__file__).resolve().parents[1]
-RAW = ROOT / "data" / "raw"
-OUT = ROOT / "data" / "processed" / "fields"
-NAME = re.compile(r"^img_(?P<code>[^_]+)_(?P<detector>BSE|ETD|Inlens|SE)(?: \(\d+\))?\.tiff?$", re.I)
+from . import configure_cli_logging, paths
 
-MATCH_SCORE = 0.045   # unrelated pairs score ~0.02; the weakest true matches seen score ~0.06
-MAX_VIEWS = 3         # the acquisition gives every field at most three detector views
-BIN = 8               # ~200 nm/px from 25 nm/px raw pixels
-CROP = (200, 860)     # common crop (rows, cols) so every image has the same FFT size
-STRONG, MODERATE = 0.15, 0.06
-BSE_NOISE = 0.055     # relative pixel noise; BSE views 0.06-0.09, SE views <= 0.045
-PORE_SPLIT = -4.0     # pore contrast (graphite IQRs): ETD <= -4.7, InLens >= -2.9 in the reference batches
+ROOT = paths.REPO_ROOT
+RAW = paths.RAW_DIR  # read at call time (batch_dir), so reassigning fields.RAW redirects the input
+OUT = paths.FIELDS_DIR
+FILENAME_PATTERN = re.compile(r"^img_(?P<code>[^_]+)_(?P<detector>BSE|ETD|Inlens|SE)(?: \(\d+\))?\.tiff?$", re.I)
+
+MATCH_SCORE = 0.045  # unrelated pairs score ~0.02; the weakest true matches seen score ~0.06
+MAX_VIEWS = 3  # the acquisition gives every field at most three detector views
+BIN = 8  # ~200 nm/px from 25 nm/px raw pixels
+CROP = (200, 860)  # common crop (rows, cols) so every image has the same FFT size
+STRONG, MODERATE = 0.15, 0.06  # weakest-link score bands for "strong" / "moderate" field matches
+BSE_NOISE = 0.055  # relative pixel noise; BSE views 0.06-0.09, SE views <= 0.045
+PORE_SPLIT = -4.0  # pore contrast (graphite IQRs): ETD <= -4.7, InLens >= -2.9 in the reference batches
 
 
-def batch_dir(batch):
+def batch_dir(batch: str | int) -> Path:
     """Raw folder of a batch: data/raw/batch_N for reference batches, data/raw/unknown for the unknown set."""
     return RAW / ("unknown" if str(batch) == "unknown" else f"batch_{batch}")
 
 
-def edge_map(path):
+def edge_map(path: str | Path) -> np.ndarray:
     """Windowed, standardised gradient magnitude of a downsampled grey image."""
     arr = tifffile.imread(path)
     if arr.ndim == 3:
@@ -79,7 +84,8 @@ def edge_map(path):
     return g * np.hanning(g.shape[0])[:, None] * np.hanning(g.shape[1])[None, :]
 
 
-def read_grey(path, b=1):
+def read_grey(path: str | Path, b: int = 1) -> np.ndarray:
+    """Green channel scaled to [0, 1], right-edge stripe cropped, block-binned by `b`."""
     arr = tifffile.imread(path)
     if arr.ndim == 3:
         arr = arr[..., 1]
@@ -90,71 +96,94 @@ def read_grey(path, b=1):
     return a
 
 
-def relative_noise(img):
+def relative_noise(img: np.ndarray) -> float:
     """Immerkaer pixel-noise estimate on a central crop, relative to the 1-99% grey range."""
     h, w = img.shape
-    c = img[h // 2 - 400: h // 2 + 400, w // 2 - 1000: w // 2 + 1000]
+    c = img[h // 2 - 400 : h // 2 + 400, w // 2 - 1000 : w // 2 + 1000]
     k = np.array([[1, -2, 1], [-2, 4, -2], [1, -2, 1]], np.float32)
     sigma = np.sqrt(np.pi / 2) * np.abs(ndimage.convolve(c, k)[1:-1, 1:-1]).mean() / 6
     lo, hi = np.percentile(img[::8, ::8], [1, 99])
     return float(sigma / max(hi - lo, 1e-6))
 
 
-def phase_map(img):
+def phase_map(img: np.ndarray) -> np.ndarray:
     """Quick 3-class Otsu map (0 pore, 1 graphite, 2 bright) used only as a mask."""
     from skimage import filters
+
     sm = ndimage.gaussian_filter(img, 1.0)
     return np.digitize(sm, filters.threshold_multiotsu(sm[::4, ::4], classes=3))
 
 
-def phase_contrast(img, labels):
+def phase_contrast(img: np.ndarray, labels: np.ndarray) -> dict[str, float]:
     """Pore and bright-phase level relative to graphite, in graphite inter-quartile ranges."""
     h, w = min(img.shape[0], labels.shape[0]), min(img.shape[1], labels.shape[1])
     img, labels = img[:h, :w], labels[:h, :w]
     graphite = img[ndimage.binary_erosion(labels == 1, iterations=3)]
     mid = np.median(graphite)
     iqr = np.percentile(graphite, 75) - np.percentile(graphite, 25) + 1e-6
-    level = lambda m: float((np.median(img[m]) - mid) / iqr) if m.any() else 0.0
-    return {"pore": level(ndimage.binary_erosion(labels == 0)),
-            "bright": level(ndimage.binary_erosion(labels == 2, iterations=2))}
+
+    def level(mask: np.ndarray) -> float:
+        return float((np.median(img[mask]) - mid) / iqr) if mask.any() else 0.0
+
+    return {
+        "pore": level(ndimage.binary_erosion(labels == 0)),
+        "bright": level(ndimage.binary_erosion(labels == 2, iterations=2)),
+    }
 
 
-def identify_detectors(paths):
+def identify_detectors(paths: list[Path]) -> list[dict]:
     """Detector class per view of one field: 'BSE', 'InLens' or 'ETD', with evidence."""
     noise = [relative_noise(read_grey(p)) for p in paths]
     images = [read_grey(p, 4) for p in paths]
     bse = int(np.argmax(noise)) if max(noise) >= BSE_NOISE else None
     others = [i for i in range(len(paths)) if i != bse]
     masks = [phase_map(images[bse])] if bse is not None else [phase_map(images[i]) for i in others]
-    contrast = {i: {k: float(np.mean([phase_contrast(images[i], m)[k] for m in masks])) for k in ("pore", "bright")}
-                for i in others}
+    contrast = {
+        i: {k: float(np.mean([phase_contrast(images[i], m)[k] for m in masks])) for k in ("pore", "bright")}
+        for i in others
+    }
     result = [None] * len(paths)
     if bse is not None:
         second = max((noise[i] for i in others), default=0.0)
-        result[bse] = {"detector": "BSE", "confidence": "high" if noise[bse] >= 1.3 * max(second, BSE_NOISE) else "moderate"}
+        result[bse] = {
+            "detector": "BSE",
+            "confidence": "high" if noise[bse] >= 1.3 * max(second, BSE_NOISE) else "moderate",
+        }
     if len(others) == 2:
         a, b = sorted(others, key=lambda i: contrast[i]["pore"])
         gap = contrast[b]["pore"] - contrast[a]["pore"]
         sided = contrast[a]["pore"] <= PORE_SPLIT < contrast[b]["pore"]
         conf = "high" if sided and gap >= 2 else "moderate" if gap >= 1 else "low"
-        result[a] = {"detector": "ETD", "confidence": conf}     # darker pores
+        result[a] = {"detector": "ETD", "confidence": conf}  # darker pores
         result[b] = {"detector": "InLens", "confidence": conf}
     for i in others:
         if result[i] is None:  # a lone SE view: judge it against the fixed split
             margin = abs(contrast[i]["pore"] - PORE_SPLIT)
-            result[i] = {"detector": "ETD" if contrast[i]["pore"] <= PORE_SPLIT else "InLens",
-                         "confidence": "moderate" if margin >= 1.5 else "low"}
+            result[i] = {
+                "detector": "ETD" if contrast[i]["pore"] <= PORE_SPLIT else "InLens",
+                "confidence": "moderate" if margin >= 1.5 else "low",
+            }
     for i in range(len(paths)):
-        result[i]["evidence"] = {"relative_noise": round(noise[i], 4),
-                                 **({k: round(v, 2) for k, v in (("pore_contrast", contrast[i]["pore"]),
-                                                                ("bright_contrast", contrast[i]["bright"]))}
-                                    if i in contrast else {})}
+        result[i]["evidence"] = {
+            "relative_noise": round(noise[i], 4),
+            **(
+                {
+                    k: round(v, 2)
+                    for k, v in (("pore_contrast", contrast[i]["pore"]), ("bright_contrast", contrast[i]["bright"]))
+                }
+                if i in contrast
+                else {}
+            ),
+        }
     return result
 
 
-def assign_locations(fields):
-    """One filename code per field, used once each. Adds location, location_recovered and
-    location_alternatives (other codes that would fit the field equally well)."""
+def assign_locations(fields: list[dict]) -> None:
+    """Give each field one filename code, each code used once (in place).
+
+    Adds `location`, `location_recovered` and `location_alternatives` (other codes that would fit
+    the field equally well) to every field, and `label_matches_image` / `display_name` to every view.
+    """
     counts = {}
     for f in fields:
         for v in f["views"]:
@@ -170,7 +199,7 @@ def assign_locations(fields):
     full = np.array([[score(f, c) for c in codes] for f in fields], float)
     rows, cols = linear_sum_assignment(-full)
     best = base[rows, cols].sum()
-    for i, j in zip(rows, cols):
+    for i, j in zip(rows, cols, strict=True):
         alternatives = []
         for k in range(len(codes)):
             if k == j:
@@ -188,11 +217,14 @@ def assign_locations(fields):
         for v in f["views"]:
             label = {"SE": "ETD", "INLENS": "INLENS"}.get(v["filename_detector"], v["filename_detector"])
             v["label_matches_image"] = v["filename_code"] == codes[j] and label == v["detector"].upper()
-            v["display_name"] = (re.sub(r"^img_|\.tiff?$", "", v["filename"], flags=re.I)
-                                 if v["label_matches_image"] else f"{codes[j]}_{v['detector']}")
+            v["display_name"] = (
+                re.sub(r"^img_|\.tiff?$", "", v["filename"], flags=re.I)
+                if v["label_matches_image"]
+                else f"{codes[j]}_{v['detector']}"
+            )
 
 
-def phase_correlation(fa, fb):
+def phase_correlation(fa: np.ndarray, fb: np.ndarray) -> tuple[float, list[int]]:
     """Peak of the normalised cross-power spectrum, and the (dy, dx) shift of b relative to a."""
     cross = fa * np.conj(fb)
     corr = np.real(fft.ifft2(cross / (np.abs(cross) + 1e-9)))
@@ -201,7 +233,7 @@ def phase_correlation(fa, fb):
     return float(corr.max()), [int(dy - h if dy > h // 2 else dy) * BIN, int(dx - w if dx > w // 2 else dx) * BIN]
 
 
-def group_fields(scores):
+def group_fields(scores: np.ndarray) -> list[list[int]]:
     """Strongest-first merging with a size cap. Returns a list of index lists."""
     n = len(scores)
     field = list(range(n))
@@ -219,8 +251,20 @@ def group_fields(scores):
     return sorted((sorted(m) for m in members.values()), key=lambda m: m[0])
 
 
-def match_batch(batch):
-    files = sorted(p for p in batch_dir(batch).iterdir() if NAME.match(p.name))
+def _match_confidence(n_views: int, support: float) -> str:
+    """Confidence label of a field from its weakest view-to-field link."""
+    if n_views == 1:
+        return "single view"
+    if support >= STRONG:
+        return "strong"
+    if support >= MODERATE:
+        return "moderate"
+    return "weak"
+
+
+def match_batch(batch: str | int) -> dict:
+    """Group a batch's images into fields, identify each view's detector, and write the manifest."""
+    files = sorted(p for p in batch_dir(batch).iterdir() if FILENAME_PATTERN.match(p.name))
     spectra = [fft.fft2(edge_map(p)) for p in files]
     n = len(files)
     scores, shifts = np.zeros((n, n)), {}
@@ -232,41 +276,47 @@ def match_batch(batch):
     in_field = {i: g for g in groups for i in g}
     fields = []
     for number, idx in enumerate(groups, 1):
-        links = [scores[i, j] for a, i in enumerate(idx) for j in idx[a + 1:]]
+        links = [scores[i, j] for a, i in enumerate(idx) for j in idx[a + 1 :]]
         # Weakest view-to-field link: each view's best score to another member of its field.
         support = min((max((scores[i, j] for j in idx if j != i), default=0.0) for i in idx), default=0.0)
         outside = max((scores[i, j] for i in idx for j in range(n) if j not in idx), default=0.0)
         anchor = idx[0]
         detectors = identify_detectors([files[i] for i in idx])
-        fields.append({
-            "field_id": f"F{number:02d}",
-            "views": [{"filename": files[i].name,
-                       "filename_code": NAME.match(files[i].name)["code"],
-                       "filename_detector": NAME.match(files[i].name)["detector"].upper(),
-                       "detector": det["detector"], "detector_confidence": det["confidence"],
-                       "detector_evidence": det["evidence"],
-                       # idx is sorted, so the anchor (first view) always has the lower index.
-                       "offset_px": [0, 0] if i == anchor else shifts[anchor, i]}
-                      for i, det in zip(idx, detectors)],
-            "detectors": sorted(det["detector"] for det in detectors),
-            "filename_codes": sorted({NAME.match(files[i].name)["code"] for i in idx}),
-            "match_score_min": float(support) if len(idx) > 1 else None,
-            "pair_scores": [round(float(s), 3) for s in links],
-            "best_outside_score": float(outside),
-            "confidence": ("single view" if len(idx) == 1 else
-                           "strong" if support >= STRONG else
-                           "moderate" if support >= MODERATE else "weak"),
-        })
+        fields.append(
+            {
+                "field_id": f"F{number:02d}",
+                "views": [
+                    {
+                        "filename": files[i].name,
+                        "filename_code": FILENAME_PATTERN.match(files[i].name)["code"],
+                        "filename_detector": FILENAME_PATTERN.match(files[i].name)["detector"].upper(),
+                        "detector": det["detector"],
+                        "detector_confidence": det["confidence"],
+                        "detector_evidence": det["evidence"],
+                        # idx is sorted, so the anchor (first view) always has the lower index.
+                        "offset_px": [0, 0] if i == anchor else shifts[anchor, i],
+                    }
+                    for i, det in zip(idx, detectors, strict=True)
+                ],
+                "detectors": sorted(det["detector"] for det in detectors),
+                "filename_codes": sorted({FILENAME_PATTERN.match(files[i].name)["code"] for i in idx}),
+                "match_score_min": float(support) if len(idx) > 1 else None,
+                "pair_scores": [round(float(s), 3) for s in links],
+                "best_outside_score": float(outside),
+                "confidence": _match_confidence(len(idx), support),
+            }
+        )
     assign_locations(fields)
     unrelated = np.array([scores[i, j] for i in range(n) for j in range(i + 1, n) if in_field[i] is not in_field[j]])
     manifest = {
-        "batch_id": str(batch), "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "batch_id": str(batch),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "method": "Phase correlation of edge maps (~200 nm/px); strongest-first merging, "
-                  f"score ≥ {MATCH_SCORE}, at most {MAX_VIEWS} views per field.",
+        f"score ≥ {MATCH_SCORE}, at most {MAX_VIEWS} views per field.",
         "note": "Filename codes and detector suffixes do not identify fields or detectors; both are "
-                "recovered from the images.",
+        "recovered from the images.",
         "detector_method": f"BSE: relative pixel noise ≥ {BSE_NOISE}. ETD vs InLens: pore contrast against "
-                           f"the field's BSE phase map, ETD ≤ {PORE_SPLIT} < InLens.",
+        f"the field's BSE phase map, ETD ≤ {PORE_SPLIT} < InLens.",
         "unrelated_pair_scores": {"median": float(np.median(unrelated)), "max": float(unrelated.max())},
         "fields": fields,
     }
@@ -275,31 +325,39 @@ def match_batch(batch):
     return manifest
 
 
-def load_or_match(batch, rebuild=False):
+def load_or_match(batch: str | int, rebuild: bool = False) -> dict:
     """Cached manifest unless it is missing, older than the newest raw image, or rebuild is set."""
     path = OUT / f"batch_{batch}.json"
-    raw = [p for p in batch_dir(batch).iterdir() if NAME.match(p.name)]
+    raw = [p for p in batch_dir(batch).iterdir() if FILENAME_PATTERN.match(p.name)]
     if not rebuild and path.is_file() and path.stat().st_mtime >= max(p.stat().st_mtime for p in raw):
         manifest = json.loads(path.read_text(encoding="utf-8"))
-        if ({v["filename"] for f in manifest["fields"] for v in f["views"]} == {p.name for p in raw}
-                and all("location" in f for f in manifest["fields"])):
+        if {v["filename"] for f in manifest["fields"] for v in f["views"]} == {p.name for p in raw} and all(
+            "location" in f for f in manifest["fields"]
+        ):
             return manifest
     return match_batch(batch)
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser(description="Group batch images into the fields they show.")
     ap.add_argument("--batches", nargs="+", default=["1", "2", "3"])
     args = ap.parse_args()
+    configure_cli_logging()
     for batch in args.batches:
         m = match_batch(batch)
         sizes = [len(f["views"]) for f in m["fields"]]
-        print(f"batch {batch}: {len(sizes)} fields (views per field {sorted(sizes, reverse=True)}); "
-              f"unrelated pairs max {m['unrelated_pair_scores']['max']:.3f}")
+        print(
+            f"batch {batch}: {len(sizes)} fields (views per field {sorted(sizes, reverse=True)}); "
+            f"unrelated pairs max {m['unrelated_pair_scores']['max']:.3f}"
+        )
         for f in m["fields"]:
-            print(f"  {f['field_id']} {f['location']} ({'recovered' if f['location_recovered'] else 'assigned'}) "
-                  + ", ".join(f"{v['filename_code']}_{v['filename_detector']} -> {v['detector']} "
-                              f"({v['detector_confidence']})" for v in f["views"]))
+            print(
+                f"  {f['field_id']} {f['location']} ({'recovered' if f['location_recovered'] else 'assigned'}) "
+                + ", ".join(
+                    f"{v['filename_code']}_{v['filename_detector']} -> {v['detector']} ({v['detector_confidence']})"
+                    for v in f["views"]
+                )
+            )
 
 
 if __name__ == "__main__":

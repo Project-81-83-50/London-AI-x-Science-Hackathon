@@ -10,14 +10,12 @@ export function useJson(url) {
     fetch(url, { signal: controller.signal })
       .then(async (response) => {
         const body = await response.json().catch(() => null);
-        if (!response.ok)
-          throw new Error(body?.detail || `API returned ${response.status}`);
+        if (!response.ok) throw new Error(body?.detail || `API returned ${response.status}`);
         return body;
       })
       .then((data) => setState({ status: "ready", data, error: "" }))
       .catch((cause) => {
-        if (cause.name !== "AbortError")
-          setState({ status: "error", data: null, error: cause.message });
+        if (cause.name !== "AbortError") setState({ status: "error", data: null, error: cause.message });
       });
     return () => controller.abort();
   }, [url]);
