@@ -17,6 +17,29 @@ Three reference batches of SEM images are known; each location of an unknown bat
 
 How the parts fit together: [docs/architecture.md](docs/architecture.md).
 
+![The General report of reference batch 1: composition with 95 % intervals and the comparison with batches 2 and 3](docs/images/general-report.jpg)
+
+### How a location's batch is decided
+
+1. **KPI model (90 % of the probability).** The raw BSE image is split into three brightness classes and compared
+   pixel by pixel with the ETD and InLens views, giving 32 KPIs. A diagonal LDA, fitted on the 31 reference locations,
+   uses the most batch-separating KPIs that were measured for this location (usually *ETD-dark solid*: area dark in
+   ETD but solid in BSE, which needs an ETD image).
+2. **Material model (10 %, and the check).** Five measurements from the U-Net segmentation plus DINOv2 texture
+   features, calibrated on the references.
+3. **Answer and confidence.** The batch with the highest combined probability. Confidence is **High** when the KPI
+   model is at least 50 % sure *and* the material model picks the same batch, otherwise **Low**.
+4. **Overrides.** An image identical to a training image is refused; a re-shot of a known reference location gets that
+   location's batch.
+
+## Requirements
+
+- Python 3.14 (tested) and Node.js 22 (as in CI).
+- For the Demo: PyTorch and the SEM-pipeline packages. A CUDA GPU is fastest; a recent laptop CPU (tested on an
+  Apple M2 Pro) takes about 45 s per location.
+- The reference TIFFs (about 1.6 GB) and the trained models from the GitHub release; neither is in Git.
+- For **Generate report** only: an Anthropic API key.
+
 ## Quick start
 
 1. Put the reference TIFFs in `ReferenceBatches/Batch_1..3/` and unpack the trained models from release
@@ -75,6 +98,40 @@ images change. `data/raw/unknown/` is only needed if you have unknown-batch imag
   **Detailed report**) and the unknown batch with each location's batch call.
 - **Demo** — upload the BSE + InLens (+ ETD, recommended) images of one location to get its batch and confidence.
 - **Pipeline** — every step of a run, and **Generate report** for the agent-written explanation.
+
+## Results
+
+All accuracies are leave-one-location-out on the 31 reference locations (7 / 7 / 17): each location is predicted by
+models that never saw it. Balanced accuracy is used because Batch 3 dominates; chance is 33 %.
+
+| What | Result |
+| --- | --- |
+| Segmentation vs. a blind independent annotator | 87 % (pore / carbon / SiOx), 82 % with binder separate; binder precision only ~0.5 |
+| KPI model (90 % of the decision) | 68 % balanced accuracy, nested test, permutation p = 0.005; recall 71 / 57 / 76 % for batches 1 / 2 / 3 |
+| Material model (10 %) | 61 % balanced accuracy, permutation p = 0.005 |
+
+Calls for the nine unknown locations:
+
+| Answer | Locations | Confidence |
+| --- | --- | --- |
+| Batch 3 | `0eryguqq`, `fhwrjtet`, `xrv9xvzb` | High |
+| Batch 1 | `4hq27w4c`, `fn0mhxef` | High |
+| Batch 1 | `y59rxmxl` | Low (material model says Batch 2) |
+| Batch 2 | `3e122cbj` | Low (material model disagrees) |
+| Batch 2 | `fspqbkxl`, `soo2ax3r` | Low (KPI model below 50 %) |
+
+Details: [sem_pipeline/reports/report.md](sem_pipeline/reports/report.md) and [docs/analysis.md](docs/analysis.md).
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| "API unreachable" at the bottom of the Batches page | The API is not running: start it with the launcher (or see [running the parts by hand](docs/getting-started.md#running-the-components-manually)) and check that `frontend/.env` points to its port. |
+| A batch card says *Folder not found* or shows 0 images | `ReferenceBatches/Batch_N/` is missing or has a nested folder; see [Recreating `ReferenceBatches/`](#recreating-referencebatches), then click **Refresh local images**. |
+| General or Detailed report: "No v3 report …" | Reports were never generated: run `python -m analysis.reports`. |
+| Demo fails at "U-Net segmentation" or straight away | The model files or PyTorch are missing: unpack `models_v3.0.zip` and install the pipeline packages ([getting started](docs/getting-started.md)). |
+| Demo answer is refused | The upload is pixel-identical to a reference image; this is by design. |
+| **Generate report** fails with a credentials error | Set `ANTHROPIC_API_KEY` in `sem_pipeline/.env` (copy `.env.example`), then try again. |
 
 ## Documentation
 
