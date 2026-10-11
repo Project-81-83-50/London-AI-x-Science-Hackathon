@@ -1,5 +1,5 @@
 // Four-phase segmentation views shared by the Detailed report: phase legend, per-location composition bars and
-// v3's batch-decision table. Data comes from GET /batches/{id}/segmentation-report.
+// the batch-decision table on held-out locations. Data comes from GET /batches/{id}/v3-report.
 import { useTooltip } from "../../hooks/useTooltip";
 
 // Chart colours: an ordinal orange ramp in order of BSE brightness (pore darkest, SiOx lightest),
@@ -85,79 +85,62 @@ export function CompositionBars({ samples }) {
   );
 }
 
-const ANSWER_LABEL = { specific: "", pair: "either", unsure: "unsure" };
+const humanBatch = (b) => (b ? b.replaceAll("_", " ") : "—");
+const share = (v) => (Number.isFinite(v) ? `${Math.round(v * 100)}%` : "—"); // 0-1 as a percentage
 
-function answerText(decision) {
-  if (!decision) return "—";
-  if (decision.answer_type === "unsure") return "Unsure";
-  return decision.answer.replaceAll("_", " ");
-}
-
-// v3's batch decision per location: the imaging-fingerprint and material models combined by agreement.
-export function DecisionTable({ samples, batch, trackRecord }) {
-  const answered = samples.filter((s) => s.decision && s.decision.answer_type !== "unsure");
-  const right = answered.filter((s) => s.decision.correct).length;
-  const overall = trackRecord?.accuracy_when_answering;
+// The current decision rule (90 % KPI model + 10 % material model) on this batch's locations, each decided by
+// models trained without it (analysis.v3_report: held_out_decisions).
+export function DecisionTable({ heldOut, batch }) {
+  const rows = heldOut.locations;
+  const right = rows.filter((r) => r.correct).length;
+  const high = heldOut.by_confidence.High;
+  const low = heldOut.by_confidence.Low;
   return (
     <div className="kpi-card">
       <div className="kpi-card-heading">
         <h3>Batch decision (leave-one-location-out)</h3>
         <span className="kpi-card-note">
-          Batch {batch}: {answered.length} of {samples.length} locations answered, {right} right
-          {trackRecord
-            ? ` · all batches: answers ${trackRecord.coverage}, ${overall?.correct} right when answering`
-            : ""}
+          Batch {batch}: {right} of {rows.length} right · all batches: {heldOut.overall.right} of {heldOut.overall.n}{" "}
+          right, balanced accuracy {share(heldOut.balanced_accuracy)}
         </span>
       </div>
       <p className="kpi-card-note">
-        Each location is decided with models trained without it. An imaging-fingerprint model (noise, banding, grey
-        levels) and a material model (segmentation + DINOv2) must agree; when they point to Batch 1 and Batch 2
-        differently the answer is “Batch 1 or Batch 2”, otherwise “unsure”. Batches 1 and 2 look alike in this data, and
-        the fingerprint reads how an image was taken, so treat answers as leads.
+        Each location is decided as an uploaded image would be, by models trained without it: 90 % the KPI model, 10 %
+        the material model (U-Net segmentation + DINOv2). Confidence is High when the KPI model is at least 50 % sure
+        and the material model picks the same batch. Across all 31 locations, High answers were right {high.right} of{" "}
+        {high.n} times ({share(high.accuracy)}), Low answers {low.right} of {low.n} ({share(low.accuracy)}).
       </p>
       <div className="kpi-table-scroll">
         <table className="kpi-table">
           <thead>
             <tr>
               <th scope="col">Location</th>
-              <th scope="col">Session</th>
               <th scope="col">Answer</th>
               <th scope="col">Confidence</th>
-              <th scope="col">Imaging / material pick</th>
+              <th scope="col">KPI model</th>
+              <th scope="col">Material model</th>
               <th scope="col">Result</th>
             </tr>
           </thead>
           <tbody>
-            {samples.map((s) => {
-              const d = s.decision;
-              const result = !d ? "—" : d.answer_type === "unsure" ? "abstained" : d.correct ? "✓ right" : "✗ wrong";
-              return (
-                <tr key={s.sample_id}>
-                  <th scope="row">
-                    <span>{s.sample_id}</span>
-                    {d?.reasons?.length > 0 && <small>{d.reasons.join("; ")}</small>}
-                  </th>
-                  <td>{s.session}</td>
-                  <td>
-                    {answerText(d)}
-                    {d && ANSWER_LABEL[d.answer_type] === "either" ? " (either)" : ""}
-                  </td>
-                  <td>{d?.confidence ?? "—"}</td>
-                  <td>
-                    {d
-                      ? `${d.imaging_side_pick?.replace("_", " ") ?? "—"} / ${d.material_side_pick?.replace("_", " ") ?? "—"}`
-                      : "—"}
-                  </td>
-                  <td>
-                    <span
-                      className={`kpi-chip ${d?.correct === false ? "kpi-chip-variable" : d?.answer_type === "unsure" ? "kpi-chip-moderate" : ""}`}
-                    >
-                      {result}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
+            {rows.map((r) => (
+              <tr key={r.sample_id}>
+                <th scope="row">{r.sample_id}</th>
+                <td>
+                  {humanBatch(r.answer)} <small>{share(r.probability)}</small>
+                </td>
+                <td>{r.confidence}</td>
+                <td>
+                  {humanBatch(r.kpi_pick)} <small>{share(r.kpi_top_probability)}</small>
+                </td>
+                <td>{humanBatch(r.material_pick)}</td>
+                <td>
+                  <span className={`kpi-chip ${r.correct ? "" : "kpi-chip-variable"}`}>
+                    {r.correct ? "✓ right" : "✗ wrong"}
+                  </span>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

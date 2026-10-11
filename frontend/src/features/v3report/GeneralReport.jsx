@@ -234,13 +234,13 @@ function GeneralReport({ apiUrl, batch }) {
         </article>
         {d && (
           <article className="kpi-tile">
-            <span className="kpi-tile-label">v3 batch decision on this batch</span>
+            <span className="kpi-tile-label">Batch decision, held-out</span>
             <strong className="kpi-tile-value">
-              {d.right}/{d.answered}
+              {d.right}/{d.locations}
             </strong>
             <span className="kpi-tile-meta">
-              right of {d.answered} answered ({d.locations} locations) · all batches {d.all_batches?.correct} right,
-              answers {d.coverage_all_batches}
+              right, each decided without itself ({d.high} High) · all batches {d.all_batches_right}/{d.all_batches_n},
+              balanced accuracy {Math.round(d.balanced_accuracy * 100)}%
             </span>
           </article>
         )}

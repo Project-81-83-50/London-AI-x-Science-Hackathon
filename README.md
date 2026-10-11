@@ -17,8 +17,6 @@ Three reference batches of SEM images are known; each location of an unknown bat
 
 How the parts fit together: [docs/architecture.md](docs/architecture.md).
 
-![The General report of reference batch 1: composition with 95 % intervals and the comparison with batches 2 and 3](docs/images/general-report.jpg)
-
 ### How a location's batch is decided
 
 1. **KPI model (90 % of the probability).** The raw BSE image is split into three brightness classes and compared
@@ -92,12 +90,115 @@ This creates `data/processed/` (KPI data for the Demo's KPI model, GET4 reports,
 Image previews and research caches are added by the website as it is used. Rerun the command whenever the reference
 images change. `data/raw/unknown/` is only needed if you have unknown-batch images: copy those TIFFs there.
 
-## The website
+## A tour of the website
 
-- **Batches** — the reference batches 1–3 (tabs: **Images**, **General report** with "How sure are these numbers?",
-  **Detailed report**) and the unknown batch with each location's batch call.
-- **Demo** — upload the BSE + InLens (+ ETD, recommended) images of one location to get its batch and confidence.
-- **Pipeline** — every step of a run, and **Generate report** for the agent-written explanation.
+The website has three pages, linked from the top bar: **Batches** (explore the reference data), **Demo** (classify a
+new location) and **Pipeline** (inspect every step of a classification). The screenshots below follow a typical visit.
+
+### 1. Batches: your reference library
+
+![Batches page with the three reference batch cards](docs/images/batches-page.jpg)
+
+The landing page. The counters at the top read the TIFFs in `ReferenceBatches/` directly (here 3 batches, 93 images
+from 31 locations). Each card shows a batch's image count and detectors; click **Browse detector views** to open it.
+**Analyse a new image set** jumps to the Demo, and **Refresh local images** rescans the folders after you add files.
+
+### 2. Images tab: every detector view of every location
+
+![Image gallery of batch 1, grouped by location](docs/images/image-gallery.jpg)
+
+The images of the selected batch, grouped by the location they show, with one tile per detector (BSE, InLens, ETD).
+Search by location code or filename, filter by detector, click a tile to enlarge it, or download the original TIFF.
+Labels are checked against the pixels, so a mislabelled file is corrected and marked.
+
+### 3. General report: the batch at a glance
+
+![General report of batch 1](docs/images/general-report.jpg)
+
+The batch's composition from the U-Net segmentation, as pore / carbon / SiOx with a 95 % interval (for example
+14.3 % ± 1.7 pp pore), next to the other batches' means. **How Batch N compares** places this batch (orange) against
+the others (numbered) on seven measurements; hover a mark for its values and statistical tests. **Key findings** lists
+the differences that are statistically clear, marked *holds within sessions* or *may be session*.
+
+### 4. How sure are these numbers? (GET4 uncertainty)
+
+![The uncertainty section of the General report](docs/images/uncertainty.jpg)
+
+Further down the General report, pick a phase (Pore / Carbon / SiOx). **Can one location be told apart?** draws, for
+each batch, the batch mean's 95 % interval (dark bar) and where a single new location is expected (light band); the
+sentence below says how much the ranges overlap, which is why one location from Batch 1 or Batch 2 is hard to place.
+**What limits the precision?** splits the uncertainty into within-image and between-location parts, and **How many
+locations are enough?** shows how the interval shrinks with more locations. **Every location** expands to each
+location's own error bar and GET4's image-quality checks.
+
+### 5. Detailed report: every location and test
+
+![Detailed report: the location table](docs/images/detailed-report.jpg)
+
+One row per location: three-phase composition with its standard error, the four phases, deep and open pores, SiOx
+particle density, size and spacing, the segmentation's stability and the held-out decision for that location. Below
+the table follow a four-phase composition chart and every batch comparison with its p-values.
+
+![Detailed report: segmentation overlays](docs/images/segmentation-overlays.jpg)
+
+The U-Net segmentation of each location drawn over its BSE image: blue pore, purple graphite, orange SiOx, green
+binder. Click an overlay to open it at full size.
+
+![Detailed report: the held-out batch decisions](docs/images/decision-table.jpg)
+
+**Batch decision (leave-one-location-out)** shows how the website's own decision rule does on this batch: each
+location is decided as if it were an upload, by models trained without it, with the KPI model's and the material
+model's picks and whether the answer was right. The heading gives the totals over all 31 locations.
+
+### 6. Demo: classify a new location
+
+![Demo page with the upload form](docs/images/demo.jpg)
+
+Choose the BSE and InLens TIFFs of one location (ETD is optional but recommended) and click **Identify the batch**.
+The steps light up as the run progresses (about 1 minute); the answer appears with its confidence and probabilities,
+and **See every step in the pipeline** opens the run on the Pipeline page. A reference image is refused on purpose, as
+it would not be a test.
+
+### 7. Pipeline: from images to a batch call
+
+![Pipeline page: the step diagram and the result](docs/images/pipeline-result.jpg)
+
+Pick a run (your Demo uploads and the nine unknown-batch locations). The diagram lists the ten steps; click one to jump
+to it. **Result** gives the answer and confidence, the final probabilities, and the two models behind them: the KPI
+model (90 %) and the material model (10 %), with the reasons in plain words.
+
+![Pipeline step 2: U-Net segmentation](docs/images/pipeline-segmentation.jpg)
+
+Step 2 shows the segmentation of the uploaded location with its composition and GET4 95 % sampling intervals; step 3
+lists the five material features measured from it.
+
+![Pipeline steps 4 and 5: DINOv2 evidence map and material model](docs/images/pipeline-dinov2-evidence.jpg)
+
+Step 4 is the DINOv2 evidence map: red regions push towards the predicted batch, blue against, summarised in sentences
+underneath. Step 5 shows the material model's probabilities, including the calibrated values used in the decision.
+
+![Pipeline step 8: KPI model](docs/images/pipeline-kpi-model.jpg)
+
+Step 8 is the KPI model, which carries 90 % of the decision: the deciding KPI with this location's value against the
+three batch means, the nearest reference locations, and the model's own held-out accuracy. **All 32 KPIs** expands the
+full list.
+
+### 8. Agent report: the explanation
+
+![Agent report for an unknown location](docs/images/agent-report.jpg)
+
+At the bottom of the Pipeline page, **Generate report** asks a small team of Claude agents to explain the call (about
+1.5 minutes). The report gives short points: the deciding evidence (here ETD-dark solid 5.7 % against the batch means),
+the opposing evidence, scientific interpretations backed by retrieved research, and the limitations. The status line
+confirms that every number was checked and an independent reviewer approved the claims. It needs an Anthropic API key
+([docs/research-reports.md](docs/research-reports.md)).
+
+![Agent report: source-linked evidence](docs/images/agent-report-evidence.jpg)
+
+**Supporting measurements, mathematics and research** opens the evidence behind every point: each number with the
+field of the run it comes from, the calculation that produced it, and, for interpretations, the cited source (for
+example *Effect of Calendering on Electrode Wettability in Lithium-Ion Batteries*, 2014). Further panels list the
+retrieval and review audit, and **Download (.md)** saves the report.
 
 ## Results
 
@@ -109,6 +210,7 @@ models that never saw it. Balanced accuracy is used because Batch 3 dominates; c
 | Segmentation vs. a blind independent annotator | 87 % (pore / carbon / SiOx), 82 % with binder separate; binder precision only ~0.5 |
 | KPI model (90 % of the decision) | 68 % balanced accuracy, nested test, permutation p = 0.005; recall 71 / 57 / 76 % for batches 1 / 2 / 3 |
 | Material model (10 %) | 61 % balanced accuracy, permutation p = 0.005 |
+| Final decision (90 % KPI + 10 % material) | 21 of 31 right, 64 % balanced accuracy; **High-confidence answers right 11 of 12 (92 %)**, Low 10 of 19 |
 
 Calls for the nine unknown locations:
 

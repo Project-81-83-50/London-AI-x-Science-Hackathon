@@ -429,6 +429,66 @@ def batch_uncertainty(rows: list[dict]) -> dict:
     }
 
 
+W_KPI, W_MATERIAL = 0.9, 0.1  # the decision rule of backend/app/routers/v3.py (current_method)
+
+
+def held_out_decisions() -> dict | None:
+    """The current decision rule tested on the reference locations, each decided by models trained without it.
+
+    KPI model: analysis.classify's SelectedDLDA refitted on the other 30 locations (its KPI choice included). Material
+    model: v3's calibrated material-side probabilities from its own leave-one-location-out run (v3_eval.json, models
+    and calibration fitted without the location). Final = 90 % KPI + 10 % material; High when the KPI model is at
+    least 50 % sure and the material model picks the same batch, else Low. None when the KPI reference reports
+    (python -m analysis.kpis) are missing."""
+    from .classify import FEATURES as FEATURES_KPI
+    from .classify import SelectedDLDA, load_references
+
+    try:
+        ref, y, X = load_references()
+    except FileNotFoundError:
+        logger.warning("no KPI reference reports (run python -m analysis.kpis); skipping the held-out decisions")
+        return None
+    per_sample = json.loads((METRICS / "v3_eval.json").read_text(encoding="utf-8"))["LOO"]["per_sample"]
+    rows = []
+    for i, loc in enumerate(ref):
+        sid, keep = loc["location_id"], np.arange(len(y)) != i
+        sel = SelectedDLDA().fit(X[keep], y[keep])
+        kpi = {f"Batch_{c}": float(p) for c, p in zip(sel.classes, sel.proba(X[i])[0], strict=True)}
+        material = dict(zip(BATCHES, per_sample[sid]["calibrated"]["material_side"], strict=True))
+        final = {b: W_KPI * kpi[b] + W_MATERIAL * material[b] for b in BATCHES}
+        answer, material_pick = max(final, key=final.get), max(material, key=material.get)
+        high = max(kpi.values()) >= 0.5 and material_pick == answer
+        rows.append(
+            {
+                "sample_id": sid,
+                "true_batch": f"Batch_{loc['batch']}",
+                "answer": answer,
+                "confidence": "High" if high else "Low",
+                "probability": round(final[answer], 3),
+                "kpi_pick": max(kpi, key=kpi.get),
+                "kpi_top_probability": round(max(kpi.values()), 3),
+                "material_pick": material_pick,
+                "kpis_used": [FEATURES_KPI[c] for c in sel.cols],
+                "correct": answer == f"Batch_{loc['batch']}",
+            }
+        )
+
+    def summary(subset: list[dict]) -> dict:
+        right = sum(r["correct"] for r in subset)
+        return {"n": len(subset), "right": right, "accuracy": round(right / len(subset), 3) if subset else None}
+
+    recall = {b: summary([r for r in rows if r["true_batch"] == b]) for b in BATCHES}
+    return {
+        "method": "90 % KPI model + 10 % v3 material model; High when the KPI model is at least 50 % sure and the "
+        "material model agrees. Each location decided by models trained without it.",
+        "locations": rows,
+        "overall": summary(rows),
+        "balanced_accuracy": round(float(np.mean([recall[b]["accuracy"] for b in BATCHES])), 3),
+        "by_batch": recall,
+        "by_confidence": {t: summary([r for r in rows if r["confidence"] == t]) for t in ("High", "Low")},
+    }
+
+
 def unknown_report() -> None:
     """batch_unknown.json, in the same structure as the batch reports: the unknown locations are the report's
     own batch, set against the reference batches as segmented by the same v3 teacher (analysis.v3_unknown)."""
@@ -611,7 +671,6 @@ def main() -> None:
     image_kpis.sort(key=lambda k: k["kruskal_p"] if k["kruskal_p"] is not None else 1)
 
     validation = json.loads((METRICS / "validation_summary.json").read_text(encoding="utf-8"))
-    decision_eval = json.loads((METRICS / "decision_eval.json").read_text(encoding="utf-8"))
     ai = validation.get("ai_points_uniform", {})
     quality = {
         "annotator_agreement_4_phase": ai.get("accuracy"),
@@ -626,6 +685,7 @@ def main() -> None:
     hist_edges = np.round(np.geomspace(0.3, 12, 13), 3)
     particle_rows = read_csv("particle_sizes.csv")
     uncertainty = batch_uncertainty(rows)
+    held_out = held_out_decisions()
 
     OUT.mkdir(parents=True, exist_ok=True)
     for batch in BATCHES:
@@ -636,11 +696,6 @@ def main() -> None:
             if s["kruskal_p"] < ALPHA:
                 findings.append(describe(batch, mid, name, unit, s, robust=s["session_stratified_p"] < ALPHA))
         findings.sort(key=lambda f: (not f["robust"], f["kruskal_p"]))
-        decided = [r["decision"] for r in mine if r["decision"]]
-        answered = [d for d in decided if d["answer_type"] != "unsure"]
-        right = sum(
-            1 for d in answered if (d["answer_type"] == "pair" and batch in (d["answer"] or "")) or d["answer"] == batch
-        )
         sizes = {b: np.array([float(p["eq_diam_um"]) for p in particle_rows if p["batch"] == b]) for b in BATCHES}
         areas = {b: np.array([float(p["area_um2"]) for p in particle_rows if p["batch"] == b]) for b in BATCHES}
         histogram = {
@@ -678,13 +733,17 @@ def main() -> None:
                     "surviving_fdr": sum(1 for k in image_kpis if (k["kruskal_q"] or 1) < ALPHA),
                     "session_robust": sum(1 for k in image_kpis if (k["session_stratified_p"] or 1) < ALPHA),
                 },
+                # the current decision rule on held-out locations (None without the KPI reference reports)
                 "decision_summary": {
                     "locations": len(mine),
-                    "answered": len(answered),
-                    "right": right,
-                    "all_batches": decision_eval.get("LOO", {}).get("accuracy_when_answering"),
-                    "coverage_all_batches": decision_eval.get("LOO", {}).get("coverage"),
-                },
+                    "right": held_out["by_batch"][batch]["right"],
+                    "high": sum(r["confidence"] == "High" for r in held_out["locations"] if r["true_batch"] == batch),
+                    "all_batches_right": held_out["overall"]["right"],
+                    "all_batches_n": held_out["overall"]["n"],
+                    "balanced_accuracy": held_out["balanced_accuracy"],
+                }
+                if held_out
+                else None,
                 "quality": quality,
                 "caveats": [
                     "31 reference locations (7 / 7 / 17): every batch difference rests on few locations.",
@@ -712,6 +771,12 @@ def main() -> None:
                 "the imaging session.",
             },
             "uncertainty": uncertainty,
+            "held_out_decisions": {
+                **{k: v for k, v in held_out.items() if k != "locations"},
+                "locations": [r for r in held_out["locations"] if r["true_batch"] == batch],
+            }
+            if held_out
+            else None,
         }
         path = OUT / f"batch_{batch[-1]}.json"
         path.write_text(json.dumps(report, indent=1), encoding="utf-8")

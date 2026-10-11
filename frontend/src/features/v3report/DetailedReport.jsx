@@ -18,6 +18,7 @@ const keyName = (b) => (b === "unknown" ? "Unknown" : b.replace("_", " "));
 
 function LocationTable({ data, subject }) {
   const { locations } = data.detailed;
+  const heldOut = Object.fromEntries((data.held_out_decisions?.locations ?? []).map((r) => [r.sample_id, r]));
   const m = Object.fromEntries(data.metrics.map((d) => [d.id, d]));
   const se = (v) => (Number.isFinite(v) ? ` ± ${v.toFixed(1)}` : "");
   const cols = [
@@ -47,7 +48,7 @@ function LocationTable({ data, subject }) {
               </th>
             ))}
             <th scope="col">Stability (max SD)</th>
-            <th scope="col">{subject.unknown ? "Segmented by" : "v3 decision"}</th>
+            <th scope="col">{subject.unknown ? "Segmented by" : "Held-out decision"}</th>
           </tr>
         </thead>
         <tbody>
@@ -81,12 +82,8 @@ function LocationTable({ data, subject }) {
                       {l.model_label}
                       <small className="v3-unit">{l.segmented_from?.join(" + ")}</small>
                     </>
-                  ) : l.decision ? (
-                    l.decision.answer_type === "unsure" ? (
-                      "unsure"
-                    ) : (
-                      `${l.decision.answer.replaceAll("_", " ")} (${l.decision.confidence})`
-                    )
+                  ) : heldOut[l.sample_id] ? (
+                    `${heldOut[l.sample_id].answer.replaceAll("_", " ")} (${heldOut[l.sample_id].confidence})`
                   ) : (
                     "—"
                   )}
@@ -356,7 +353,6 @@ function Overlays({ apiUrl, locations }) {
 function DetailedReport({ apiUrl, batch }) {
   const report = useJson(`${apiUrl}/batches/${batch}/v3-report`);
   const unknownBatch = batch === "unknown";
-  const segmentation = useJson(unknownBatch ? null : `${apiUrl}/batches/${batch}/segmentation-report`);
   if (report.status === "loading")
     return (
       <div className="notice" role="status">
@@ -451,13 +447,7 @@ function DetailedReport({ apiUrl, batch }) {
         </div>
       )}
 
-      {!unknownBatch && segmentation.status === "ready" && (
-        <DecisionTable
-          samples={segmentation.data.samples}
-          batch={segmentation.data.batch_id}
-          trackRecord={segmentation.data.decision_track_record}
-        />
-      )}
+      {!unknownBatch && data.held_out_decisions && <DecisionTable heldOut={data.held_out_decisions} batch={batch} />}
 
       {data.detailed.image_kpis.length > 0 && (
         <div className="kpi-card">
