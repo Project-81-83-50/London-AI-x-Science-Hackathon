@@ -9,7 +9,7 @@ React 19 + Vite single-page app for the EM batch-QC workspace. It has three page
 - **Demo** (`#demo`): upload the BSE + InLens (+ ETD) images of one location and run the SEM pipeline (v3) on them.
 - **Pipeline** (`#pipeline/<run>`): every step's output for one run, plus the multi-agent report.
 
-All data comes from the FastAPI backend in `../backend`; see the repository-root README for backend setup and the data
+All data comes from the FastAPI backend in `../backend`; see `../docs/getting-started.md` for backend setup and the data
 it needs.
 
 ## Scripts

@@ -1,7 +1,7 @@
 # secrets
 .env
 
-# raw and derived data (large) - see the repository README for where to get / how to rebuild them
+# raw and derived data (large) - see docs/getting-started.md for where to get / how to rebuild them
 data/raw/
 data/processed/
 data/nnUNet_raw/

@@ -25,10 +25,10 @@ fi
 if [ ! -f "frontend/.env" ]; then
   echo "VITE_API_URL=http://127.0.0.1:${API_PORT}" > frontend/.env
 fi
-# The v3 Demo / Pipeline pages run sem_pipeline with a Python that has PyTorch (see README).
+# The v3 Demo / Pipeline pages run sem_pipeline with a Python that has PyTorch (see docs/getting-started.md).
 if [ ! -f "sem_pipeline/website/v3_python.txt" ]; then
   found=""
-  # The website's own .venv first (on macOS the sem_pipeline packages can be installed into it, see README).
+  # The website's own .venv first (on macOS the sem_pipeline packages can be installed into it, see docs/getting-started.md).
   for candidate in .venv/bin/python python3 python; do
     if command -v "$candidate" > /dev/null 2>&1 &&
       "$candidate" -c "import sys, torch, timm, segmentation_models_pytorch, lightgbm;
@@ -39,7 +39,7 @@ open('sem_pipeline/website/v3_python.txt', 'w').write(sys.executable)" > /dev/nu
   done
   if [ -z "$found" ]; then
     echo "WARNING: no Python with PyTorch found - the Demo and Pipeline pages will not run new images."
-    echo "         Install it, see README \"Quick start\"."
+    echo "         Install it, see docs/getting-started.md."
   fi
 fi
 

@@ -18,11 +18,11 @@ if not exist "frontend\node_modules" (
 if not exist "frontend\.env" (
   > "frontend\.env" echo VITE_API_URL=http://127.0.0.1:8002
 )
-rem The v3 Demo / Pipeline pages run sem_pipeline with a Python that has PyTorch (see README).
+rem The v3 Demo / Pipeline pages run sem_pipeline with a Python that has PyTorch (see docs\getting-started.md).
 if not exist "sem_pipeline\website\v3_python.txt" (
   python -c "import sys, torch; open(r'sem_pipeline\website\v3_python.txt', 'w').write(sys.executable)" 2>nul || (
     echo WARNING: no Python with PyTorch found - the Demo and Pipeline pages will not run new images.
-    echo          Install it, see README "Quick start".
+    echo          Install it, see docs\getting-started.md.
   )
 )
 

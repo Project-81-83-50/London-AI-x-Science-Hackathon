@@ -18,15 +18,19 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Microscopy data and generated results are large and kept outside Git (see README, "Dataset").
+# Microscopy data and generated results are large and kept outside Git (see docs/getting-started.md, "Dataset").
 /data/
 /ReferenceBatches/
 
-# Logs from local pipeline runs.
+# Logs and scratch output from local runs (e.g. GET4's default --out folder).
 *.log
+/out/
+/batch_match/out/
 
 # sem_pipeline website runs: machine-specific Python path, uploaded TIFFs, logs, transient report status.
+# Only the committed unknown_* runs are examples; Demo uploads (demo_*) stay local.
 sem_pipeline/website/v3_python.txt
+sem_pipeline/website/runs/demo_*/
 sem_pipeline/website/runs/*/input/*.tif
 sem_pipeline/website/runs/*/log.txt
 sem_pipeline/website/runs/*/output/report_status.json

@@ -412,7 +412,7 @@ Each measurement → robust z → shrinkage LDA per view, and the views are comb
 - **Code checks:** numerical placeholders carry sample ownership, units, denominators and provenance. Checks enforce
   decisions, comparisons, exact quotations and applicable source scope. No substring-based number pool or silent template fallback.
 - **Limitations:** these checks do not independently validate the upstream segmentation or prove every scientific interpretation.
-  Source gaps remain visible; papers explain concepts, not private batch identities. See the repository README for setup and budgets.
+  Source gaps remain visible; papers explain concepts, not private batch identities. See docs/research-reports.md at the repository root for setup and budgets.
 
 ## B15. The website (one click: `scripts/start_website.bat`)
 

@@ -2,7 +2,7 @@
 location) and the Pipeline page (every step's output, plus a multi-agent Claude report).
 
 v3's models need PyTorch and the trained weights, which live in sem_pipeline/ (V3_PROJECT_DIR; models are a
-release asset, see README) and a Python with PyTorch (V3_PYTHON, or the path in sem_pipeline/website/v3_python.txt,
+release asset, see docs/getting-started.md) and a Python with PyTorch (V3_PYTHON, or the path in sem_pipeline/website/v3_python.txt,
 which scripts/start_website.bat or .sh writes, or else the API's own Python if it has PyTorch). Runs are stored in
 sem_pipeline/website/runs.
 """
@@ -70,7 +70,7 @@ def v3_python() -> str:
         return sys.executable
     raise RuntimeError(
         f"set V3_PYTHON, write the path of a Python with PyTorch into {cfg}, or install the sem_pipeline packages "
-        "into the API's environment (see README)"
+        "into the API's environment (see docs/getting-started.md)"
     )
 
 

@@ -51,7 +51,8 @@ def sample(sample_id="sample_one"):
 
 
 def test_decode_current_runs_preserves_inputs():
-    files = sorted((ROOT / "sem_pipeline/website/runs").glob("*/output/facts.json"))
+    # The nine committed unknown-batch runs; local Demo runs (demo_*, Git-ignored) are not part of the fixture.
+    files = sorted((ROOT / "sem_pipeline/website/runs").glob("unknown_*/output/facts.json"))
     assert len(files) == 9
     for path in files:
         original = path.read_bytes()
