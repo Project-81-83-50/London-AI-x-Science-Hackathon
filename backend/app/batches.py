@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import HTTPException
 
-from .paths import IMAGE_NAME_PATTERN, RAW_DATA_DIR, UNKNOWN_BATCH
+from .paths import IMAGE_NAME_PATTERN, RAW_DATA_DIR, REFERENCE_BATCHES_DIR, UNKNOWN_BATCH
 
 
 def is_image_batch(batch_id: str) -> bool:
@@ -17,6 +17,9 @@ def get_batch_image_directory(batch_id: str) -> Path:
     """Return a valid local raw-image directory for a reference batch number or the unknown set."""
     if not is_image_batch(batch_id):
         raise HTTPException(404, f"Unknown image batch {batch_id}")
+    provided = REFERENCE_BATCHES_DIR / f"Batch_{batch_id}"
+    if batch_id in {"1", "2", "3"} and provided.is_dir():
+        return provided
     directory = RAW_DATA_DIR / (UNKNOWN_BATCH if batch_id == UNKNOWN_BATCH else f"batch_{batch_id}")
     if not directory.is_dir():
         raise HTTPException(404, f"Image directory for batch {batch_id} was not found")

@@ -21,8 +21,10 @@ EXCLUSIONS = C.read_json(C.ROOT / "data" / "exclusions.json")
 
 
 def read_half(path):
-    """Green channel (the R/G/B channels are identical except a few edge columns), 2x block mean."""
-    a = np.asarray(Image.open(path))[..., 1].astype(np.float32)
+    """Green channel (the R/G/B channels are identical except a few edge columns; a greyscale TIFF is used as is),
+    2x block mean."""
+    a = np.asarray(Image.open(path))
+    a = (a[..., 1] if a.ndim == 3 else a).astype(np.float32)
     h, w = a.shape[0] // C.DS * C.DS, a.shape[1] // C.DS * C.DS
     return a[:h, :w].reshape(h // C.DS, C.DS, w // C.DS, C.DS).mean((1, 3))
 

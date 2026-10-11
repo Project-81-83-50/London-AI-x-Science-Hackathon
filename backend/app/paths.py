@@ -9,6 +9,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RAW_DATA_DIR = REPO_ROOT / "data" / "raw"
+REFERENCE_BATCHES_DIR = REPO_ROOT / "ReferenceBatches"
 PROCESSED_DIR = REPO_ROOT / "data" / "processed"
 GET4_DATA_DIR = PROCESSED_DIR / "get4"
 KPI_DATA_DIR = PROCESSED_DIR / "batch_kpis"

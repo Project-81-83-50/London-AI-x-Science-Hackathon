@@ -37,7 +37,7 @@ def main():
         add_tree(z, C.OUT_SEG, "segmentation")
         add_tree(z, C.OUT_MET, "metrics")
         add_tree(z, C.REPORTS, "reports")
-        z.write(C.ROOT / "README.md", "README.md")
+        z.write(C.ROOT / "HANDOFF.md", "HANDOFF.md")  # the pipeline's state and decisions (no README of its own)
     nn = C.ROOT / "data" / "nnUNet_raw" / "Dataset501_SEMAnode"
     if nn.exists():
         with zipfile.ZipFile(REL / f"nnunet_Dataset501_SEMAnode_{args.tag}.zip", "w", zipfile.ZIP_DEFLATED) as z:

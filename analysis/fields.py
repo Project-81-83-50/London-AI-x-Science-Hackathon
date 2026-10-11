@@ -66,7 +66,10 @@ PORE_SPLIT = -4.0  # pore contrast (graphite IQRs): ETD <= -4.7, InLens >= -2.9 
 
 
 def batch_dir(batch: str | int) -> Path:
-    """Raw folder of a batch: data/raw/batch_N for reference batches, data/raw/unknown for the unknown set."""
+    """Prefer supplied ReferenceBatches/Batch_N; retain data/raw fallback and explicit RAW overrides."""
+    provided = paths.REFERENCE_BATCHES_DIR / f"Batch_{batch}"
+    if RAW == paths.RAW_DIR and str(batch) in {"1", "2", "3"} and provided.is_dir():
+        return provided
     return RAW / ("unknown" if str(batch) == "unknown" else f"batch_{batch}")
 
 

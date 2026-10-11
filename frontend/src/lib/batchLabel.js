@@ -10,5 +10,5 @@ export function batchLabel(batch) {
 }
 
 export function batchFolder(batch) {
-  return isUnknownBatch(batch) ? "data/raw/unknown" : `data/raw/batch_${batch}`;
+  return isUnknownBatch(batch) ? "data/raw/unknown" : `ReferenceBatches/Batch_${batch}`;
 }

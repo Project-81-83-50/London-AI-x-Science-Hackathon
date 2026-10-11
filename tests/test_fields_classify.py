@@ -11,6 +11,19 @@ from analysis import classify, fields
 # ---------------------------------------------------------------- analysis.fields
 
 
+def test_reference_directory_uses_provided_images_without_overriding_custom_raw(tmp_path, monkeypatch):
+    from analysis import paths
+
+    references = tmp_path / "ReferenceBatches"
+    (references / "Batch_1").mkdir(parents=True)
+    monkeypatch.setattr(paths, "REFERENCE_BATCHES_DIR", references)
+    assert fields.batch_dir(1) == references / "Batch_1"
+    assert fields.batch_dir("unknown") == fields.RAW / "unknown"
+    custom = tmp_path / "custom"
+    monkeypatch.setattr(fields, "RAW", custom)
+    assert fields.batch_dir(1) == custom / "batch_1"
+
+
 def test_edge_map(triplet_tiffs):
     check_golden("fields/edge_map", {det: fields.edge_map(p) for det, p in triplet_tiffs.items()})
 

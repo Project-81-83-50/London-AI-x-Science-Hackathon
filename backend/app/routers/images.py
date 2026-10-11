@@ -10,10 +10,58 @@ from fastapi.responses import FileResponse
 from PIL import Image
 
 from ..batches import find_batch_image, get_batch_image_directory
-from ..paths import FIELD_DATA_DIR, IMAGE_NAME_PATTERN, PREVIEW_CACHE_DIR
+from ..paths import FIELD_DATA_DIR, IMAGE_NAME_PATTERN, PREVIEW_CACHE_DIR, REFERENCE_BATCHES_DIR
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+@router.get("/batches/inventory")
+def batch_inventory() -> list[dict[str, Any]]:
+    result = []
+    for batch_id in ("1", "2", "3", "unknown"):
+        reference = batch_id != "unknown"
+        expected = f"ReferenceBatches/Batch_{batch_id}" if reference else "data/raw/unknown"
+        entry = {
+            "batch_id": batch_id,
+            "role": "reference" if reference else "unknown",
+            "source": expected,
+            "status": "missing",
+            "image_count": 0,
+            "group_count": 0,
+            "grouping": "filename",
+            "detectors": {},
+            "preview": None,
+        }
+        try:
+            directory = get_batch_image_directory(batch_id)
+        except HTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            result.append(entry)
+            continue
+        groups = list_batch_images(batch_id)
+        images = [image for group in groups for image in group["images"]]
+        detectors = {}
+        for image in images:
+            detector = image.get("detector") or image["filter"]
+            detectors[detector.upper()] = detectors.get(detector.upper(), 0) + 1
+        source = expected if directory.parent == REFERENCE_BATCHES_DIR else f"data/raw/{directory.name}"
+        cover = next(
+            (image for image in images if (image.get("detector") or image["filter"]).upper() == "BSE"),
+            images[0] if images else None,
+        )
+        entry.update(
+            source=source,
+            status="ready" if images else "empty",
+            image_count=len(images),
+            group_count=len(groups),
+            grouping="matched" if groups and all(group["grouping"] == "matched" for group in groups) else "filename",
+            detectors=detectors,
+            preview=cover["filename"] if cover else None,
+        )
+        result.append(entry)
+    return result
 
 
 @router.get("/batches/{batch_id}/images")

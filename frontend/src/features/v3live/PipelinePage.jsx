@@ -4,6 +4,7 @@ import { apiJson } from "../../lib/api";
 import { V3_BATCHES, humanize, percent } from "../../lib/v3format";
 import { PIPELINE_STEPS } from "./pipelineSteps";
 import { CompositionBar, Markdown, ProbBars, Table, Tier } from "./V3Widgets";
+import ResearchReport from "./ResearchReport";
 
 function Section({ id, title, children }) {
   return (
@@ -17,49 +18,67 @@ function Section({ id, title, children }) {
 function Report({ apiUrl, run, onDone }) {
   const [r, setR] = useState(null);
   const [error, setError] = useState("");
-  const timer = useRef(null);
+  const [revision, setRevision] = useState(0);
   useEffect(() => {
-    apiJson(`${apiUrl}/v3/jobs/${run}/report`)
-      .then((x) => {
-        setR(x);
-        if (x.status === "done") onDone();
-      })
-      .catch(() => setR({ status: "none" }));
-    return () => clearInterval(timer.current);
-  }, [apiUrl, run, onDone]);
+    let active = true;
+    let timer;
+    async function poll() {
+      try {
+        const next = await apiJson(`${apiUrl}/v3/jobs/${run}/report`);
+        if (!active) return;
+        setR(next);
+        if (next.status === "done") onDone();
+        if (next.status === "running") timer = setTimeout(poll, 1500);
+      } catch (e) {
+        if (active) setError(e.message);
+      }
+    }
+    poll();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [apiUrl, run, onDone, revision]);
   async function start() {
     setError("");
     try {
-      setR(await apiJson(`${apiUrl}/v3/jobs/${run}/report`, { method: "POST" }));
-      clearInterval(timer.current);
-      timer.current = setInterval(async () => {
-        const x = await apiJson(`${apiUrl}/v3/jobs/${run}/report`);
-        setR(x);
-        if (x.status !== "running") {
-          clearInterval(timer.current);
-          if (x.status === "done") onDone();
-        }
-      }, 1500);
+      setR(await apiJson(`${apiUrl}/v3/jobs/${run}/report?force=${r?.status === "done"}`, { method: "POST" }));
+      setRevision((value) => value + 1);
     } catch (e) {
       setError(e.message);
     }
   }
-  if (!r) return null;
+  if (!r) return error ? <p className="v3-error">{error}</p> : null;
   return (
     <>
       {r.status === "none" && (
         <p>
           <span className="v3-small v3-muted">
-            Three Claude Sonnet agents (evidence analyst → materials expert with the team knowledge base → skeptic and
-            writer) read only the text facts file — no images — and may quote only numbers that are in it.{" "}
+            A decision analyst, research librarian, materials writer and independent reviewer explain the supplied
+            facts. Corrective RAG checks source relevance and applicability before using online research. Open the
+            evidence panels to inspect measurements, calculations, source passages and limitations.{" "}
           </span>
           <button className="v3-button" onClick={start}>
             Generate report
           </button>
         </p>
       )}
-      {r.status === "running" && <span className="v3-step v3-active">{r.stage}</span>}
-      {r.status === "error" && (
+      {r.status === "running" && (
+        <div className="v3-step v3-active">
+          <span role="status">{r.stage}</span>{" "}
+          <button
+            className="v3-button v3-ghost"
+            onClick={() =>
+              apiJson(`${apiUrl}/v3/jobs/${run}/report/cancel`, { method: "POST" })
+                .then(setR)
+                .catch((e) => setError(e.message))
+            }
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {(r.status === "error" || r.status === "cancelled") && (
         <>
           <p className="v3-error">{r.error}</p>
           <button className="v3-button" onClick={start}>
@@ -69,8 +88,21 @@ function Report({ apiUrl, run, onDone }) {
       )}
       {r.status === "done" && (
         <>
-          <Markdown text={r.markdown} />
-          {r.check && (
+          {r.version === "crag-v1" ? (
+            <ResearchReport report={r} />
+          ) : (
+            <>
+              <p className="v3-warn">Saved legacy report. Regenerate to use the research-grounded CRAG engine.</p>
+              <Markdown text={r.markdown} />
+            </>
+          )}
+          {r.version === "crag-v1" && (
+            <details className="v3-details">
+              <summary>Full report</summary>
+              <Markdown text={r.markdown} />
+            </details>
+          )}
+          {r.check && r.version !== "crag-v1" && (
             <p className={`v3-small ${r.check.length ? "v3-warn" : "v3-good"}`}>
               Number check:{" "}
               {r.check.length
@@ -115,7 +147,7 @@ export default function PipelinePage({ apiUrl, run: requested }) {
   const [zoom, setZoom] = useState(null);
   const timer = useRef(null);
   const run = requested || runs[runs.length - 1];
-  const state = runState?.run === run ? runState.data : null;
+  const state = runState && runState.run === run ? runState.data : null;
   const reportDone = reportDoneRun === run;
   const markReportDone = useCallback(() => setReportDoneRun(run), [run]);
 
@@ -196,8 +228,8 @@ export default function PipelinePage({ apiUrl, run: requested }) {
       {state?.status === "error" && <pre className="v3-error">{state.error}</pre>}
       {f && <Panels f={f} state={state} img={img} Img={Img} />}
       {f && (
-        <Section id="rep" title="9 · Agent report (Claude Sonnet: analyst → materials expert → skeptic/writer)">
-          <Report apiUrl={apiUrl} run={run} onDone={markReportDone} />
+        <Section id="rep" title="10 · Agent report: research-grounded explanation and evidence">
+          <Report key={run} apiUrl={apiUrl} run={run} onDone={markReportDone} />
         </Section>
       )}
       {zoom && (
@@ -225,7 +257,7 @@ function Panels({ f, state, img, Img }) {
     unit === "%" ? `${(v * (scale || 1)).toFixed(1)}%` : `${(v * (scale || 1)).toFixed(2)} ${unit}`;
   return (
     <>
-      <Section id="dec" title="Result">
+      <Section id="dec" title="Result · step 9, decision">
         <div className={`v3-big ${d.answer_type === "unsure" ? "v3-unsure" : ""}`}>{humanize(d.answer)}</div>
         <Tier value={d.confidence} /> <span className="v3-small v3-muted">{d.method}</span>
         {probs && <ProbBars probabilities={probs} highlight={d.answer} />}
@@ -272,6 +304,10 @@ function Panels({ f, state, img, Img }) {
         <p className="v3-small">
           Excluded area {f.qc.excluded_pct}% · Cu foil: {String(f.qc.cu_foil_detected)} · novelty flags:{" "}
           {(f.novelty.unusual_features_abs_robust_z_ge_3 || []).join(", ") || "none"}
+        </p>
+        <p className="v3-small v3-muted">
+          BSE and InLens feed steps 2–7 (reduced to 50 nm/px, normalised, border and Cu foil masked). ETD/SE is used
+          only by the KPI model (step 8), whose most batch-separating measurement needs it.
         </p>
       </Section>
       <Section id="seg" title="2 · U-Net segmentation (BSE + Inlens, 50 nm/px)">
@@ -321,8 +357,22 @@ function Panels({ f, state, img, Img }) {
       >
         <Table
           head={["head", ...V3_BATCHES.map(humanize)]}
-          rows={Object.entries(m.probabilities).map(([key, p]) => [key, ...V3_BATCHES.map((b) => percent(p[b], 1))])}
+          rows={[
+            ...Object.entries(m.probabilities).map(([key, p]) => [key, ...V3_BATCHES.map((b) => percent(p[b], 1))]),
+            ...(d.material_model_calibrated
+              ? [
+                  [
+                    <b key="cal">fused, calibrated (used in the decision)</b>,
+                    ...V3_BATCHES.map((b) => percent(d.material_model_calibrated[b], 1)),
+                  ],
+                ]
+              : []),
+          ]}
         />
+        <p className="v3-small v3-muted">
+          S_head: the 5 segmentation features (step 3) · dino_head: the DINOv2 texton histogram (step 4) · fused_F:
+          their mean, then temperature-calibrated on the reference locations for the decision.
+        </p>
       </Section>
       <Section id="known" title="6 · Training-image guard and known-spot matcher">
         <p>
@@ -341,7 +391,12 @@ function Panels({ f, state, img, Img }) {
         )}
         <p className="v3-small v3-muted">A known spot needs ≥ 15 SD and 2 × the next location.</p>
       </Section>
-      <Section id="get4" title="7 · GET4 sampling intervals and range rule">
+      <Section id="get4" title="7 · GET4 sampling intervals and range rule (context only)">
+        <p className="v3-small v3-muted">
+          GET4 gives each phase fraction its 95% sampling interval (also shown in step 2). The range rule, from an
+          earlier decision method, asks which batches&apos; reference ranges the interval fits. It does not change the
+          answer.
+        </p>
         {rr.phases && (
           <Table
             head={["phase", "%", "95% interval", "fits the range of"]}
@@ -359,6 +414,18 @@ function Panels({ f, state, img, Img }) {
       </Section>
       {k && (
         <Section id="kpi" title="8 · KPI model: 90% of the decision">
+          <p className="v3-small v3-muted">
+            Independent of steps 2–7: it segments the raw BSE image into three brightness classes, compares it pixel by
+            pixel with the ETD and InLens views, and decides on the most batch-separating KPIs measured here. This run
+            used {(k.kpis_used || []).length} of the {k.candidate_kpis ?? k.all_kpis?.length} measured KPIs.
+          </p>
+          {k.unmeasured_kpis?.length > 0 && (
+            <p className="v3-small v3-warn">
+              {k.unmeasured_kpis.length} KPIs need a view that was not uploaded (ETD or InLens), so the model chose
+              among the {k.candidate_kpis ?? "remaining"} measured ones. Its reference accuracy below is for the full
+              set, so this call is likely less reliable.
+            </p>
+          )}
           <ProbBars probabilities={k.probabilities} highlight={k.predicted_batch} />
           <Table
             head={["KPI", "this location", ...V3_BATCHES.map(humanize), "support"]}
@@ -423,6 +490,13 @@ function Panels({ f, state, img, Img }) {
             .map(([key, v]) => `${key.replace(/_s$/, "")} ${v} s`)
             .join(" · ")}
         </p>
+        {(f.timings_s?.fingerprint_s != null || f.timings_s?.texture_s != null) && (
+          <p className="v3-small v3-muted">
+            {`Included in the total but not used in the decision: the earlier imaging-fingerprint model (${
+              f.timings_s.fingerprint_s ?? "–"
+            } s) and tile-texture model (${f.timings_s.texture_s ?? "–"} s), which read how the images were taken rather than the material.`}
+          </p>
+        )}
       </Section>
     </>
   );

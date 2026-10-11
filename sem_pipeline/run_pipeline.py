@@ -5,7 +5,7 @@
   python run_pipeline.py --only metrics validate
 
 The AI-annotation stages (src.ai_labels, src.ai_validate, src.triangle_test) call the Anthropic API and cost money; run them
-explicitly (see README). Their results are committed in outputs/metrics/, so the pipeline can be rebuilt
+explicitly (each module's docstring lists its subcommands). Their results are committed in outputs/metrics/, so the pipeline can be rebuilt
 without re-running them as long as the superpixels are regenerated with the same settings (src.ai_labels prepare).
 """
 

@@ -5,7 +5,6 @@ import "./styles/App.css";
 import BatchPicker from "./features/reference/BatchPicker";
 import ImageGallery from "./features/reference/ImageGallery";
 import PointNetwork from "./components/PointNetwork";
-import Get4Results from "./features/uncertainty/Get4Results";
 import GeneralReport from "./features/v3report/GeneralReport";
 import DetailedReport from "./features/v3report/DetailedReport";
 import Tabs from "./components/Tabs";
@@ -29,12 +28,10 @@ function routeFromHash() {
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
 const allBatches = ["1", "2", "3", UNKNOWN_BATCH];
-const supportedDetectors = ["BSE", "ETD", "INLENS", "SE", "TLD", "CBS"];
 const referenceViews = [
   { id: "images", label: "Images" },
   { id: "general", label: "General report" },
   { id: "detailed", label: "Detailed report" },
-  { id: "uncertainty", label: "Uncertainty (GET4)" },
 ];
 // Reference batches show their images and reports; the unknown batch shows its images and the batch call for each
 // location (Classification). New locations go through the Demo page.
@@ -59,20 +56,46 @@ function App() {
   const [referenceSpecimens, setReferenceSpecimens] = useState([]);
   const [referenceImageState, setReferenceImageState] = useState("idle");
   const [referenceImageError, setReferenceImageError] = useState("");
-  const [selectedDetector, setSelectedDetector] = useState("BSE");
-  const [uncertaintyReport, setUncertaintyReport] = useState(null);
-  const [uncertaintyState, setUncertaintyState] = useState("idle");
-  const [uncertaintyError, setUncertaintyError] = useState("");
   const [batchView, setBatchView] = useState("images");
+  const [inventory, setInventory] = useState([]);
+  const [libraryState, setLibraryState] = useState("loading");
+  const [libraryError, setLibraryError] = useState("");
+  const [libraryRevision, setLibraryRevision] = useState(0);
 
-  const availableDetectors = [
-    ...new Set(referenceSpecimens.flatMap((specimen) => specimen.images.map((image) => image.filter.toUpperCase()))),
-  ].filter((detector) => supportedDetectors.includes(detector));
-  const analysisDetector = availableDetectors.includes(selectedDetector)
-    ? selectedDetector
-    : availableDetectors.includes("BSE")
-      ? "BSE"
-      : availableDetectors[0] || selectedDetector;
+  useEffect(() => {
+    if (route.page !== "batches") return undefined;
+    const controller = new AbortController();
+    fetch(`${API_URL}/batches/inventory`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`API returned ${response.status}`);
+        return response.json();
+      })
+      .then((rows) => {
+        if (!Array.isArray(rows)) throw new Error("Unexpected batch inventory.");
+        setInventory(rows);
+        setLibraryState("connected");
+        setLibraryError("");
+      })
+      .catch((cause) => {
+        if (cause.name !== "AbortError") {
+          setLibraryState("error");
+          setLibraryError(cause.message);
+        }
+      });
+    return () => controller.abort();
+  }, [route.page, libraryRevision]);
+
+  function refreshLibrary() {
+    setLibraryState("loading");
+    setLibraryError("");
+    if (selectedReferenceBatch) setReferenceImageState("loading");
+    setLibraryRevision((value) => value + 1);
+  }
+
+  const references = inventory.filter((batch) => batch.role === "reference");
+  const localImageCount = references.reduce((total, batch) => total + batch.image_count, 0);
+  const localGroupCount = references.reduce((total, batch) => total + batch.group_count, 0);
+  const selectedInventory = inventory.find((batch) => batch.batch_id === selectedReferenceBatch);
 
   // Health check for the data-readiness line at the bottom of the page.
   useEffect(() => {
@@ -113,38 +136,7 @@ function App() {
         }
       });
     return () => controller.abort();
-  }, [selectedReferenceBatch]);
-
-  useEffect(() => {
-    if (!selectedReferenceBatch) return undefined;
-
-    const controller = new AbortController();
-    fetch(
-      `${API_URL}/batches/${selectedReferenceBatch}/analysis-report?detector=${encodeURIComponent(analysisDetector)}`,
-      { signal: controller.signal },
-    )
-      .then(async (response) => {
-        if (!response.ok) {
-          const body = await response.json().catch(() => null);
-          throw new Error(body?.detail || `Analysis API returned ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((result) => {
-        if (!result || typeof result !== "object" || !Array.isArray(result.images)) {
-          throw new Error("The API returned an unexpected GET4 report.");
-        }
-        setUncertaintyReport(result);
-        setUncertaintyState("connected");
-      })
-      .catch((cause) => {
-        if (cause.name !== "AbortError") {
-          setUncertaintyError(cause.message);
-          setUncertaintyState("error");
-        }
-      });
-    return () => controller.abort();
-  }, [selectedReferenceBatch, analysisDetector]);
+  }, [selectedReferenceBatch, libraryRevision]);
 
   function selectReferenceBatch(batch) {
     if (selectedReferenceBatch === batch) {
@@ -152,31 +144,19 @@ function App() {
       setReferenceSpecimens([]);
       setReferenceImageError("");
       setReferenceImageState("idle");
-      setUncertaintyReport(null);
-      setUncertaintyError("");
-      setUncertaintyState("idle");
       return;
     }
     setReferenceSpecimens([]);
     setReferenceImageError("");
     setReferenceImageState("loading");
-    setUncertaintyReport(null);
-    setUncertaintyError("");
-    setUncertaintyState("loading");
     setSelectedReferenceBatch(batch);
+    setBatchView("images");
   }
 
   const views = isUnknownBatch(selectedReferenceBatch) ? unknownViews : referenceViews;
   const activeView = views.some((v) => v.id === batchView) ? batchView : "images";
 
   const referenceImageCount = referenceSpecimens.reduce((count, specimen) => count + specimen.images.length, 0);
-
-  function selectDetector(detector) {
-    setSelectedDetector(detector);
-    setUncertaintyReport(null);
-    setUncertaintyError("");
-    setUncertaintyState("loading");
-  }
 
   return (
     <main className="app-shell">
@@ -187,22 +167,46 @@ function App() {
       {route.page === "pipeline" && <PipelinePage apiUrl={API_URL} run={route.run} />}
       {route.page === "batches" && (
         <div className="content-wrap" id="overview">
-          <section className="page-heading">
+          <section className="page-heading reference-heading">
             <div>
-              <p className="eyebrow">ELECTRON MICROSCOPY / BATCH ORGANISATION</p>
-              <h1>Trace each image to its source</h1>
+              <p className="eyebrow">YOUR DATA / LOCAL REFERENCE LIBRARY</p>
+              <h1>Your reference batches</h1>
               <p className="page-subtitle">
-                Learn the three known battery batches, then assign each location in the unknown batch to its closest
-                reference, with evidence.
+                Explore the SEM images you supplied for Batch 1, 2 and 3. These are known reference labels from your
+                folders—not predictions generated by the website.
               </p>
             </div>
+            <div className="reference-actions">
+              <a className="v3-button" href="#demo">
+                Analyse a new image set
+              </a>
+              <a className="v3-button v3-ghost" href="#pipeline">
+                Open Pipeline
+              </a>
+            </div>
           </section>
+          <div className="reference-summary" aria-label="Local reference inventory">
+            <div>
+              <strong>
+                {libraryState === "connected" ? references.filter((batch) => batch.status === "ready").length : "—"}
+              </strong>
+              <span>reference batches available</span>
+            </div>
+            <div>
+              <strong>{libraryState === "connected" ? localImageCount : "—"}</strong>
+              <span>local TIFF views</span>
+            </div>
+            <div>
+              <strong>{libraryState === "connected" ? localGroupCount : "—"}</strong>
+              <span>image groups · not independent detector samples</span>
+            </div>
+          </div>
 
           <ol className="workflow" aria-label="Analysis workflow">
             <li className="workflow-step">
               <span className="workflow-number">01</span>
               <span>
-                <strong>Build the references</strong> · compare views within each known batch
+                <strong>Browse your references</strong> · inspect the images supplied locally
               </span>
             </li>
             <li className="workflow-step">
@@ -222,12 +226,27 @@ function App() {
           <section className="section-block" aria-labelledby="reference-title">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">REFERENCE LIBRARY · UNKNOWN SET</p>
-                <h2 id="reference-title">Batches</h2>
+                <p className="eyebrow">PROVIDED LABELS / ORIGINAL IMAGES</p>
+                <h2 id="reference-title">Choose a reference batch</h2>
               </div>
-              <span className="section-count">3 REFERENCE SETS + UNKNOWN</span>
+              <button
+                type="button"
+                className="toggle-button"
+                onClick={refreshLibrary}
+                disabled={libraryState === "loading"}
+              >
+                {libraryState === "loading" ? "Scanning local folders…" : "Refresh local images"}
+              </button>
             </div>
+            {libraryState === "error" && (
+              <p className="notice notice-error" role="alert">
+                Could not scan local images ({libraryError}). Check the backend, then refresh.
+              </p>
+            )}
             <BatchPicker
+              apiUrl={API_URL}
+              inventory={inventory}
+              libraryState={libraryState}
               batches={allBatches}
               selectedBatch={selectedReferenceBatch}
               imageState={referenceImageState}
@@ -237,8 +256,8 @@ function App() {
             />
             {!selectedReferenceBatch && (
               <p className="picker-hint">
-                Select a reference batch to see its images and analysis reports, or Unknown to classify and inspect the
-                unknown images. To test a new location, use the Demo page.
+                Select a batch to browse detector views and download the original TIFFs. Saved analysis reports remain
+                available in the batch tabs; adding images does not automatically retrain the models.
               </p>
             )}
             {selectedReferenceBatch && (
@@ -257,6 +276,8 @@ function App() {
                 <div {...tabPanelProps("batch-view", activeView)}>
                   {activeView === "images" && (
                     <ImageGallery
+                      key={selectedReferenceBatch}
+                      sourceFolder={selectedInventory?.source}
                       apiUrl={API_URL}
                       selectedBatch={selectedReferenceBatch}
                       imageState={referenceImageState}
@@ -283,47 +304,6 @@ function App() {
                     <>
                       <V3UnknownCalls apiUrl={API_URL} />
                       <UnknownBatch apiUrl={API_URL} />
-                    </>
-                  )}
-                  {activeView === "uncertainty" && (
-                    <>
-                      <div className="get4-controls">
-                        <label htmlFor="get4-detector">
-                          Analysis filter
-                          <select
-                            id="get4-detector"
-                            value={analysisDetector}
-                            onChange={(event) => selectDetector(event.target.value)}
-                          >
-                            {(availableDetectors.length > 0 ? availableDetectors : [selectedDetector]).map(
-                              (detector) => (
-                                <option value={detector} key={detector}>
-                                  {detector}
-                                </option>
-                              ),
-                            )}
-                          </select>
-                        </label>
-                        <span>
-                          Reports are analysed per filter. Views from one location are not counted as separate locations
-                          across filters.
-                        </span>
-                      </div>
-                      {analysisDetector === "BSE" && (
-                        <p className="notice">
-                          These phases are brightness classes: "pore" counts only the BSE-dark (deep) pores, and
-                          grey-floored open pores fall into "graphite". For the four-phase machine-learning segmentation
-                          (pore, graphite, SiOx, binder) see the General report.
-                        </p>
-                      )}
-                      <Get4Results
-                        key={`${selectedReferenceBatch}-${analysisDetector}`}
-                        report={uncertaintyReport}
-                        batchLabel={batchLabel(selectedReferenceBatch)}
-                        title="GET4 uncertainty results"
-                        loading={uncertaintyState === "loading"}
-                        error={uncertaintyState === "error" ? uncertaintyError : ""}
-                      />
                     </>
                   )}
                 </div>
@@ -361,8 +341,9 @@ function App() {
           </details>
 
           <p className="integrity-note">
-            Reference images load only after selecting a batch. No image classifications are inferred; matching needs
-            analysis evidence.
+            Original TIFFs stay in your local folders. Reference labels come from those folders; image grouping uses
+            filenames unless a matching analysis manifest is available. Viewing the library does not run the CV models
+            or AI agents.
           </p>
         </div>
       )}

@@ -43,8 +43,9 @@ uncertainty.
    - High-confidence answers are right 10 / 12.
    - An always-answer mode reaches 0.80 balanced accuracy (permutation p = 0.001).
 4. **Text-only explanations.** Every prediction writes a `facts.json`, including the maps described in words.
-   Three Claude agents (analyst, materials expert, skeptic) turn it into a report and may only quote numbers that
-   are in the file. A code check verifies that.
+   Four bounded roles (decision analyst/coordinator, research librarian, materials writer and grounding reviewer)
+   explain the actual decision using typed evidence and Corrective RAG. Numerical placeholders and source checks
+   gate publication; the system does not reclassify the image or claim to inspect its pixels.
 
 **The honest headline finding:** Batch 1 and Batch 2 differ only subtly (Batch 2 is more porous, with more open and hidden
 pores; their ranges overlap), so the
@@ -400,14 +401,18 @@ Each measurement → robust z → shrinkage LDA per view, and the views are comb
     (Clark-Evans);
   - quality-check and novelty flags;
   - summary sentences generated only from these numbers.
-- **Why text only:** the LLM can't misread a picture, and everything it says is traceable to a number.
-- **Three agents** (Claude Sonnet 5.5, medium effort):
-  1. **Evidence analyst:** lists the findings, quoting numbers exactly.
-  2. **Materials expert:** interprets the microstructure using the team's literature knowledge base (25 Si/C SEM
-     features with references), citing items by id and never as measurements.
-  3. **Skeptic / writer:** checks every claim against `facts.json`, deletes anything unsupported (and lists what
-     it deleted), and writes the final report.
-- **Code check:** every number in the report must occur in `facts.json`. Anything else is flagged on screen.
+- **Why text only:** agents explain supplied measurements and map descriptors, not independently inspected pixels.
+- **Four bounded roles**, shared by the website and compatibility CLI:
+  1. **Decision analyst/coordinator:** inspects typed facts and numerical comparison tools, and identifies relevant research questions.
+  2. **Research librarian:** investigates retrieval gaps using approved public scientific concepts, never private batch measurements.
+  3. **Materials writer:** connects actual sample evidence with accepted source passages in concise per-sample points.
+  4. **Grounding reviewer:** checks semantic support, applicability, opposing evidence and causal overreach. Substantive findings block publication.
+- **Corrective RAG:** local BM25/latent-semantic retrieval first; insufficient or conflicting support triggers bounded online
+  retrieval, source inspection and re-evaluation. Abstract-only knowledge remains a lead, not verified full-text support.
+- **Code checks:** numerical placeholders carry sample ownership, units, denominators and provenance. Checks enforce
+  decisions, comparisons, exact quotations and applicable source scope. No substring-based number pool or silent template fallback.
+- **Limitations:** these checks do not independently validate the upstream segmentation or prove every scientific interpretation.
+  Source gaps remain visible; papers explain concepts, not private batch identities. See the repository README for setup and budgets.
 
 ## B15. The website (one click: `scripts/start_website.bat`)
 
@@ -418,7 +423,7 @@ It starts the API on port 8002 and the website on port 5173. There are three pag
    comes back in about 65 s on the laptop GPU: batch, confidence tier and calibrated %.
 3. **Pipeline.** A step diagram and every step's output: inputs and quality check, segmentation overlay and
    composition, material features, DINOv2 evidence map, fingerprint, known-spot check, texture, GET4 range,
-   calibration and decision. **Generate report** runs the three agents.
+   calibration and decision. **Generate report** runs the shared research-grounded workflow, with expandable measurements and source passages.
 
 ## B16. The unknown batch (v3 answers)
 
@@ -547,18 +552,15 @@ Batch 1. So our answer is not simply copying the session.
     - It can't hallucinate from pixels.
     - Every number is traceable.
     - The maps are described numerically in words (`map_text`).
-29. **How do you stop the LLM making things up?**
-    - Strict rules.
-    - A skeptic agent that removes unsupported claims and lists them.
-    - A code check that every number in the report exists in `facts.json`.
-30. **Why three agents and not one?** Separation of roles:
-    - the analyst extracts the facts;
-    - the expert adds domain meaning from a curated knowledge base;
-    - the skeptic audits both.
-
-    In our test, the skeptic removed the expert's unverifiable literature claims.
-31. **Which model, and what does it cost?** Claude Sonnet at medium effort, a few cents per report. Opus was used
-    only for the one-off labelling.
+29. **How do you reduce unsupported claims?** Typed sample-owned facts and code-computed comparisons, exact quotation
+    checks, source applicability evaluation and an independent substantive reviewer. Rejected drafts are repaired within
+    a budget or fail explicitly. These checks reduce errors; they are not proof of scientific correctness.
+30. **Why four roles?** The coordinator selects decision evidence; the librarian corrects retrieval gaps; the materials
+    writer connects accepted concepts to measurements; the reviewer challenges the claims. A deterministic state graph
+    constrains all actions. A simple case need not invoke every role, and research may require multiple bounded calls.
+31. **Which model, and what does it cost?** Configurable Claude writer/reviewer models; defaults are Sonnet 5.5 at low
+    effort for writing and independent review. The audit records calls and token usage. Cost and latency depend on input size, retrieval and
+    repairs; there is no fixed per-report cost claim. Opus was used for the earlier one-off labelling.
 
 ### Engineering and the demo
 32. **How long does a prediction take?** About 65 s per location on a laptop GPU for the full pipeline.

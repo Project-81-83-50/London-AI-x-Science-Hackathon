@@ -3,9 +3,11 @@ location) and the Pipeline page (every step's output, plus a multi-agent Claude 
 
 v3's models need PyTorch and the trained weights, which live in sem_pipeline/ (V3_PROJECT_DIR; models are a
 release asset, see README) and a Python with PyTorch (V3_PYTHON, or the path in sem_pipeline/website/v3_python.txt,
-which scripts/start_website.bat or .sh writes). Runs are stored in sem_pipeline/website/runs.
+which scripts/start_website.bat or .sh writes, or else the API's own Python if it has PyTorch). Runs are stored in
+sem_pipeline/website/runs.
 """
 
+import importlib.util
 import json
 import logging
 import re
@@ -56,14 +58,20 @@ RUN_ID = re.compile(r"^[A-Za-z0-9_]+$")
 
 
 def v3_python() -> str:
-    """The Python that runs sem_pipeline (with PyTorch): V3_PYTHON, else <V3_PROJECT_DIR>/website/v3_python.txt."""
+    """The Python that runs sem_pipeline (with PyTorch): V3_PYTHON, else <V3_PROJECT_DIR>/website/v3_python.txt,
+    else this API's own Python when it has PyTorch installed (one environment for both, e.g. on macOS)."""
     override = v3_python_override()
     if override:
         return override
     cfg = V3_PYTHON_FILE
     if cfg.is_file() and Path(cfg.read_text(encoding="utf-8").strip()).is_file():
         return cfg.read_text(encoding="utf-8").strip()
-    raise RuntimeError(f"set V3_PYTHON or write the path of a Python with PyTorch into {cfg}")
+    if importlib.util.find_spec("torch") is not None:
+        return sys.executable
+    raise RuntimeError(
+        f"set V3_PYTHON, write the path of a Python with PyTorch into {cfg}, or install the sem_pipeline packages "
+        "into the API's environment (see README)"
+    )
 
 
 def run_dir(job: str) -> Path:
@@ -218,10 +226,9 @@ def current_method(
         final = dict(kc["probabilities"])
     d0 = kc["drivers"][0]
     means = ", ".join(f"{b.replace('_', ' ')} {_fmt(v, d0['unit'], d0['scale'])}" for b, v in d0["batch_means"].items())
-    driver = (
-        f"{d0['name']} ({KPI_MEANING.get(d0['feature'], d0['feature'])}) is "
-        f"{_fmt(d0['value'], d0['unit'], d0['scale'])}; batch means {means}"
-    )
+    described = (d0.get("description") or "").rstrip(".")
+    meaning = KPI_MEANING.get(d0["feature"]) or (described[:1].lower() + described[1:]) or d0["feature"]
+    driver = f"{d0['name']} ({meaning}) is {_fmt(d0['value'], d0['unit'], d0['scale'])}; batch means {means}"
     if old.get("answer_type") in ("refused", "known_location"):
         decision = {k: old[k] for k in ("answer", "answer_type", "confidence", "reasons") if k in old}
         if old.get("answer_type") == "known_location":
@@ -255,6 +262,15 @@ def current_method(
                 []
                 if kpi_top >= 0.5
                 else [f"The KPI model's top probability is {kpi_top:.0%}, below 50 %, so the confidence is Low."]
+            )
+            + (
+                [
+                    f"{len(kc['unmeasured_kpis'])} of the KPI model's {len(kc.get('all_kpis', []))} KPIs need a view "
+                    f"that was not uploaded (ETD or InLens), so it chose among the {kc.get('candidate_kpis')} "
+                    "measured ones; its reference accuracy is for the full set."
+                ]
+                if kc.get("unmeasured_kpis")
+                else []
             )
             + [
                 "Confidence rule: High when the KPI model is at least 50 % sure and the v3 material model "
@@ -573,35 +589,31 @@ def v3_run_file(job: str, sub: str, name: str) -> FileResponse:
 
 
 @router.post("/v3/jobs/{job}/report")
-def v3_report_start(job: str) -> dict[str, Any]:
+def v3_report_start(job: str, force: bool = False) -> dict[str, Any]:
     """Start the multi-agent report for a finished run in the background (sem_pipeline website.agents)."""
     folder = run_dir(job)
     if not (folder / "output" / "facts.json").exists():
         raise HTTPException(409, "the run has not finished")
-    status = folder / "output" / "report_status.json"
-    if status.exists() and json.loads(status.read_text(encoding="utf-8")).get("status") == "running":
-        return json.loads(status.read_text(encoding="utf-8"))
-    status.write_text(json.dumps({"status": "running", "stage": "starting the agents"}), encoding="utf-8")
-    subprocess.Popen(
-        [v3_python(), "-m", "website.agents", str(folder)],
-        cwd=V3_PROJECT_DIR,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    logger.info("Multi-agent report started for run %s", job)
-    return {"status": "running", "stage": "starting the agents"}
+    from ..research.config import ResearchError
+    from ..research.jobs import ReportJobs
+
+    try:
+        return ReportJobs().start(folder, force=force)
+    except ResearchError as exc:
+        status = 429 if exc.code == "capacity" else 503
+        raise HTTPException(status, str(exc)) from exc
 
 
 @router.get("/v3/jobs/{job}/report")
 def v3_report(job: str) -> dict[str, Any]:
     """The run's multi-agent report when done; otherwise its progress status, or {"status": "none"}."""
-    out = run_dir(job) / "output"
-    status = out / "report_status.json"
-    if status.exists():
-        s = json.loads(status.read_text(encoding="utf-8"))
-        if s.get("status") == "done" and (out / "report.json").exists():
-            return json.loads((out / "report.json").read_text(encoding="utf-8"))
-        return s
-    if (out / "report.json").exists():
-        return json.loads((out / "report.json").read_text(encoding="utf-8"))
-    return {"status": "none"}
+    from ..research.jobs import ReportJobs
+
+    return ReportJobs().read(run_dir(job))
+
+
+@router.post("/v3/jobs/{job}/report/cancel")
+def v3_report_cancel(job: str) -> dict[str, Any]:
+    from ..research.jobs import ReportJobs
+
+    return ReportJobs().cancel(run_dir(job))

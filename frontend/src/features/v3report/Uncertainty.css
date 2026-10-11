@@ -1,0 +1,411 @@
+/* General report, "How sure are these numbers?" (Uncertainty.jsx) */
+
+.get4-intro b {
+  color: var(--accent-strong);
+}
+
+.get4-phase-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.get4-phase-toggle button {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.get4-phase-toggle button.is-selected {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.get4-phase-toggle button:focus-visible,
+.get4-details summary:focus-visible {
+  outline: 3px solid rgba(var(--accent-rgb), 0.25);
+  outline-offset: 2px;
+}
+
+.get4-details {
+  margin-top: 22px;
+}
+
+.get4-details summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 14.5px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.get4-details[open] summary {
+  margin-bottom: 8px;
+}
+
+/* sections */
+
+.get4-block {
+  margin-top: 24px;
+}
+
+.get4-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 30px;
+}
+
+.get4-subheading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.get4-subheading h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 14.5px;
+  font-weight: 750;
+}
+
+.get4-subheading > span {
+  color: var(--get4-muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.get4-reading {
+  margin: 10px 0 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.get4-reading b {
+  color: var(--accent-strong);
+}
+
+.get4-method {
+  margin: 22px 0 0;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* range charts: a track with a light band (new location), a dark bar (batch mean) and a dot */
+
+.get4-ranges {
+  display: grid;
+  gap: 8px;
+}
+
+.get4-range-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 96px;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.get4-range-row.is-own {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.get4-range-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.get4-range-track {
+  position: relative;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--surface-3);
+}
+
+.get4-range-band,
+.get4-range-ci,
+.get4-location-interval {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.get4-range-band {
+  height: 100%;
+  border-radius: 6px;
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+.is-own .get4-range-band {
+  background: rgba(var(--accent-rgb), 0.32);
+}
+
+.get4-range-ci {
+  height: 8px;
+  border-radius: 99px;
+  background: var(--accent);
+}
+
+.get4-range-mean {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--surface);
+  border-radius: 50%;
+  background: var(--accent-strong);
+  transform: translate(-50%, -50%);
+}
+
+.get4-axis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--faint);
+  font:
+    11px "IBM Plex Mono",
+    monospace;
+}
+
+.get4-range-axis-row {
+  margin-top: -2px;
+}
+
+/* uncertainty budget */
+
+.get4-budget-bar {
+  display: flex;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--surface-3);
+}
+
+.get4-budget-segment {
+  min-width: 2px;
+}
+
+.get4-budget-area {
+  background: var(--faint);
+}
+
+.get4-budget-between {
+  background: var(--accent);
+}
+
+.get4-budget-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 9px;
+}
+
+.get4-budget-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.get4-budget-legend strong {
+  color: var(--ink-2);
+}
+
+.get4-budget-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* projection */
+
+.get4-projection {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.get4-projection li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.get4-projection li.is-now {
+  border-color: var(--accent-muted);
+  color: var(--ink-2);
+  background: var(--surface-2);
+}
+
+.get4-projection strong {
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+/* location table */
+
+.get4-image-table {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.get4-image-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.7fr) minmax(130px, 2fr) 92px minmax(65px, auto);
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--surface-3);
+  background: var(--surface);
+}
+
+.get4-image-row-header {
+  border-top: 0;
+  color: var(--faint);
+  background: var(--surface-2);
+  font:
+    600 11.5px "IBM Plex Mono",
+    monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.get4-axis-row {
+  padding-top: 4px;
+  padding-bottom: 8px;
+}
+
+.get4-image-name {
+  min-width: 0;
+}
+
+.get4-image-name strong {
+  display: block;
+  color: var(--accent-strong);
+  font:
+    600 12.5px "IBM Plex Mono",
+    monospace;
+}
+
+.get4-location-track {
+  height: 18px;
+}
+
+.get4-location-interval {
+  height: 3px;
+  border-radius: 99px;
+  background: var(--accent);
+}
+
+.get4-image-value {
+  color: var(--accent-strong);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.get4-image-value small {
+  color: var(--faint);
+  font-weight: 500;
+}
+
+.get4-image-status {
+  justify-self: start;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--surface-3);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.get4-image-status.has-flags {
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.get4-image-flags {
+  grid-column: 2 / -1;
+  margin: -3px 0 0;
+  padding-left: 16px;
+  color: var(--amber);
+  font-size: 12.5px;
+}
+
+@media (max-width: 720px) {
+  .get4-two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .get4-range-row {
+    grid-template-columns: 54px minmax(0, 1fr);
+  }
+
+  .get4-range-value {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .get4-image-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px 12px;
+  }
+
+  .get4-image-row-header,
+  .get4-axis-row {
+    display: none;
+  }
+
+  .get4-location-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .get4-image-value {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .get4-image-status {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .get4-image-flags {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 460px) {
+  .get4-subheading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .get4-subheading > span {
+    text-align: left;
+  }
+}

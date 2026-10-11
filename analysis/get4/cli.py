@@ -14,6 +14,29 @@ from .reporting import print_comparison
 
 # data/raw/ of the repository (analysis/get4/cli.py -> parents[2] is the repository root); read by --project
 RAW_ROOT = Path(__file__).resolve().parents[2] / "data" / "raw"
+# Supplied reference images; ReferenceBatches/Batch_N replaces data/raw/batch_N, as in analysis.fields.batch_dir
+REFERENCE_ROOT = Path(__file__).resolve().parents[2] / "ReferenceBatches"
+
+
+def project_batches(raw_root: Path, names: list[str] | None = None) -> list[tuple[str, Path]]:
+    """(batch name, image folder) pairs for --project: the named folders, else every batch_N folder.
+
+    A present ReferenceBatches/Batch_N folder (even an empty one) takes precedence over data/raw/batch_N unless
+    raw_root was overridden. The name is always the data/raw one (batch_N), which names the output folder."""
+    use_reference = raw_root == RAW_ROOT and REFERENCE_ROOT.is_dir()
+
+    def supplied(name: str) -> Path | None:
+        match = re.fullmatch(r"batch_(\d+)", name.lower())
+        path = REFERENCE_ROOT / f"Batch_{match.group(1)}" if match and use_reference else None
+        return path if path is not None and path.is_dir() else None
+
+    if not names:
+        found = [p.name for p in raw_root.iterdir() if p.is_dir()] if raw_root.is_dir() else []
+        if use_reference:
+            found += [p.name.lower() for p in REFERENCE_ROOT.iterdir() if p.is_dir()]
+        found = [name for name in found if re.fullmatch(r"batch_\d+", name.lower())]
+        names = sorted({name.lower(): name for name in found}.values(), key=lambda name: int(name.split("_")[1]))
+    return [(name, supplied(name) or raw_root / name) for name in names]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -123,24 +146,15 @@ def main(argv: list[str] | None = None) -> None:
         if args.baseline:
             parser.error("--baseline is not supported with --project; analyse a batch separately to use one")
         raw_root = RAW_ROOT
-        if args.batch:
-            batches = [raw_root / name for name in args.batch]
-            missing = [path.name for path in batches if not path.is_dir() or path.parent != raw_root]
-            if missing:
-                parser.error(f"no such folder under {raw_root}: {', '.join(missing)}")
-        else:
-            batches = (
-                sorted(
-                    path
-                    for path in raw_root.iterdir()
-                    if path.is_dir() and re.fullmatch(r"batch_\d+", path.name.lower())
-                )
-                if raw_root.is_dir()
-                else []
-            )
+        batches = project_batches(raw_root, args.batch)
+        missing = [
+            name for name, path in batches if name in {"", ".", ".."} or Path(name).name != name or not path.is_dir()
+        ]
+        if missing:
+            parser.error(f"no such folder under {raw_root}: {', '.join(missing)}")
         if not batches:
-            parser.error(f"no data/raw/batch_N folders found under {raw_root}")
-        for batch_dir in batches:
+            parser.error(f"no data/raw/batch_N or ReferenceBatches/Batch_N folders found under {raw_root.parents[1]}")
+        for batch_name, batch_dir in batches:
             grouped = {tag: [] for tag in DETECTOR_TAGS}
             locations = {}
             location_views = {}
@@ -163,7 +177,7 @@ def main(argv: list[str] | None = None) -> None:
                     continue
                 args.detector = detector.upper()
                 class_names = PHASES if detector == "bse" else INTENSITY_CLASSES
-                print(f"\n=== project analysis: {batch_dir.name} / {args.detector} ({len(paths)} images) ===")
+                print(f"\n=== project analysis: {batch_name} / {args.detector} ({len(paths)} images) ===")
                 if args.list_only:
                     for path in paths:
                         print(f"  {locations[path.name]} :: {args.detector} :: {path.name}")
@@ -171,22 +185,22 @@ def main(argv: list[str] | None = None) -> None:
                 analyse_paths(
                     paths,
                     args,
-                    out / batch_dir.name / args.detector,
+                    out / batch_name / args.detector,
                     parser,
                     class_names=class_names,
                     locations=locations,
-                    batch_id=batch_dir.name,
+                    batch_id=batch_name,
                 )
             if not args.list_only:
                 manifest = {
-                    "batch": batch_dir.name,
+                    "batch": batch_name,
                     "location_code_source": "filename component after 'img_' and before the detector suffix",
                     "locations": [
                         {"location_id": location, "views": sorted(views, key=lambda view: view["detector"])}
                         for location, views in sorted(location_views.items())
                     ],
                 }
-                (out / batch_dir.name / "location_manifest.json").write_text(json.dumps(manifest, indent=2))
+                (out / batch_name / "location_manifest.json").write_text(json.dumps(manifest, indent=2))
         return
     if args.list_only:
         parser.error("--list-only requires --project")

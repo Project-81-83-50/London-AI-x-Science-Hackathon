@@ -28,6 +28,8 @@ class _InlineThread:
 
 def _redirect(value, tmp_data: Path):
     if isinstance(value, Path):
+        if value.is_relative_to(REPO_ROOT / "ReferenceBatches"):
+            return tmp_data.parent / "ReferenceBatches" / value.relative_to(REPO_ROOT / "ReferenceBatches")
         try:
             return tmp_data / value.relative_to(REPO_DATA)
         except ValueError:
@@ -62,6 +64,7 @@ def api(tmp_path, monkeypatch):
     class Api:
         client = TestClient(main.app)
         raw = tmp_data / "raw"
+        references = tmp_path / "ReferenceBatches"
         processed = tmp_data / "processed"
         job_runs = runs
         unknown_module = unknown
@@ -90,6 +93,46 @@ def _batch_with_images(api, batch="batch_1") -> Path:
         write_tiff(folder / name, img)
     (folder / "notes.txt").write_text("not an image")
     return folder
+
+
+def test_inventory_shows_local_references_and_keeps_unknown_separate(api):
+    image = synthetic_image(60, (32, 40), np.uint8)
+    folder = api.references / "Batch_1"
+    for name in ("img_local1_BSE.tif", "img_local1_ETD.tif", "img_local1_Inlens.tif"):
+        write_tiff(folder / name, image)
+    response = api.client.get("/batches/inventory")
+    assert response.status_code == 200
+    rows = {row["batch_id"]: row for row in response.json()}
+    assert rows["1"]["source"] == "ReferenceBatches/Batch_1"
+    assert rows["1"]["image_count"] == 3 and rows["1"]["group_count"] == 1
+    assert rows["1"]["grouping"] == "filename"
+    assert rows["1"]["preview"] == "img_local1_BSE.tif"
+    assert rows["2"]["status"] == "missing"
+    assert rows["unknown"]["role"] == "unknown"
+    assert api.client.get("/batches/1/images").json()[0]["specimen_id"] == "local1"
+    download = api.client.get("/batches/1/images/img_local1_BSE.tif?download=true")
+    assert download.content == (folder / "img_local1_BSE.tif").read_bytes()
+    assert api.job_runs == []
+
+
+def test_local_references_take_precedence_and_inventory_refreshes(api):
+    _batch_with_images(api)
+    image = synthetic_image(60, (32, 40), np.uint8)
+    folder = api.references / "Batch_1"
+    write_tiff(folder / "img_local1_BSE.tif", image)
+    assert api.client.get("/batches/1/images").json()[0]["specimen_id"] == "local1"
+    assert api.client.get("/batches/1/images/img_ab12_BSE.tif").status_code == 404
+    write_tiff(folder / "img_local1_ETD.tif", image)
+    assert api.client.get("/batches/inventory").json()[0]["image_count"] == 2
+
+
+def test_inventory_handles_empty_local_folders_and_legacy_data(api):
+    (api.references / "Batch_1").mkdir(parents=True)
+    _batch_with_images(api, "batch_2")
+    rows = {row["batch_id"]: row for row in api.client.get("/batches/inventory").json()}
+    assert rows["1"]["status"] == "empty" and rows["1"]["preview"] is None
+    assert rows["2"]["source"] == "data/raw/batch_2"
+    assert rows["2"]["image_count"] == 4
 
 
 def test_list_images_grouped_by_filename(api):

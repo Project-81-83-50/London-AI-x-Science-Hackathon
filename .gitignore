@@ -8,6 +8,8 @@ __pycache__/
 # Frontend dependencies and build output.
 node_modules/
 dist/
+/frontend/test-results/
+/frontend/playwright-report/
 
 # Local secrets.
 .env
@@ -18,6 +20,7 @@ Thumbs.db
 
 # Microscopy data and generated results are large and kept outside Git (see README, "Dataset").
 /data/
+/ReferenceBatches/
 
 # Logs from local pipeline runs.
 *.log

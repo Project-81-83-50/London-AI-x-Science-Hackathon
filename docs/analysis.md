@@ -5,13 +5,13 @@ root with the project virtual environment. All outputs go to the Git-ignored `da
 
 ## Generate reference reports
 
-After copying images directly into `data/raw/batch_N/`, generate the reference-batch reports from the repository root with one command:
+After copying images directly into `ReferenceBatches/Batch_N/` (or the legacy `data/raw/batch_N/`), generate the reference-batch reports from the repository root with one command:
 
 ```powershell
 .\.venv\Scripts\python.exe -m analysis.reports
 ```
 
-The command detects populated `batch_N` folders and runs the KPI, fast GET4, and General/Detailed report generators in sequence. It stops and reports an error if any generator fails. Use `--full-resolution` to run GET4 at full resolution and create its per-image diagnostic plots:
+The command detects populated batch folders (a present `ReferenceBatches/Batch_N` takes precedence over `data/raw/batch_N`) and runs the KPI, fast GET4, and General/Detailed report generators in sequence. It stops and reports an error if any generator fails. Use `--full-resolution` to run GET4 at full resolution and create its per-image diagnostic plots:
 
 ```powershell
 .\.venv\Scripts\python.exe -m analysis.reports --full-resolution
@@ -21,7 +21,7 @@ Reports are written under `data/processed/`. The General/Detailed report builder
 
 ## GET4 batch uncertainty analysis
 
-GET4 can run a separate uncertainty analysis for every `data/raw/batch_N` folder. Install its Python packages from the repository root, then optionally check which images it will use:
+GET4 can run a separate uncertainty analysis for every reference batch folder (`ReferenceBatches/Batch_N`, else `data/raw/batch_N`). Install its Python packages from the repository root, then optionally check which images it will use:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r analysis\requirements.txt
@@ -44,9 +44,11 @@ Fast mode uses 2x coarser sampling by default when image calibration is availabl
 
 Project mode reads the filename location code (`img_<location>_<detector> (N).tif`) and analyses every recognized detector separately within each batch. For example, `img_4ih2ggld_BSE (6).tif` is location `4ih2ggld` imaged with BSE. Results are written under `data/processed/get4/batch_N/<DETECTOR>/`; `location_manifest.json` links all detector views that share a location code.
 
-When a reference batch is selected in the frontend, its website-ready report is requested from `GET /batches/{batch_id}/analysis-report?detector=BSE` (replace `BSE` with the selected filter). The generated `analysis_report.json` contains provisional image-derived KPI candidates for BSE, detector-intensity metrics for other filters, per-location evidence, confidence intervals, quality flags, and a machine-readable decision status. Generate the GET4 reports locally before expecting results to appear.
+The generated `analysis_report.json` (served by `GET /batches/{batch_id}/analysis-report?detector=BSE`, any detector) contains provisional image-derived KPI candidates for BSE, detector-intensity metrics for other filters, per-location evidence, confidence intervals, quality flags, and a machine-readable decision status.
 
-The unknown batch has the same **Uncertainty (GET4)** tab, served by `GET /batches/unknown/analysis-report?detector=BSE`. You don't generate it by hand: the unknown-batch analysis job runs `python -m analysis.get4 --project --fast --batch unknown` after the KPI classification (about 30 s for three locations) and writes to `data/processed/get4/unknown/`. `--batch` limits project mode to the named `data/raw` folders; without it, project mode analyses every `batch_N` folder as before.
+The website does not show these intensity classes for the reference batches: they disagree with the U-Net composition (the BSE "pore" class misses grey-floored open pores). GET4 appears instead in the **General report**: each composition tile carries the batch mean's 95 % interval, and the section **How sure are these numbers?** shows, per phase, the range where one new location of the batch is expected (compared across batches, which shows why single Batch 1 and Batch 2 locations are hard to tell apart), the uncertainty budget (within images vs between locations) and how the interval narrows with more locations or larger images. These come from the `uncertainty` block that `analysis.v3_report` adds to `data/processed/v3_report/batch_N.json`: the report's own per-location U-Net values with GET4's image standard errors (`sem_pipeline/outputs/metrics/v3_material_se.csv`), the spread between locations split into that image error and real location-to-location variation (random effects, equal weights, never below the image error), and t intervals over the locations. Only the per-image quality flags still come from the BSE `analysis_report.json`.
+
+The unknown batch's GET4 reports are served by `GET /batches/unknown/analysis-report?detector=BSE`. You don't generate it by hand: the unknown-batch analysis job runs `python -m analysis.get4 --project --fast --batch unknown` after the KPI classification (about 30 s for three locations) and writes to `data/processed/get4/unknown/`. `--batch` limits project mode to the named `data/raw` folders; without it, project mode analyses every `batch_N` folder as before.
 
 Each batch is a separate battery, so reports do not compare one batch against another or use a cross-batch baseline. No accept/watch/reject verdict is assigned unless approved KPI limits are defined. Different detector views of one location are linked as related observations, not pooled as independent locations. BSE uses GET4's provisional pore/graphite/bright intensity segmentation; ETD, InLens, and other recognized detectors report low/mid/high intensity classes only, because the BSE material-phase labels are not validated for those filters. Inspect each segmentation plot before interpreting any fractions as material properties. The reports estimate segmentation/sampling uncertainty within each detector group; they do not prove a change in battery properties or match images to source batches.
 
@@ -135,7 +137,7 @@ The phases are intensity classes and have not been validated against labelled or
 
 ## SEM pipeline v3 (`sem_pipeline/`)
 
-The General and Detailed reports (above) show the results of `sem_pipeline/`, the third iteration of the SEM segmentation pipeline; its own README and HANDOFF explain the method. The API locates it through `SEM_PIPELINE_DIR` in `backend/app/paths.py`.
+The General and Detailed reports (above) show the results of `sem_pipeline/`, the third iteration of the SEM segmentation pipeline; its `HANDOFF.md` explains the method and decisions, and `reports/report.md` its results. The API locates it through `SEM_PIPELINE_DIR` in `backend/app/paths.py`.
 
 v3 segments each location's BSE and InLens images into four phases: pore, graphite, SiOx and carbon-binder domain (CBD). It then decides the batch with two independent models, an imaging fingerprint and a material model. When they agree it gives one batch; when they split between batches 1 and 2 it answers "Batch 1 or Batch 2"; otherwise it answers "unsure". Tested by holding out each of the 31 reference locations in turn, it answered 26 of them and was right on 22 (85%).
 

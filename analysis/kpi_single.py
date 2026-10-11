@@ -81,13 +81,15 @@ def classify(kp: dict[str, float | None], bse: str | Path) -> dict:
     ref, y, X = load_references()
     u = np.array([np.nan if kp.get(f) is None else kp[f] for f in FEATURES], float)
     missing = [f for f, v in zip(FEATURES, u, strict=True) if np.isnan(v)]
-    u = np.where(np.isnan(u), X.mean(0), u)
-    sel = SelectedDLDA().fit(X, y)
-    p = sel.proba(u)[0]
+    # Only KPIs measured on THIS location may decide it: without an ETD (or InLens) view its comparison KPIs do not
+    # exist, and filling them with the reference mean would present an invented value as the deciding evidence.
+    measured = np.flatnonzero(~np.isnan(u))
+    sel = SelectedDLDA().fit(X[:, measured], y)
+    p = sel.proba(u[measured])[0]
     order = np.argsort(-p)
     top, margin = float(p[order[0]]), float(p[order[0]] - p[order[1]])
     tier = "medium" if top >= 0.5 else "low"  # the model scores < 0.7 on held-out references, so never "high"
-    m, cols = sel.model, sel.cols
+    m, cols = sel.model, measured[sel.cols]  # cols index FEATURES
     zu = m.z(u[cols][None])[0]
     # Per-KPI log-likelihood ratio of the predicted batch over the runner-up: positive supports the call.
     mean_top, mean_runner = m.means[order[0]], m.means[order[1]]
@@ -150,6 +152,12 @@ def classify(kp: dict[str, float | None], bse: str | Path) -> dict:
             "chance": 0.333,
             "features_chosen_per_fold": v.get("features_chosen_per_fold"),
         }
+        if missing:
+            validation["note"] = (
+                f"measured for the model that can choose among all {len(FEATURES)} KPIs; this location lacks "
+                f"{len(missing)} (no ETD or InLens view), so its model chose among the {len(measured)} measured ones "
+                "and is likely less accurate"
+            )
     heights = {}
     for loc in ref:
         with contextlib.suppress(OSError, KeyError):
@@ -173,6 +181,7 @@ def classify(kp: dict[str, float | None], bse: str | Path) -> dict:
         "confidence": tier,
         "margin": round(margin, 3),
         "kpis_used": [FEATURES[c] for c in cols],
+        "candidate_kpis": int(len(measured)),
         "inner_scores_by_k": {str(k): round(v, 3) for k, v in sel.inner_scores.items()},
         "drivers": drivers,
         "nearest_reference_locations": nearest,

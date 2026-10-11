@@ -63,8 +63,9 @@ def meaning(name):
 
 
 def read_raw(path):
-    """Raw grey image: channel 1 of the RGB TIFF."""
-    return np.asarray(Image.open(path))[..., 1]
+    """Raw grey image: channel 1 of an RGB TIFF, else the 2-D array as is."""
+    a = np.asarray(Image.open(path))
+    return a[..., 1] if a.ndim == 3 else a
 
 
 def tile_features(a, exclude_half=None):

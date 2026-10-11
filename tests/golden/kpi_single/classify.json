@@ -513,6 +513,7 @@
    "value": 6.226
   }
  ],
+ "candidate_kpis": 32,
  "confidence": "medium",
  "drivers": [
   {

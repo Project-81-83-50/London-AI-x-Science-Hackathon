@@ -115,8 +115,8 @@ def features(lab, bse, t_low):
 
 def session_probes(sid, paths, lab):
     """Acquisition (nuisance) probes for one sample from its raw BSE / Inlens TIFFs and label map."""
-    bse_raw = np.asarray(Image.open(paths["BSE"]))[..., 1].astype(np.float32)
-    inl_raw = np.asarray(Image.open(paths["Inlens"]))[..., 1].astype(np.float32)
+    raws = [np.asarray(Image.open(paths[d])) for d in ("BSE", "Inlens")]  # RGB (channel 1) or greyscale TIFFs
+    bse_raw, inl_raw = ((a[..., 1] if a.ndim == 3 else a).astype(np.float32) for a in raws)
     p = {"height_px": bse_raw.shape[0], "width_px": bse_raw.shape[1]}
     for name, a in (("bse", bse_raw), ("inlens", inl_raw)):
         p[f"{name}_p1"], p[f"{name}_p50"], p[f"{name}_p99"] = np.percentile(a, [1, 50, 99]).tolist()

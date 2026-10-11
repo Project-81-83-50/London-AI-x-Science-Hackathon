@@ -68,8 +68,8 @@ export default function DemoPage({ apiUrl }) {
           <h1>Which batch is this location from?</h1>
           <p className="page-subtitle">
             Upload the images of one location — the same spot imaged with different detectors. BSE and Inlens are
-            required; ETD/SE is optional and sharpens the imaging fingerprint. The models are trained on batches 1–3
-            only.
+            required; ETD/SE is optional but recommended, because the KPI model&apos;s most batch-separating measurement
+            needs it. The models are trained on batches 1–3 only.
           </p>
         </div>
       </section>
@@ -77,7 +77,7 @@ export default function DemoPage({ apiUrl }) {
         <div className="v3-grid3">
           {DETECTORS.map((det) => (
             <label key={det.id} className={`v3-drop ${files[det.id] ? "v3-has" : ""}`}>
-              <b>{det.id}</b> {!det.required && <span className="v3-muted">(optional)</span>}
+              <b>{det.id}</b> {!det.required && <span className="v3-muted">(optional, recommended)</span>}
               <br />
               <input
                 type="file"
@@ -92,7 +92,7 @@ export default function DemoPage({ apiUrl }) {
           <button className="v3-button" onClick={run} disabled={busy}>
             Identify the batch
           </button>{" "}
-          <span className="v3-small v3-muted">about 30–40 s on the GPU</span>
+          <span className="v3-small v3-muted">about 40–60 s (GPU or a recent laptop CPU)</span>
         </p>
         {error && <p className="v3-error">{error}</p>}
         {state && (

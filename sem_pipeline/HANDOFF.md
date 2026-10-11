@@ -1,7 +1,8 @@
 # HANDOFF: read this first (for the next agent / LLM)
 
 This file is the context you need to continue the work without redoing it. Detailed results are in
-`reports/report.md` (v3; §0 is the v3 update); how to run things is in `README.md`.
+`reports/report.md` (v3; §0 is the v3 update); how to run things is in the repository README and
+`docs/analysis.md`, and the stage order in `run_pipeline.py`.
 
 ## 1. Project in three lines
 - **Data:** 31 SEM cross-sections of a graphite + SiOx Li-ion anode, 3 batches (7 / 7 / 17). Each location has

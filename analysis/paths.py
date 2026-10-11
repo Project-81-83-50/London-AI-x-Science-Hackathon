@@ -19,6 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # Inputs
 RAW_DIR = REPO_ROOT / "data" / "raw"  # batch_N/ (reference batches) and unknown/
+REFERENCE_BATCHES_DIR = REPO_ROOT / "ReferenceBatches"
 RAW_UNKNOWN_DIR = RAW_DIR / "unknown"
 SEM_PIPELINE_DIR = REPO_ROOT / "sem_pipeline"  # the v3 SEM pipeline (analysis.v3_unknown, analysis.v3_report)
 BATCH_MATCH_CODE_DIR = REPO_ROOT / "batch_match"  # the batch-match classifier (analysis.batch_match)

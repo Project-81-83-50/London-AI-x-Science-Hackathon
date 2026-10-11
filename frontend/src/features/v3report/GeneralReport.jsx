@@ -4,9 +4,11 @@ import { useJson } from "../../hooks/useJson";
 import { useTooltip } from "../../hooks/useTooltip";
 import { DIFFERENCE_LABEL, differenceKind, formatP, formatValue, reportSubject } from "../../lib/v3format";
 import "../../styles/report.css";
+import Uncertainty from "./Uncertainty";
 import "./V3Report.css";
 
 const HEADLINE = ["pore_pct", "carbon_pct", "SiOx_pct"];
+const UNCERTAINTY_PHASE = { pore_pct: "pore", carbon_pct: "carbon", SiOx_pct: "SiOx" }; // data.uncertainty keys
 const COMPARED = [
   "pore_pct",
   "carbon_pct",
@@ -27,10 +29,19 @@ function CompositionTiles({ data, subject }) {
         const stat = general.comparison[id];
         const own = stat.batch[subject.key];
         const kind = differenceKind(stat);
+        const sure = data.uncertainty?.batches?.[subject.key]?.phases?.[UNCERTAINTY_PHASE[id]];
         return (
           <article className="kpi-tile" key={id}>
             <span className="kpi-tile-label">{def.name}</span>
-            <strong className="kpi-tile-value">{formatValue(own?.mean, def.unit)}</strong>
+            <strong className="kpi-tile-value">
+              {formatValue(own?.mean, def.unit)}
+              {sure && <span className="v3-tile-ci"> ± {sure.half_width_pp.toFixed(1)} pp</span>}
+            </strong>
+            {sure && (
+              <span className="kpi-tile-meta">
+                95% interval {formatValue(sure.ci95_pct[0], def.unit)}–{formatValue(sure.ci95_pct[1], def.unit)}
+              </span>
+            )}
             <span className="kpi-tile-meta">
               {own?.n > 1 ? `SD ${formatValue(own.sd, def.unit)}` : "1 location"} ·{" "}
               {subject.unknown ? "batches" : "other batches"}{" "}
@@ -206,6 +217,10 @@ function GeneralReport({ apiUrl, batch }) {
           </ul>
         )}
       </div>
+
+      {data.uncertainty?.batches?.[subject.key] && (
+        <Uncertainty apiUrl={apiUrl} batch={batch} uncertainty={data.uncertainty} />
+      )}
 
       <div className="kpi-tiles v3-tiles">
         <article className="kpi-tile">

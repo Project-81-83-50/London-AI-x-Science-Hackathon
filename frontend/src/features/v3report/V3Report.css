@@ -8,6 +8,14 @@
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+/* the batch mean's 95 % half-width next to a composition tile's value */
+.v3-tile-ci {
+  color: var(--kpi-muted);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
 /* Comparison chart: this batch is the emphasised mark, the other batches recede. */
 .v3-track {
   stroke: var(--line-strong);

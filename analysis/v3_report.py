@@ -51,6 +51,9 @@ PX_UM = 0.05  # v3 working resolution (50 nm/px); n_valid_px is counted at it
 RAW_PX_UM = 0.025  # raw resolution; the height group is the raw image height in px
 N_PERM = 5000  # label permutations of the session-stratified test
 ALPHA = 0.05
+# General report, "How sure are these numbers?": v3's per-location values with GET4's image error bars
+UNCERTAINTY_PHASES = {"pore": "Pore", "carbon": "Carbon (graphite + binder)", "SiOx": "SiOx"}
+TARGET_HALF_WIDTH_PP = 1.0  # "how many locations for a +-1 percentage-point batch interval"
 
 # id: (name, unit, group, description). Units: "%" are percent of the analysed field.
 SEGMENTATION_METRICS = {
@@ -146,6 +149,17 @@ def location_metrics() -> list[dict]:
         p.stem: json.loads(p.read_text(encoding="utf-8"))
         for p in (SEM_PIPELINE_DIR / "outputs" / "batchid").glob("*.json")
     }
+    # Which model drew the overlays: outputs/segmentation/README.json (src.finalize) names it; without it they are
+    # assumed to be run_cpu_pipeline.py's teacher rebuild.
+    seg_readme = SEM_PIPELINE_DIR / "outputs" / "segmentation" / "README.json"
+    overlay_model = (
+        json.loads(seg_readme.read_text(encoding="utf-8")).get("source_model") if seg_readme.is_file() else None
+    )
+    overlay_label = (
+        "overlay and numbers: v3 U-Net"
+        if overlay_model == "student"
+        else "overlay: v3 teacher (CPU rebuild); numbers: v3 U-Net"
+    )
     rows = []
     for r in phases:
         sid = r["sample_id"]
@@ -205,12 +219,12 @@ def location_metrics() -> list[dict]:
                 if decision
                 else None,
                 "summary_sentences": (facts.get(sid) or {}).get("summary_sentences", []),
-                # Overlays exist once run_cpu_pipeline.py has rebuilt the label maps (from the CPU teacher, so they can
-                # differ slightly from the U-Net numbers in this report).
+                # Overlays exist once run_cpu_pipeline.py (CPU teacher, can differ slightly from the U-Net numbers in
+                # this report) or the U-Net (src.finalize / src.predict) has written the label maps.
                 **(
                     {
                         "overlay": f"/batches/{r['batch'][-1]}/segmentation-report/overlays/{sid}",
-                        "model_label": "overlay: v3 teacher (CPU rebuild); numbers: v3 U-Net",
+                        "model_label": overlay_label,
                         "segmented_from": ["BSE", "InLens"],
                     }
                     if (SEM_PIPELINE_DIR / "outputs" / "segmentation" / r["batch"] / sid / "overlay.jpg").is_file()
@@ -346,6 +360,72 @@ def own_stats(values) -> dict | None:
         "median": float(np.median(x)),
         "min": float(x.min()),
         "max": float(x.max()),
+    }
+
+
+def batch_uncertainty(rows: list[dict]) -> dict:
+    """How well each reference batch's composition is known (frontend: General report, "How sure are these numbers?").
+
+    Per batch and phase (pore / carbon / SiOx), from the report's own location values (`rows`, so the means match the
+    composition above) and each location's GET4 image standard error (U-Net label map, v3_material_se.csv):
+    - the batch mean and its 95 % interval (t interval over the locations);
+    - the spread between locations split into GET4's image error and real location-to-location variation
+      (random-effects, equal weights; the location variance is never taken below the image error, as in GET4);
+    - where ONE new location's measured value is expected (prediction interval): a single unknown location is compared
+      against it, so overlapping ranges mean the phase cannot tell those batches apart;
+    - how the interval narrows with more locations or larger images, assuming new locations vary like these."""
+    se = {r["sample_id"]: r for r in read_csv("v3_material_se.csv")}
+    out = {}
+    for batch in BATCHES:
+        mine = [r for r in rows if r["batch"] == batch and r["sample_id"] in se]
+        n = len(mine)
+        phases = {}
+        for ph, name in UNCERTAINTY_PHASES.items():
+            x = np.array([r["metrics"][f"{ph}_pct"] for r in mine], float)
+            image_var = np.array([float(se[r["sample_id"]][f"{ph}_se_pp"]) for r in mine]) ** 2
+            v_img = float(image_var.mean())
+            v_loc = max(float(x.var(ddof=1)), v_img)  # variance of one location's measured value
+            tau2 = v_loc - v_img  # real location-to-location variance
+
+            def half(k: int, v: float = v_loc) -> float:  # 95 % half-width of a k-location mean
+                return float(stats.t.ppf(0.975, k - 1) * np.sqrt(v / k))
+
+            mean, now = float(x.mean()), half(n)
+            pred = float(stats.t.ppf(0.975, n - 1) * np.sqrt(v_loc * (1 + 1 / n)))
+            phases[ph] = {
+                "name": name,
+                "mean_pct": round(mean, 3),
+                "ci95_pct": [round(mean - now, 3), round(mean + now, 3)],
+                "half_width_pp": round(now, 3),
+                "new_location95_pct": [round(max(0.0, mean - pred), 3), round(min(100.0, mean + pred), 3)],
+                "location_sd_pp": round(float(np.sqrt(tau2)), 3),
+                "typical_image_se_pp": round(float(np.sqrt(v_img)), 3),
+                "budget": {"within_images": round(v_img / v_loc, 3), "between_locations": round(tau2 / v_loc, 3)},
+                # the same extra imaging time spent two ways: twice the locations, or twice the area of every image
+                "narrowing_double_locations_pct": round(100 * (1 - half(2 * n) / now), 1),
+                "narrowing_double_image_area_pct": round(100 * (1 - half(n, tau2 + v_img / 2) / now), 1),
+                "projection": [{"locations": k, "half_width_pp": round(half(k), 3)} for k in sorted({n, 2 * n, 4 * n})],
+                "locations_for_target": next((k for k in range(2, 1001) if half(k) <= TARGET_HALF_WIDTH_PP), None),
+            }
+        out[batch] = {
+            "n_locations": n,
+            "phases": phases,
+            "locations": [
+                {
+                    "sample_id": r["sample_id"],
+                    **{
+                        ph: {"pct": r["metrics"][f"{ph}_pct"], "se_pp": num(se[r["sample_id"]][f"{ph}_se_pp"])}
+                        for ph in UNCERTAINTY_PHASES
+                    },
+                }
+                for r in mine
+            ],
+        }
+    return {
+        "method": "GET4 image standard errors (U-Net label maps) and a random-effects split of the spread between "
+        "locations; t intervals over the locations",
+        "target_half_width_pp": TARGET_HALF_WIDTH_PP,
+        "batches": out,
     }
 
 
@@ -545,6 +625,7 @@ def main() -> None:
     }
     hist_edges = np.round(np.geomspace(0.3, 12, 13), 3)
     particle_rows = read_csv("particle_sizes.csv")
+    uncertainty = batch_uncertainty(rows)
 
     OUT.mkdir(parents=True, exist_ok=True)
     for batch in BATCHES:
@@ -630,6 +711,7 @@ def main() -> None:
                 "map. Supplementary: none survives multiple-testing correction, and several follow "
                 "the imaging session.",
             },
+            "uncertainty": uncertainty,
         }
         path = OUT / f"batch_{batch[-1]}.json"
         path.write_text(json.dumps(report, indent=1), encoding="utf-8")

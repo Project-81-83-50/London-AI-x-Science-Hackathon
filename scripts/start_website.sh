@@ -9,10 +9,14 @@ cd "$(dirname "$0")/.."
 API_PORT=8002
 WEB_PORT=5173
 
+if ! command -v npm > /dev/null 2>&1 && [ -x ".venv/node-runtime/bin/npm" ]; then
+  export PATH="$PWD/.venv/node-runtime/bin:$PATH"
+fi
+
 if [ ! -x ".venv/bin/python" ]; then
   echo "Creating the website's Python environment once..."
   python3 -m venv .venv
-  .venv/bin/python -m pip install -r backend/app/requirements.txt
+  .venv/bin/python -m pip install -r backend/app/requirements.txt -r analysis/requirements.txt
 fi
 if [ ! -d "frontend/node_modules" ]; then
   echo "Installing the website packages once..."
@@ -24,10 +28,11 @@ fi
 # The v3 Demo / Pipeline pages run sem_pipeline with a Python that has PyTorch (see README).
 if [ ! -f "sem_pipeline/website/v3_python.txt" ]; then
   found=""
-  for candidate in python3 python; do
+  # The website's own .venv first (on macOS the sem_pipeline packages can be installed into it, see README).
+  for candidate in .venv/bin/python python3 python; do
     if command -v "$candidate" > /dev/null 2>&1 &&
-      "$candidate" -c "import sys, torch; open('sem_pipeline/website/v3_python.txt', 'w').write(sys.executable)" \
-        > /dev/null 2>&1; then
+      "$candidate" -c "import sys, torch, timm, segmentation_models_pytorch, lightgbm;
+open('sem_pipeline/website/v3_python.txt', 'w').write(sys.executable)" > /dev/null 2>&1; then
       found=1
       break
     fi

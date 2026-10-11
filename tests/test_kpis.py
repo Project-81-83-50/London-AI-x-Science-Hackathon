@@ -131,3 +131,17 @@ def test_kpi_single_classify(single_measurement, triplet_tiffs, monkeypatch, tmp
     assert result["predicted_batch"] in {"Batch_1", "Batch_2", "Batch_3"}
     assert result["session_hint"]["image_height_px"] == 512
     check_golden("kpi_single/classify", result)
+
+
+def test_kpi_single_classify_uses_only_measured_kpis(single_measurement, triplet_tiffs, monkeypatch, tmp_path):
+    """A location missing KPIs (e.g. no ETD view) is decided by the KPIs it has, never by filled-in reference
+    means. The synthetic references separate best on the first FEATURES, so those are the ones left unmeasured."""
+    monkeypatch.setattr(kpi_single, "load_references", _synthetic_references)
+    monkeypatch.setattr(kpi_single, "VALIDATION_CACHE", tmp_path / "missing.json")
+    kp, _ = single_measurement
+    unmeasured = set(classify.FEATURES[:3])
+    result = kpi_single.classify({k: None if k in unmeasured else v for k, v in kp.items()}, triplet_tiffs["BSE"])
+    assert set(result["unmeasured_kpis"]) >= unmeasured
+    assert not unmeasured & set(result["kpis_used"])
+    assert not unmeasured & {d["feature"] for d in result["drivers"]}
+    assert result["candidate_kpis"] == len(classify.FEATURES) - len(result["unmeasured_kpis"])

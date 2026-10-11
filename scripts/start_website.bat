@@ -7,7 +7,7 @@ cd /d "%~dp0.."
 if not exist ".venv\Scripts\python.exe" (
   echo Creating the website's Python environment once...
   py -m venv .venv
-  .venv\Scripts\python.exe -m pip install -r backend\app\requirements.txt
+  .venv\Scripts\python.exe -m pip install -r backend\app\requirements.txt -r analysis\requirements.txt
 )
 if not exist "frontend\node_modules" (
   echo Installing the website packages once...

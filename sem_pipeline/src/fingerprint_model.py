@@ -53,7 +53,8 @@ MEANING = {
 
 def measure_view(path, prefix):
     """Fingerprint measurements of one detector TIFF (det_features + LZW bytes per pixel), keys prefixed by `prefix`."""
-    a = np.asarray(Image.open(path))[..., 1]
+    a = np.asarray(Image.open(path))
+    a = a[..., 1] if a.ndim == 3 else a
     f = det_features(a, prefix)
     f[f"{prefix}_lzw_bytes_per_px"] = os.path.getsize(path) / a.size
     return f

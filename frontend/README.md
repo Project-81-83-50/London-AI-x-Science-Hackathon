@@ -2,9 +2,10 @@
 
 React 19 + Vite single-page app for the EM batch-QC workspace. It has three pages, switched by the URL hash:
 
-- **Batches** (default): pick reference batch 1–3 to browse its images, the General and Detailed reports (SEM pipeline v3
-  four-phase segmentation) and the GET4 uncertainty results; pick **Unknown** to see each unknown location's batch call
-  with its evidence.
+- **Batches** (default): a local reference library with image-backed cards, source folders and live TIFF/group counts.
+  Browse the supplied `ReferenceBatches/Batch_1..3` images using filename search and detector filters, refresh the
+  inventory after adding files, or open the existing General, Detailed and GET4 report tabs. **Unknown** remains a
+  separate workspace for unlabelled images and their classification. Loading references does not retrain models.
 - **Demo** (`#demo`): upload the BSE + InLens (+ ETD) images of one location and run the SEM pipeline (v3) on them.
 - **Pipeline** (`#pipeline/<run>`): every step's output for one run, plus the multi-agent report.
 
@@ -23,6 +24,16 @@ Run from this folder after `npm install`:
 | `npm run lint`         | Lint with Oxlint (`.oxlintrc.json`).                  |
 | `npm run format`       | Format every file with Prettier (`.prettierrc.json`). |
 | `npm run format:check` | Check formatting without writing (for CI).            |
+
+## Browser regression tests
+
+Run `npm run test:ui` to check Pipeline navigation, every bundled run, image zoom, research-report controls,
+expandable evidence, Markdown downloads and cancellation. The tests start their own Vite server on port 5189 and
+mock the API on port 8019; they do not run CV models or make paid research requests. Non-local browser requests
+are blocked. Keep port 5189 free before running the tests.
+
+On macOS, the tests use an installed Google Chrome. Otherwise, install Playwright's Chromium once with
+`npx playwright install chromium` before running the tests (`--with-deps` may be needed on Linux).
 
 ## Configuration
 
@@ -46,8 +57,8 @@ src/
 │                            #   report.css (cards, tiles, tables and charts shared by the reports)
 └── features/                # one folder per page section
     ├── reference/           #   BatchPicker, ImageGallery (Images tab)
-    ├── v3report/            #   GeneralReport, DetailedReport, SegmentationCharts
-    ├── uncertainty/         #   Get4Results (Uncertainty (GET4) tab)
+    ├── v3report/            #   GeneralReport (with Uncertainty: GET4 error bars), DetailedReport,
+    │                        #   SegmentationCharts
     ├── unknown/             #   UnknownBatch, KpiTrackRecord (unknown batch: Classification tab)
     └── v3live/              #   DemoPage, PipelinePage, V3UnknownCalls, V3Widgets, pipelineSteps
 ```
